@@ -751,7 +751,16 @@ export default function IAPage() {
                           {r.selected && <Check size={11} strokeWidth={3} />}
                         </button>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm" style={{ color: '#1A2B1C' }}>{r.title}</p>
+                          <input
+                            type="text"
+                            value={r.title}
+                            onChange={e => setReminders(prev => prev!.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
+                            onClick={e => e.stopPropagation()}
+                            className="font-bold text-sm w-full bg-transparent outline-none rounded-md px-1.5 py-0.5 -mx-1.5"
+                            style={{ color: '#1A2B1C', border: '1px solid transparent' }}
+                            onFocus={e => { e.target.style.border = '1px solid rgba(61,102,65,0.35)'; e.target.style.background = 'rgba(61,102,65,0.05)' }}
+                            onBlur={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
+                          />
                           {r.description && <p className="text-xs italic mt-0.5" style={{ color: 'rgba(26,43,28,0.50)' }}>{r.description}</p>}
                         </div>
                         <button onClick={() => setReminders(prev => prev!.map((x, j) => j === i ? { ...x, selected: false } : x))} className="flex-none w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(220,38,38,0.10)', color: '#DC2626' }}><X size={13} /></button>
@@ -794,8 +803,17 @@ export default function IAPage() {
                             {d.selected && <Check size={11} strokeWidth={3} />}
                           </button>
                           <div className="flex-1 min-w-0">
+                            <input
+                              type="text"
+                              value={d.title}
+                              onChange={e => setDocuments(prev => prev!.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
+                              onClick={e => e.stopPropagation()}
+                              className="font-bold text-sm w-full bg-transparent outline-none rounded-md px-1.5 py-0.5 -mx-1.5 mb-1"
+                              style={{ color: '#1A2B1C', border: '1px solid transparent' }}
+                              onFocus={e => { e.target.style.border = '1px solid rgba(61,102,65,0.35)'; e.target.style.background = 'rgba(61,102,65,0.05)' }}
+                              onBlur={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
+                            />
                             <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <p className="font-bold text-sm" style={{ color: '#1A2B1C' }}>{d.title}</p>
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: dc.bg, color: dc.accent }}>{dc.label}</span>
                             </div>
                             {d.description && <p className="text-xs italic" style={{ color: 'rgba(26,43,28,0.50)' }}>{d.description}</p>}
