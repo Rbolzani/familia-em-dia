@@ -215,8 +215,11 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
       (ownSub.status === 'active' || ownSub.status === 'trialing')
   }
 
-  // Free não recebe a agenda; sem atividades também não há o que enviar.
-  if (!familyIsPaid || activities.length === 0) return null
+  // Free não recebe a agenda. Sem atividades, o resumo ainda é enviado — as
+  // seções já têm texto de fallback ("Nenhuma atividade...") — pois pular o
+  // envio silenciosamente fazia o resumo diário parecer instável (chegava só
+  // em dias com atividade, nunca em dias tranquilos).
+  if (!familyIsPaid) return null
 
   // Cada seção vira uma linha própria no WhatsApp: no template, o texto fixo
   // já tem a quebra de linha entre seções — aqui só juntamos os itens DENTRO
