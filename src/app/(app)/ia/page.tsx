@@ -617,8 +617,17 @@ export default function IAPage() {
                               {a.selected && <Check size={11} strokeWidth={3} />}
                             </button>
                             <div className="flex-1 min-w-0">
+                              <input
+                                type="text"
+                                value={a.title}
+                                onChange={e => setActivities(prev => prev!.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
+                                onClick={e => e.stopPropagation()}
+                                className="font-bold text-sm w-full bg-transparent outline-none rounded-md px-1.5 py-0.5 -mx-1.5 mb-1"
+                                style={{ color: '#1A2B1C', border: '1px solid transparent' }}
+                                onFocus={e => { e.target.style.border = '1px solid rgba(61,102,65,0.35)'; e.target.style.background = 'rgba(61,102,65,0.05)' }}
+                                onBlur={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
+                              />
                               <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <span className="font-bold text-sm" style={{ color: '#1A2B1C' }}>{a.title}</span>
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundImage: cat.ibg, color: cat.icolor }}>{cat.label}</span>
                               </div>
                               <div className="flex gap-3 flex-wrap">
@@ -667,8 +676,17 @@ export default function IAPage() {
                             {allSelected && <Check size={11} strokeWidth={3} />}
                           </button>
                           <div className="flex-1 min-w-0">
+                            <input
+                              type="text"
+                              value={a0.title}
+                              onChange={e => { const v = e.target.value; setActivities(prev => prev!.map((x, j) => indices.includes(j) ? { ...x, title: v } : x)) }}
+                              onClick={e => e.stopPropagation()}
+                              className="font-bold text-sm w-full bg-transparent outline-none rounded-md px-1.5 py-0.5 -mx-1.5 mb-1"
+                              style={{ color: '#1A2B1C', border: '1px solid transparent' }}
+                              onFocus={e => { e.target.style.border = '1px solid rgba(61,102,65,0.35)'; e.target.style.background = 'rgba(61,102,65,0.05)' }}
+                              onBlur={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
+                            />
                             <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <span className="font-bold text-sm" style={{ color: '#1A2B1C' }}>{a0.title}</span>
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundImage: cat.ibg, color: cat.icolor }}>{cat.label}</span>
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: 'rgba(61,102,65,0.10)', color: '#3D6641' }}>
                                 <Repeat size={10} /> Toda {dates[0] ? weekdayLabel(dates[0]) : ''}
