@@ -280,6 +280,19 @@ export default function IAPage() {
     (reminders?.filter(r => r.selected).length ?? 0) +
     (documents?.filter(d => d.selected).length ?? 0)
 
+  // Atividade sem data = conceitualmente um lembrete (vai para o mural, não
+  // para o calendário) — por isso é exibida junto de Pendências/Lembretes,
+  // mesmo continuando a viver no array `activities` (data=null equivale a
+  // lembrete no banco). Se o usuário adicionar uma data de volta, ela some
+  // daqui e reaparece em Agenda automaticamente, já que a lista é recalculada
+  // a cada render a partir do estado atual.
+  const undatedActivities = (activities ?? [])
+    .map((a, i) => ({ a, i }))
+    .filter(({ a }) => !a.date)
+  const datedRenderItems = activities !== null
+    ? buildActivityRenderItems(activities).filter(item => item.kind === 'group' || !!activities[item.index].date)
+    : []
+
   // ── Sem permissão (partner read_only / logística) ───────────────────────────
   if (!access.canEdit) {
     return (
@@ -595,15 +608,17 @@ export default function IAPage() {
                   <BookOpen size={13} color="#2563EB" />
                 </div>
                 <h3 className="font-bold text-sm" style={{ color: '#1A2B1C' }}>
-                  Agenda / Compromissos ({buildActivityRenderItems(activities).length} item{buildActivityRenderItems(activities).length !== 1 ? 's' : ''}
-                  {activities.length !== buildActivityRenderItems(activities).length ? `, ${activities.length} ocorrências` : ''})
+                  Agenda / Compromissos ({datedRenderItems.length} item{datedRenderItems.length !== 1 ? 's' : ''}
+                  {activities.length !== datedRenderItems.length && datedRenderItems.some(it => it.kind === 'group') ? `, ${activities.length - undatedActivities.length} ocorrências` : ''})
                 </h3>
               </div>
               {activities.length === 0 ? (
                 <p className="text-xs italic px-2" style={{ color: 'rgba(26,43,28,0.40)' }}>Nenhuma atividade agendada identificada</p>
+              ) : datedRenderItems.length === 0 ? (
+                <p className="text-xs italic px-2" style={{ color: 'rgba(26,43,28,0.40)' }}>Nenhuma com data — veja em Pendências / Lembretes abaixo</p>
               ) : (
                 <div className="space-y-2">
-                  {buildActivityRenderItems(activities).map(item => {
+                  {datedRenderItems.map(item => {
                     if (item.kind === 'single') {
                       const i = item.index
                       const a = activities[i]
@@ -771,13 +786,70 @@ export default function IAPage() {
                   <Bell size={13} color="#D97706" />
                 </div>
                 <h3 className="font-bold text-sm" style={{ color: '#1A2B1C' }}>
-                  Pendências / Lembretes ({reminders.length})
+                  Pendências / Lembretes ({reminders.length + undatedActivities.length})
                 </h3>
               </div>
-              {reminders.length === 0 ? (
+              {reminders.length === 0 && undatedActivities.length === 0 ? (
                 <p className="text-xs italic px-2" style={{ color: 'rgba(26,43,28,0.40)' }}>Nenhuma pendência identificada</p>
               ) : (
                 <div className="space-y-2">
+                  {undatedActivities.map(({ a, i }) => {
+                    const cat = ACT_CONFIG[a.category] ?? ACT_CONFIG.escola
+                    return (
+                      <div key={`act-${i}`} style={{ ...CARD, padding: '12px 14px', borderLeft: '4px solid #D97706', opacity: a.selected ? 1 : 0.5 }}>
+                        <div className="flex items-start gap-3">
+                          <button onClick={() => setActivities(prev => prev!.map((x, j) => j === i ? { ...x, selected: !x.selected } : x))}
+                            className="mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-none"
+                            style={a.selected ? { background: '#D97706', borderColor: '#D97706', color: '#fff' } : { borderColor: 'rgba(61,102,65,0.22)' }}>
+                            {a.selected && <Check size={11} strokeWidth={3} />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <input
+                              type="text"
+                              value={a.title}
+                              onChange={e => setActivities(prev => prev!.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
+                              onClick={e => e.stopPropagation()}
+                              className="font-bold text-sm w-full bg-transparent outline-none rounded-md px-1.5 py-0.5 -mx-1.5 mb-1"
+                              style={{ color: '#1A2B1C', border: '1px solid transparent' }}
+                              onFocus={e => { e.target.style.border = '1px solid rgba(61,102,65,0.35)'; e.target.style.background = 'rgba(61,102,65,0.05)' }}
+                              onBlur={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
+                            />
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundImage: cat.ibg, color: cat.icolor }}>{cat.label}</span>
+                              <span className="text-[10px] font-semibold" style={{ color: 'rgba(146,64,14,0.75)' }}>sem data · vai para o mural</span>
+                            </div>
+                            <div className="flex gap-2 flex-wrap items-center">
+                              <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(26,43,28,0.50)' }}>
+                                📅
+                                <input type="date" value={a.date ?? ''} placeholder="Adicionar data"
+                                  onChange={e => { const v = e.target.value || null; setActivities(prev => prev!.map((x, j) => j === i ? { ...x, date: v } : x)) }}
+                                  onClick={e => e.stopPropagation()}
+                                  className="text-xs italic bg-transparent outline-none rounded px-1 py-0.5"
+                                  style={{ color: '#1A2B1C', border: '1px solid rgba(61,102,65,0.18)' }} />
+                              </span>
+                              <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(26,43,28,0.50)' }}>
+                                <Clock size={11} />
+                                <input type="time" value={a.time ?? ''}
+                                  onChange={e => { const v = e.target.value || null; setActivities(prev => prev!.map((x, j) => j === i ? { ...x, time: v } : x)) }}
+                                  onClick={e => e.stopPropagation()}
+                                  className="text-xs italic bg-transparent outline-none rounded px-1 py-0.5"
+                                  style={{ color: '#1A2B1C', border: '1px solid rgba(61,102,65,0.18)' }} />
+                              </span>
+                              <span className="flex items-center gap-1 text-xs flex-1 min-w-[100px]" style={{ color: 'rgba(26,43,28,0.50)' }}>
+                                <MapPin size={11} className="flex-none" />
+                                <input type="text" value={a.location ?? ''} placeholder="Local"
+                                  onChange={e => { const v = e.target.value || null; setActivities(prev => prev!.map((x, j) => j === i ? { ...x, location: v } : x)) }}
+                                  onClick={e => e.stopPropagation()}
+                                  className="text-xs italic bg-transparent outline-none rounded px-1 py-0.5 w-full min-w-0"
+                                  style={{ color: '#1A2B1C', border: '1px solid rgba(61,102,65,0.18)' }} />
+                              </span>
+                            </div>
+                          </div>
+                          <button onClick={() => setActivities(prev => prev!.map((x, j) => j === i ? { ...x, selected: false } : x))} className="flex-none w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(220,38,38,0.10)', color: '#DC2626' }}><X size={13} /></button>
+                        </div>
+                      </div>
+                    )
+                  })}
                   {reminders.map((r, i) => (
                     <div key={i} style={{ ...CARD, padding: '12px 14px', borderLeft: '4px solid #D97706', opacity: r.selected ? 1 : 0.5 }}>
                       <div className="flex items-start gap-3">
