@@ -97,7 +97,8 @@ Retorne APENAS um JSON válido neste formato exato (sem markdown, sem explicaç�
       "time": "HH:MM ou null",
       "description": "detalhes adicionais ou null",
       "location": "local ou null",
-      "recurring": false
+      "recurring": false,
+      "recurring_weeks": null
     }
   ],
   "reminders": [
@@ -134,6 +135,11 @@ Regras para activities:
   ("toda terça", "às segundas", "semanalmente") ou for uma grade de horário
   escolar. Rotina implícita ou hábito não é recorrência — se o conteúdo não
   disser a frequência com essas palavras, use recurring: false.
+- recurring_weeks: por quantas SEMANAS a recorrência deve valer, quando o
+  conteúdo disser um limite. Converta o que o usuário falou para semanas:
+  "por 4 semanas" → 4 · "durante 2 meses" → 8 · "até o fim do mês" → conte as
+  semanas a partir de hoje · "3 vezes" → 3. Se o conteúdo NÃO indicar limite
+  algum (incluindo grades de horário escolar), use null.
 
 Regras para documents:
 - category: exatamente "saude", "identidade", "contratos", "carteirinhas", "escolar", "vacinacao", "autorizacoes", "financeiro" ou "outros"
@@ -152,10 +158,13 @@ Se não houver itens de uma categoria, retorne array vazio [].
 Retorne apenas o JSON, sem texto antes ou depois.`
 }
 
-// Quantas semanas materializar para itens de grade de horário (recurring:
-// true) — a tabela activities não tem conceito de recorrência, então cada
-// ocorrência semanal vira uma linha própria até esse horizonte.
+// Horizonte PADRÃO de materialização (recurring: true) — a tabela activities
+// não tem conceito de recorrência, então cada ocorrência semanal vira uma
+// linha própria. Vale só quando o conteúdo não define um limite: "toda terça
+// por 4 semanas" respeita as 4 (recurring_weeks); grade de horário escolar,
+// que não tem condição de contorno, usa este padrão.
 const RECURRING_WEEKS = 12
+const MAX_RECURRING_WEEKS = 52
 
 interface ExtractedActivity {
   title: string
@@ -165,6 +174,7 @@ interface ExtractedActivity {
   description?: string | null
   location?: string | null
   recurring?: boolean
+  recurring_weeks?: number | null
   groupId?: string
 }
 
@@ -199,7 +209,12 @@ function expandRecurring(activities: ExtractedActivity[]): ExtractedActivity[] {
     if (isBreakPeriod(act.title)) return
     if (!act.recurring || !act.date) { result.push({ ...act, recurring: false }); return }
     const groupId = `rec-${idx}-${act.title}-${act.time}`
-    for (let week = 0; week < RECURRING_WEEKS; week++) {
+    // Limite dito pelo usuário manda; sem ele, cai no horizonte padrão.
+    const asked = Number(act.recurring_weeks)
+    const weeks = Number.isFinite(asked) && asked >= 1
+      ? Math.min(Math.floor(asked), MAX_RECURRING_WEEKS)
+      : RECURRING_WEEKS
+    for (let week = 0; week < weeks; week++) {
       const d = new Date(act.date + 'T12:00:00')
       d.setDate(d.getDate() + week * 7)
       result.push({ ...act, date: d.toISOString().split('T')[0], recurring: true, groupId })
