@@ -62,6 +62,16 @@ Ações que precisam ser feitas, mas SEM data específica de ocorrência:
 - Ligações a fazer, formulários a preencher
 - Tarefas sem prazo definido
 - Lembretes gerais ("precisa renovar carteirinha", "comprar material")
+- Rotinas mencionadas sem quando ("levar a Gabi na escola", "buscar o João")
+
+**REGRA CRÍTICA — nunca invente uma data.** Se o conteúdo não disser
+explicitamente QUANDO algo acontece, o item é um **reminder**, não uma
+activity. Só existe data quando ela está no conteúdo, seja absoluta
+("15/06", "dia 20") ou relativa ("amanhã", "sexta que vem", "toda terça").
+Exemplos: "levar Gabi na escola" → reminder (não diz quando).
+"levar Gabi na escola amanhã" → activity com data.
+"levar Gabi na escola toda segunda" → activity recorrente.
+Na dúvida entre activity sem data e reminder, escolha SEMPRE reminder.
 
 NÃO crie um reminder a partir de avisos/disclaimers genéricos de comunicados (ex: "este horário poderá sofrer alterações ao longo do ano letivo", "sujeito a mudanças", rodapés padrão de escola) — isso não é uma ação que o pai/mãe precisa tomar, é só um aviso legal do documento. Só crie reminder se houver uma ação real e específica pedida.
 
@@ -120,6 +130,10 @@ Regras para activities:
 - saude: consultas, vacinas, exames, retornos médicos
 - extracurricular: esportes, cursos, hobbies, competições
 - date: calcule datas relativas a partir de hoje se necessário; null se incerta
+- recurring: true SOMENTE se o conteúdo expressar recorrência explícita
+  ("toda terça", "às segundas", "semanalmente") ou for uma grade de horário
+  escolar. Rotina implícita ou hábito não é recorrência — se o conteúdo não
+  disser a frequência com essas palavras, use recurring: false.
 
 Regras para documents:
 - category: exatamente "saude", "identidade", "contratos", "carteirinhas", "escolar", "vacinacao", "autorizacoes", "financeiro" ou "outros"
@@ -162,6 +176,19 @@ const BREAK_KEYWORDS = ['recreio', 'almoço', 'almoco', 'lanche', 'saída', 'sai
 function isBreakPeriod(title: string): boolean {
   const t = title.toLowerCase()
   return BREAK_KEYWORDS.some(k => t.includes(k))
+}
+
+// Recorrência explícita na entrada de texto. A IA às vezes marca
+// recurring:true e inventa uma data-âncora para pedidos que não têm nem data
+// nem frequência ("levar Gabi na escola") — o item vira 12 ocorrências no
+// calendário em vez de um lembrete no mural. Quando a entrada é texto dá para
+// conferir isso de forma determinística, sem depender do prompt.
+const RECURRENCE_RE = /\b(tod[oa]s?\s+[oa]?s?\s*\w+|semanal(mente)?|quinzenal(mente)?|diariamente|segundas|ter[çc]as|quartas|quintas|sextas|s[áa]bados|domingos)\b/i
+
+// Sem marcador de recorrência, uma data que só existe para ancorar a série é
+// fabricada — zerá-la devolve o item para Pendências/Lembretes (date = null).
+function stripFabricatedRecurrence(acts: ExtractedActivity[]): ExtractedActivity[] {
+  return acts.map(a => (a.recurring ? { ...a, recurring: false, date: null } : a))
 }
 
 // Cada ocorrência gerada de um mesmo item recorrente leva o mesmo groupId,
@@ -276,8 +303,16 @@ export async function POST(req: NextRequest) {
     // Registrar uso de IA (não bloqueia a resposta se falhar)
     incrementAiUsage(user.id).catch(err => console.error('[ai-extract] incrementAiUsage error', err))
 
+    // Só a entrada de texto passa pela trava de recorrência — nela temos a
+    // fonte original para conferir. Em imagem, o texto está dentro da foto
+    // (uma grade de horário é recorrente de verdade), então mantemos a IA.
+    let activities: ExtractedActivity[] = parsed.activities ?? []
+    if (!normalized && !RECURRENCE_RE.test(text ?? '')) {
+      activities = stripFabricatedRecurrence(activities)
+    }
+
     return NextResponse.json({
-      activities: expandRecurring(parsed.activities ?? []),
+      activities: expandRecurring(activities),
       reminders: parsed.reminders ?? [],
       documents: parsed.documents ?? [],
     })
