@@ -630,10 +630,31 @@ export default function IAPage() {
                               <div className="flex items-center gap-2 flex-wrap mb-1">
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundImage: cat.ibg, color: cat.icolor }}>{cat.label}</span>
                               </div>
-                              <div className="flex gap-3 flex-wrap">
-                                {a.date && <span className="text-xs italic" style={{ color: 'rgba(26,43,28,0.50)' }}>📅 {fmtDateBR(a.date)}</span>}
-                                {a.time && <span className="text-xs flex items-center gap-1 italic" style={{ color: 'rgba(26,43,28,0.50)' }}><Clock size={11} /> {a.time}</span>}
-                                {a.location && <span className="text-xs flex items-center gap-1 italic" style={{ color: 'rgba(26,43,28,0.50)' }}><MapPin size={11} /> {a.location}</span>}
+                              <div className="flex gap-2 flex-wrap items-center">
+                                <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(26,43,28,0.50)' }}>
+                                  📅
+                                  <input type="date" value={a.date ?? ''}
+                                    onChange={e => { const v = e.target.value || null; setActivities(prev => prev!.map((x, j) => j === i ? { ...x, date: v } : x)) }}
+                                    onClick={e => e.stopPropagation()}
+                                    className="text-xs italic bg-transparent outline-none rounded px-1 py-0.5"
+                                    style={{ color: '#1A2B1C', border: '1px solid rgba(61,102,65,0.18)' }} />
+                                </span>
+                                <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(26,43,28,0.50)' }}>
+                                  <Clock size={11} />
+                                  <input type="time" value={a.time ?? ''}
+                                    onChange={e => { const v = e.target.value || null; setActivities(prev => prev!.map((x, j) => j === i ? { ...x, time: v } : x)) }}
+                                    onClick={e => e.stopPropagation()}
+                                    className="text-xs italic bg-transparent outline-none rounded px-1 py-0.5"
+                                    style={{ color: '#1A2B1C', border: '1px solid rgba(61,102,65,0.18)' }} />
+                                </span>
+                                <span className="flex items-center gap-1 text-xs flex-1 min-w-[100px]" style={{ color: 'rgba(26,43,28,0.50)' }}>
+                                  <MapPin size={11} className="flex-none" />
+                                  <input type="text" value={a.location ?? ''} placeholder="Local"
+                                    onChange={e => { const v = e.target.value || null; setActivities(prev => prev!.map((x, j) => j === i ? { ...x, location: v } : x)) }}
+                                    onClick={e => e.stopPropagation()}
+                                    className="text-xs italic bg-transparent outline-none rounded px-1 py-0.5 w-full min-w-0"
+                                    style={{ color: '#1A2B1C', border: '1px solid rgba(61,102,65,0.18)' }} />
+                                </span>
                               </div>
                               {!a.date && <div className="text-xs font-semibold mt-1 px-2.5 py-1 rounded-[10px] inline-block" style={{ background: 'linear-gradient(140deg,#FEF3C7,#FDE68A)', color: '#92400E' }}>⚠️ Data não identificada</div>}
                               {children.length > 1 && (
@@ -692,13 +713,28 @@ export default function IAPage() {
                                 <Repeat size={10} /> Toda {dates[0] ? weekdayLabel(dates[0]) : ''}
                               </span>
                             </div>
-                            <div className="flex gap-3 flex-wrap">
-                              {a0.time && <span className="text-xs flex items-center gap-1 italic" style={{ color: 'rgba(26,43,28,0.50)' }}><Clock size={11} /> {a0.time}</span>}
+                            <div className="flex gap-2 flex-wrap items-center">
                               {dates.length > 0 && (
                                 <span className="text-xs italic" style={{ color: 'rgba(26,43,28,0.50)' }}>
                                   📅 {fmtDateBR(dates[0])} a {fmtDateBR(dates[dates.length - 1])} · {indices.length} ocorrências
                                 </span>
                               )}
+                              <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(26,43,28,0.50)' }}>
+                                <Clock size={11} />
+                                <input type="time" value={a0.time ?? ''}
+                                  onChange={e => { const v = e.target.value || null; setActivities(prev => prev!.map((x, j) => indices.includes(j) ? { ...x, time: v } : x)) }}
+                                  onClick={e => e.stopPropagation()}
+                                  className="text-xs italic bg-transparent outline-none rounded px-1 py-0.5"
+                                  style={{ color: '#1A2B1C', border: '1px solid rgba(61,102,65,0.18)' }} />
+                              </span>
+                              <span className="flex items-center gap-1 text-xs flex-1 min-w-[100px]" style={{ color: 'rgba(26,43,28,0.50)' }}>
+                                <MapPin size={11} className="flex-none" />
+                                <input type="text" value={a0.location ?? ''} placeholder="Local"
+                                  onChange={e => { const v = e.target.value || null; setActivities(prev => prev!.map((x, j) => indices.includes(j) ? { ...x, location: v } : x)) }}
+                                  onClick={e => e.stopPropagation()}
+                                  className="text-xs italic bg-transparent outline-none rounded px-1 py-0.5 w-full min-w-0"
+                                  style={{ color: '#1A2B1C', border: '1px solid rgba(61,102,65,0.18)' }} />
+                              </span>
                             </div>
                             {children.length > 1 && (
                               <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
