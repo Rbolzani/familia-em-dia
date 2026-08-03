@@ -6,8 +6,10 @@ import {
   SunMedium, MapPin,
   ChevronLeft, ChevronRight,
   CalendarCheck, CalendarRange, Stethoscope,
-  StickyNote, Plus, Trash2, Check, Syringe,
+  StickyNote, Plus, Trash2, Check, Syringe, Pencil,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ActivityQuickEdit } from '@/components/activities/ActivityQuickEdit'
 import { Activity, Child } from '@/lib/types'
 import { mergeActivities } from '@/lib/merge-activities'
 import { format } from 'date-fns'
@@ -96,19 +98,33 @@ function SectionH({ children }: { children: React.ReactNode }) {
 }
 
 // ── Mini Calendar ──────────────────────────────────────────────────────────
-function MiniCalendar({ activitiesByDate: initialByDate }: { activitiesByDate: Record<string, ActWithChild[]> }) {
+function MiniCalendar({ activitiesByDate: initialByDate, canEdit, onChanged }: {
+  activitiesByDate: Record<string, ActWithChild[]>; canEdit: boolean; onChanged: () => void
+}) {
   const supabase = createClient()
   const today=new Date()
   const [yr,setYr]=useState(today.getFullYear())
   const [mo,setMo]=useState(today.getMonth())
   const [selected,setSelected]=useState<string|null>(null)
+  const [editingId,setEditingId]=useState<string|null>(null)
   // Cache of fetched months — key = "yyyy-MM", value = activitiesByDate for that month
   const [cache, setCache]=useState<Record<string, Record<string, ActWithChild[]>>>({
     [`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`]: initialByDate,
   })
+  // Bump após uma edição: zera o cache e força o refetch do mês. Mais simples
+  // e correto que remendar o cache na mão, já que a atividade pode ter mudado
+  // de data (sai de um dia, entra em outro).
+  const [reloadKey,setReloadKey]=useState(0)
 
   const monthKey=`${yr}-${String(mo+1).padStart(2,'0')}`
   const activitiesByDate = cache[monthKey] ?? {}
+
+  function afterEdit() {
+    setEditingId(null)
+    setCache({})
+    setReloadKey(k => k + 1)
+    onChanged()
+  }
 
   // Fetch when navigating to an uncached month
   useEffect(() => {
@@ -129,7 +145,7 @@ function MiniCalendar({ activitiesByDate: initialByDate }: { activitiesByDate: R
         }, {})
         setCache(prev => ({ ...prev, [monthKey]: byDate }))
       })
-  }, [yr, mo]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [yr, mo, reloadKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function prev() { if(mo===0){setMo(11);setYr(y=>y-1)}else setMo(m=>m-1); setSelected(null) }
   function next() { if(mo===11){setMo(0);setYr(y=>y+1)}else setMo(m=>m+1); setSelected(null) }
@@ -210,8 +226,21 @@ function MiniCalendar({ activitiesByDate: initialByDate }: { activitiesByDate: R
           <div className="space-y-2">
             {mergeActivities(selectedActs).map((group, gi)=>{
               const a = group[0]
+              if (editingId === a.id) {
+                return (
+                  <div key={a.id} className="p-2 rounded-[10px]"
+                    style={{ background:'rgba(61,102,65,0.06)', border:'1px solid rgba(61,102,65,0.22)' }}>
+                    <ActivityQuickEdit
+                      ids={group.map(item => item.id)}
+                      initial={{ title:a.title, date:a.date ?? null, time:a.time?.slice(0,5) ?? null, location:a.location ?? null }}
+                      onDone={() => setEditingId(null)}
+                      onSaved={afterEdit}
+                    />
+                  </div>
+                )
+              }
               return (
-                <div key={a.id} className="flex items-center gap-2 p-2 rounded-[10px]"
+                <div key={a.id} className="flex items-center gap-2 p-2 rounded-[10px] group"
                   style={{ background:'rgba(61,102,65,0.06)', border:'1px solid rgba(61,102,65,0.10)' }}>
                   <span style={{ fontSize:14 }}>{catIcon[a.category]??'📅'}</span>
                   <div className="flex-1 min-w-0">
@@ -226,6 +255,13 @@ function MiniCalendar({ activitiesByDate: initialByDate }: { activitiesByDate: R
                     </div>
                   </div>
                   {a.time && <span style={{ fontSize:11, color:'rgba(26,43,28,0.45)', flexShrink:0 }}>{a.time.slice(0,5)}</span>}
+                  {canEdit && (
+                    <button onClick={()=>setEditingId(a.id)} title="Editar atividade"
+                      className="flex-none w-6 h-6 rounded-[8px] flex items-center justify-center transition-all"
+                      style={{ background:'rgba(61,102,65,0.10)', border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
+                      <Pencil size={11}/>
+                    </button>
+                  )}
                 </div>
               )
             })}
@@ -238,15 +274,37 @@ function MiniCalendar({ activitiesByDate: initialByDate }: { activitiesByDate: R
 
 
 // ── Activity Row ───────────────────────────────────────────────────────────
-function ActivityRow({ activities }: { activities: ActWithChild[] }) {
+function ActivityRow({ activities, canEdit, onChanged }: {
+  activities: ActWithChild[]; canEdit: boolean; onChanged: () => void
+}) {
   const activity = activities[0]
   const cat    = CAT[activity.category as CatKey]??CAT.escola
   const todayDs= format(new Date(), 'yyyy-MM-dd')
   const overdue= activity.status==='pendente'&&!!activity.date&&activity.date<todayDs
+  const [editing, setEditing] = useState(false)
 
   const dateLabel = activity.date
     ? format(new Date(activity.date+'T00:00:00'), "EEE, dd/MM", {locale:ptBR}).replace(/^\w/,c=>c.toUpperCase())
     : 'Sem data'
+
+  // Em edição o card sai de dentro do <Link> — senão qualquer clique nos
+  // campos navegaria para a página da categoria.
+  if (editing) {
+    return (
+      <div style={{ ...ACT, alignItems:'stretch', cursor:'default' }}>
+        <div className="absolute pointer-events-none"
+          style={{ left:0, top:10, bottom:10, width:4, borderRadius:'0 4px 4px 0', background:cat.bar, boxShadow:`0 0 6px ${cat.barGlow}` }}/>
+        <div className="flex-1 min-w-0">
+          <ActivityQuickEdit
+            ids={activities.map(a => a.id)}
+            initial={{ title:activity.title, date:activity.date ?? null, time:activity.time?.slice(0,5) ?? null, location:activity.location ?? null }}
+            onDone={() => setEditing(false)}
+            onSaved={onChanged}
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <Link href={`/${activity.category==='escola'?'escola':activity.category==='saude'?'saude':'atividades'}`}>
@@ -288,6 +346,16 @@ function ActivityRow({ activities }: { activities: ActWithChild[] }) {
             )}
           </div>
         </div>
+
+        {canEdit && (
+          <button
+            onClick={e => { e.preventDefault(); e.stopPropagation(); setEditing(true) }}
+            title="Editar atividade"
+            className="flex-none w-7 h-7 rounded-[9px] flex items-center justify-center transition-all"
+            style={{ background:'rgba(61,102,65,0.08)', border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
+            <Pencil size={12}/>
+          </button>
+        )}
       </div>
     </Link>
   )
@@ -510,6 +578,12 @@ function VaccineAlertsPanel({ alerts }: { alerts: VaccineAlert[] }) {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function DashboardClient({ userName, children, todayActivities, upcomingActivities, monthActivities, reminders, vaccineAlerts }: Props) {
+  const router = useRouter()
+  const { canEdit } = useAccess()
+  // As listas vêm do Server Component; após uma edição, router.refresh() traz
+  // props frescas e a tela reflete a mudança (inclusive troca de dia).
+  const onChanged = () => router.refresh()
+
   // Group month activities by date for mini-calendar
   const activitiesByDate = monthActivities.reduce<Record<string, ActWithChild[]>>((acc, a) => {
     if (!a.date) return acc
@@ -590,13 +664,13 @@ export default function DashboardClient({ userName, children, todayActivities, u
               <p className="italic" style={{ fontSize:14, color:'rgba(26,43,28,0.50)' }}>Nenhuma atividade para hoje — aproveite!</p>
             </div>
           ) : (
-            mergeActivities(todayActivities).map((g,i)=><ActivityRow key={g[0].id} activities={g}/>)
+            mergeActivities(todayActivities).map((g,i)=><ActivityRow key={g[0].id} activities={g} canEdit={canEdit} onChanged={onChanged}/>)
           )}
 
           {upcomingActivities.length>0&&(
             <div className="mt-5 md:mt-6">
               <SectionH>Próximos 7 dias</SectionH>
-              {mergeActivities(upcomingActivities).map((g,i)=><ActivityRow key={g[0].id} activities={g}/>)}
+              {mergeActivities(upcomingActivities).map((g,i)=><ActivityRow key={g[0].id} activities={g} canEdit={canEdit} onChanged={onChanged}/>)}
             </div>
           )}
         </div>
@@ -605,7 +679,7 @@ export default function DashboardClient({ userName, children, todayActivities, u
         <div className="space-y-[18px] md:space-y-[22px]">
           <div>
             <SectionH>Calendário</SectionH>
-            <MiniCalendar activitiesByDate={activitiesByDate}/>
+            <MiniCalendar activitiesByDate={activitiesByDate} canEdit={canEdit} onChanged={onChanged}/>
           </div>
           <VaccineAlertsPanel alerts={vaccineAlerts}/>
           <div>

@@ -4,8 +4,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Activity, Child } from '@/lib/types'
 import { CategoryBadge } from '@/components/ui/Badge'
 import { useAccess } from '@/components/access/AccessContext'
-import { ChevronLeft, ChevronRight, Clock, MapPin, X, BookOpen, HeartPulse, Trophy, CalendarDays, Trash2, Loader2, Pencil, Check } from 'lucide-react'
-import { toast } from '@/components/ui/Toast'
+import { ChevronLeft, ChevronRight, Clock, MapPin, X, BookOpen, HeartPulse, Trophy, CalendarDays, Trash2, Loader2, Pencil } from 'lucide-react'
+import { ActivityQuickEdit, type ActivityPatch } from '@/components/activities/ActivityQuickEdit'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
   isToday, startOfWeek, endOfWeek, addMonths, subMonths,
@@ -34,20 +34,10 @@ const LEGEND = [
 
 type ActivityWithChild = Activity & { child?: { name: string; avatar_color: string } }
 
-export interface ActivityPatch {
-  title: string; date: string | null; time: string | null; location: string | null
-}
-
-const EDIT_INPUT: React.CSSProperties = {
-  color: '#1A2B1C', background: 'rgba(255,255,255,0.85)',
-  border: '1px solid rgba(61,102,65,0.28)', borderRadius: 8,
-  padding: '3px 6px', outline: 'none', minWidth: 0,
-}
-
 function ActivityDetailCard({ a, i, onDelete, onSave, canEdit }: {
   a: ActivityWithChild; i: number; canEdit: boolean
   onDelete: (id: string) => Promise<void>
-  onSave: (id: string, patch: ActivityPatch) => Promise<boolean>
+  onSave: (id: string, patch: ActivityPatch) => void
 }) {
   const bar  = CAT_BAR[a.category]    ?? '#5A8C5E'
   const ibg  = CAT_ICO_BG[a.category] ?? 'rgba(61,102,65,0.08)'
@@ -55,20 +45,6 @@ function ActivityDetailCard({ a, i, onDelete, onSave, canEdit }: {
   const Icon = CAT_ICON[a.category]   ?? CalendarDays
   const [deleting, setDeleting] = useState(false)
   const [editing,  setEditing]  = useState(false)
-  const [saving,   setSaving]   = useState(false)
-  const [form, setForm] = useState<ActivityPatch>({
-    title: a.title, date: a.date ?? null, time: a.time?.slice(0,5) ?? null, location: a.location ?? null,
-  })
-
-  // Reidrata a partir da prop quando ela muda (realtime / router.refresh).
-  // Sem isto o card ficaria com dados stale após atualização de outro membro
-  // da família — mesmo padrão exigido nos demais Client Components do app.
-  // Não sobrescreve enquanto o usuário está editando, para não perder o que
-  // ele digitou.
-  useEffect(() => {
-    if (editing) return
-    setForm({ title: a.title, date: a.date ?? null, time: a.time?.slice(0,5) ?? null, location: a.location ?? null })
-  }, [a.title, a.date, a.time, a.location, editing])
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
@@ -77,71 +53,22 @@ function ActivityDetailCard({ a, i, onDelete, onSave, canEdit }: {
     await onDelete(a.id)
   }
 
-  async function handleSave(e: React.MouseEvent) {
-    e.stopPropagation()
-    const title = form.title.trim()
-    if (!title) { toast('O título não pode ficar vazio.', 'error'); return }
-    setSaving(true)
-    const ok = await onSave(a.id, {
-      title,
-      date: form.date || null,
-      time: form.time || null,
-      location: form.location?.trim() || null,
-    })
-    setSaving(false)
-    if (ok) setEditing(false)
-  }
-
-  function cancelEdit(e: React.MouseEvent) {
-    e.stopPropagation()
-    setForm({ title: a.title, date: a.date ?? null, time: a.time?.slice(0,5) ?? null, location: a.location ?? null })
-    setEditing(false)
-  }
-
   // ── Modo edição ───────────────────────────────────────────────────────────
   if (editing) {
     return (
       <div className="rounded-[17px] p-3 flex items-start gap-2.5 animate-fade-up"
-        onClick={e => e.stopPropagation()}
-        // Impede que arrastar dentro dos campos puxe o bottom sheet no mobile.
-        onTouchStart={e => e.stopPropagation()}
-        onTouchMove={e => e.stopPropagation()}
         style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF 0%,#FAF5EC 100%)',
           border:'1px solid rgba(61,102,65,0.32)',
           boxShadow:'0 2px 10px rgba(44,74,46,0.12),0 -1px 0 rgba(255,255,255,0.85) inset' }}>
         <div className="w-1 self-stretch rounded-full flex-none mt-0.5"
           style={{ background:bar, boxShadow:`0 0 4px ${bar}50` }} />
-        <div className="flex-1 min-w-0 space-y-1.5">
-          <input type="text" value={form.title} autoFocus
-            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            placeholder="Título"
-            className="w-full font-semibold text-sm"
-            style={EDIT_INPUT} />
-          <div className="flex gap-1.5">
-            <input type="date" value={form.date ?? ''}
-              onChange={e => setForm(f => ({ ...f, date: e.target.value || null }))}
-              className="text-xs flex-1" style={EDIT_INPUT} />
-            <input type="time" value={form.time ?? ''}
-              onChange={e => setForm(f => ({ ...f, time: e.target.value || null }))}
-              className="text-xs" style={{ ...EDIT_INPUT, width: 88 }} />
-          </div>
-          <input type="text" value={form.location ?? ''}
-            onChange={e => setForm(f => ({ ...f, location: e.target.value || null }))}
-            placeholder="Local"
-            className="w-full text-xs" style={EDIT_INPUT} />
-          <div className="flex gap-1.5 pt-0.5">
-            <button onClick={handleSave} disabled={saving}
-              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[9px] text-xs font-bold transition-all disabled:opacity-60"
-              style={{ background:'linear-gradient(140deg,#3D6641,#2C4A2E)', color:'#fff' }}>
-              {saving ? <Loader2 size={12} className="animate-spin"/> : <Check size={12} strokeWidth={3}/>}
-              {saving ? 'Salvando...' : 'Salvar'}
-            </button>
-            <button onClick={cancelEdit} disabled={saving}
-              className="px-3 py-1.5 rounded-[9px] text-xs font-bold transition-all disabled:opacity-60"
-              style={{ background:'rgba(26,43,28,0.06)', color:'rgba(26,43,28,0.55)', border:'1px solid rgba(61,102,65,0.16)' }}>
-              Cancelar
-            </button>
-          </div>
+        <div className="flex-1 min-w-0">
+          <ActivityQuickEdit
+            ids={[a.id]}
+            initial={{ title:a.title, date:a.date ?? null, time:a.time?.slice(0,5) ?? null, location:a.location ?? null }}
+            onDone={() => setEditing(false)}
+            onSaved={patch => onSave(a.id, patch)}
+          />
         </div>
       </div>
     )
@@ -207,7 +134,7 @@ function ActivityDetailCard({ a, i, onDelete, onSave, canEdit }: {
 function DayDetail({ selectedDay, selectedDayActs, onClose, onDelete, onSave, canEdit }: {
   selectedDay: Date; selectedDayActs: ActivityWithChild[]; onClose: ()=>void
   onDelete: (id: string) => Promise<void>
-  onSave: (id: string, patch: ActivityPatch) => Promise<boolean>
+  onSave: (id: string, patch: ActivityPatch) => void
   canEdit: boolean
 }) {
   return (
@@ -321,15 +248,12 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
     setActivities(prev => prev.filter(a => a.id !== id))
   }
 
-  // Se a data for alterada, a atividade simplesmente deixa de casar com o dia
-  // selecionado e some do painel — o card reaparece no novo dia, já que
-  // selectedDayActs é derivado de `activities` a cada render.
-  async function handleSave(id: string, patch: ActivityPatch): Promise<boolean> {
-    const { error } = await supabase.from('activities').update(patch).eq('id', id)
-    if (error) { toast('Não foi possível salvar. Tente novamente.', 'error'); return false }
+  // A gravação em si fica no ActivityQuickEdit; aqui só refletimos no estado
+  // local. Se a data mudar, a atividade deixa de casar com o dia selecionado e
+  // some do painel, reaparecendo no novo dia — selectedDayActs é derivado de
+  // `activities` a cada render.
+  function handleSave(id: string, patch: ActivityPatch) {
     setActivities(prev => prev.map(a => (a.id === id ? { ...a, ...patch } : a)))
-    toast('Atividade atualizada ✓')
-    return true
   }
 
   function closeSheet() { setSelectedDay(null); setDragY(0) }
