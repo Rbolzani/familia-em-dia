@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ActivityQuickEdit, useActivityDelete } from '@/components/activities/ActivityQuickEdit'
+import { toast } from '@/components/ui/Toast'
 import { Activity, Child } from '@/lib/types'
 import { mergeActivities } from '@/lib/merge-activities'
 import { format } from 'date-fns'
@@ -406,9 +407,16 @@ function RemindersPanel({ initial, allChildren }: { initial: ActWithChild[]; all
   const [childId, setChildId] = useState(allChildren[0]?.id ?? '')
   const [category, setCategory] = useState<'escola'|'saude'|'extracurricular'>('escola')
   const [saving, setSaving] = useState(false)
+  const [editingId, setEditingId] = useState<string|null>(null)
+  const [editText, setEditText] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (adding) inputRef.current?.focus() }, [adding])
+
+  // Reidrata quando as props mudam (realtime / router.refresh), sem atropelar
+  // uma edição em andamento.
+  useEffect(() => { if (!editingId) setItems(initial) }, [initial, editingId])
 
   async function handleAdd() {
     if (!text.trim() || !childId) return
@@ -426,6 +434,25 @@ function RemindersPanel({ initial, allChildren }: { initial: ActWithChild[]; all
   async function handleDone(id: string) {
     await supabase.from('activities').delete().eq('id', id)
     setItems(prev => prev.filter(x => x.id !== id))
+  }
+
+  // Lembrete é uma atividade sem data — só o título faz sentido editar aqui
+  // (data/horário/local viriam a reboque e o transformariam em compromisso).
+  async function handleRename(id: string) {
+    const title = editText.trim()
+    if (!title) { toast('O título não pode ficar vazio.', 'error'); return }
+    setSavingEdit(true)
+    const { error } = await supabase.from('activities').update({ title }).eq('id', id)
+    setSavingEdit(false)
+    if (error) { toast('Não foi possível salvar. Tente novamente.', 'error'); return }
+    setItems(prev => prev.map(x => (x.id === id ? { ...x, title } : x)))
+    setEditingId(null)
+    toast('Lembrete atualizado ✓')
+  }
+
+  function startEdit(item: ActWithChild) {
+    setEditingId(item.id)
+    setEditText(item.title)
   }
 
   const PANEL: React.CSSProperties = {
@@ -516,6 +543,35 @@ function RemindersPanel({ initial, allChildren }: { initial: ActWithChild[]; all
       <div className="space-y-2">
         {items.map(item => {
           const cat = REMINDER_CAT[item.category] ?? REMINDER_CAT.escola
+
+          if (editingId === item.id) {
+            return (
+              <div key={item.id} className="p-2 rounded-[11px] space-y-1.5"
+                style={{ background:'rgba(255,255,255,0.85)', border:'1px solid rgba(61,102,65,0.24)' }}>
+                <input
+                  value={editText} autoFocus
+                  onChange={e => setEditText(e.target.value)}
+                  onKeyDown={e => { if (e.key==='Enter') handleRename(item.id); if (e.key==='Escape') setEditingId(null) }}
+                  className="w-full text-[12.5px] font-semibold outline-none rounded-[8px] px-2 py-1"
+                  style={{ color:'#1A2B1C', background:'white', border:'1px solid rgba(61,102,65,0.28)' }}
+                />
+                <div className="flex gap-1.5">
+                  <button onClick={() => handleRename(item.id)} disabled={savingEdit}
+                    className="flex-1 flex items-center justify-center gap-1 py-1 rounded-[8px] text-[11px] font-bold transition-all disabled:opacity-60"
+                    style={{ background:'linear-gradient(140deg,#3D6641,#2C4A2E)', color:'#fff' }}>
+                    {savingEdit ? <Loader2 size={11} className="animate-spin"/> : <Check size={11} strokeWidth={3}/>}
+                    {savingEdit ? 'Salvando...' : 'Salvar'}
+                  </button>
+                  <button onClick={() => setEditingId(null)} disabled={savingEdit}
+                    className="px-2.5 py-1 rounded-[8px] text-[11px] font-bold transition-all disabled:opacity-60"
+                    style={{ background:'rgba(26,43,28,0.06)', color:'rgba(26,43,28,0.55)', border:'1px solid rgba(61,102,65,0.16)' }}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )
+          }
+
           return (
             <div key={item.id} className="flex items-start gap-2.5 group p-2 rounded-[11px] transition-colors"
               style={{ background:'rgba(255,255,255,0.70)', border:'1px solid rgba(61,102,65,0.10)' }}>
@@ -542,12 +598,21 @@ function RemindersPanel({ initial, allChildren }: { initial: ActWithChild[]; all
                 )}
               </div>
 
-              {/* Delete */}
-              <button onClick={() => handleDone(item.id)}
-                className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded-[7px] flex items-center justify-center flex-none transition-all"
-                style={{ background:'rgba(220,38,38,0.10)', color:'#DC2626' }}>
-                <Trash2 size={11}/>
-              </button>
+              {/* Editar / excluir */}
+              {canEdit && (
+                <div className="flex-none flex gap-1 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
+                  <button onClick={() => startEdit(item)} title="Editar lembrete"
+                    className="w-6 h-6 rounded-[7px] flex items-center justify-center transition-all"
+                    style={{ background:'rgba(61,102,65,0.10)', border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
+                    <Pencil size={11}/>
+                  </button>
+                  <button onClick={() => handleDone(item.id)} title="Excluir lembrete"
+                    className="w-6 h-6 rounded-[7px] flex items-center justify-center transition-all"
+                    style={{ background:'rgba(220,38,38,0.10)', border:'1px solid rgba(220,38,38,0.16)', color:'#DC2626' }}>
+                    <Trash2 size={11}/>
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}
