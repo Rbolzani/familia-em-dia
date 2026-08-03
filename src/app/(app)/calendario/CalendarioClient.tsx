@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Activity, Child } from '@/lib/types'
 import { CategoryBadge } from '@/components/ui/Badge'
 import { useAccess } from '@/components/access/AccessContext'
-import { ChevronLeft, ChevronRight, Clock, MapPin, X, BookOpen, HeartPulse, Trophy, CalendarDays, Trash2, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, MapPin, X, BookOpen, HeartPulse, Trophy, CalendarDays, Trash2, Loader2, Pencil, Check } from 'lucide-react'
+import { toast } from '@/components/ui/Toast'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
   isToday, startOfWeek, endOfWeek, addMonths, subMonths,
@@ -33,20 +34,117 @@ const LEGEND = [
 
 type ActivityWithChild = Activity & { child?: { name: string; avatar_color: string } }
 
-function ActivityDetailCard({ a, i, onDelete, canEdit }: {
-  a: ActivityWithChild; i: number; canEdit: boolean; onDelete: (id: string) => Promise<void>
+export interface ActivityPatch {
+  title: string; date: string | null; time: string | null; location: string | null
+}
+
+const EDIT_INPUT: React.CSSProperties = {
+  color: '#1A2B1C', background: 'rgba(255,255,255,0.85)',
+  border: '1px solid rgba(61,102,65,0.28)', borderRadius: 8,
+  padding: '3px 6px', outline: 'none', minWidth: 0,
+}
+
+function ActivityDetailCard({ a, i, onDelete, onSave, canEdit }: {
+  a: ActivityWithChild; i: number; canEdit: boolean
+  onDelete: (id: string) => Promise<void>
+  onSave: (id: string, patch: ActivityPatch) => Promise<boolean>
 }) {
   const bar  = CAT_BAR[a.category]    ?? '#5A8C5E'
   const ibg  = CAT_ICO_BG[a.category] ?? 'rgba(61,102,65,0.08)'
   const icol = CAT_BAR[a.category]    ?? '#3D6641'
   const Icon = CAT_ICON[a.category]   ?? CalendarDays
   const [deleting, setDeleting] = useState(false)
+  const [editing,  setEditing]  = useState(false)
+  const [saving,   setSaving]   = useState(false)
+  const [form, setForm] = useState<ActivityPatch>({
+    title: a.title, date: a.date ?? null, time: a.time?.slice(0,5) ?? null, location: a.location ?? null,
+  })
+
+  // Reidrata a partir da prop quando ela muda (realtime / router.refresh).
+  // Sem isto o card ficaria com dados stale após atualização de outro membro
+  // da família — mesmo padrão exigido nos demais Client Components do app.
+  // Não sobrescreve enquanto o usuário está editando, para não perder o que
+  // ele digitou.
+  useEffect(() => {
+    if (editing) return
+    setForm({ title: a.title, date: a.date ?? null, time: a.time?.slice(0,5) ?? null, location: a.location ?? null })
+  }, [a.title, a.date, a.time, a.location, editing])
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
     if (!confirm(`Excluir "${a.title}"?`)) return
     setDeleting(true)
     await onDelete(a.id)
+  }
+
+  async function handleSave(e: React.MouseEvent) {
+    e.stopPropagation()
+    const title = form.title.trim()
+    if (!title) { toast('O título não pode ficar vazio.', 'error'); return }
+    setSaving(true)
+    const ok = await onSave(a.id, {
+      title,
+      date: form.date || null,
+      time: form.time || null,
+      location: form.location?.trim() || null,
+    })
+    setSaving(false)
+    if (ok) setEditing(false)
+  }
+
+  function cancelEdit(e: React.MouseEvent) {
+    e.stopPropagation()
+    setForm({ title: a.title, date: a.date ?? null, time: a.time?.slice(0,5) ?? null, location: a.location ?? null })
+    setEditing(false)
+  }
+
+  // ── Modo edição ───────────────────────────────────────────────────────────
+  if (editing) {
+    return (
+      <div className="rounded-[17px] p-3 flex items-start gap-2.5 animate-fade-up"
+        onClick={e => e.stopPropagation()}
+        // Impede que arrastar dentro dos campos puxe o bottom sheet no mobile.
+        onTouchStart={e => e.stopPropagation()}
+        onTouchMove={e => e.stopPropagation()}
+        style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF 0%,#FAF5EC 100%)',
+          border:'1px solid rgba(61,102,65,0.32)',
+          boxShadow:'0 2px 10px rgba(44,74,46,0.12),0 -1px 0 rgba(255,255,255,0.85) inset' }}>
+        <div className="w-1 self-stretch rounded-full flex-none mt-0.5"
+          style={{ background:bar, boxShadow:`0 0 4px ${bar}50` }} />
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <input type="text" value={form.title} autoFocus
+            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+            placeholder="Título"
+            className="w-full font-semibold text-sm"
+            style={EDIT_INPUT} />
+          <div className="flex gap-1.5">
+            <input type="date" value={form.date ?? ''}
+              onChange={e => setForm(f => ({ ...f, date: e.target.value || null }))}
+              className="text-xs flex-1" style={EDIT_INPUT} />
+            <input type="time" value={form.time ?? ''}
+              onChange={e => setForm(f => ({ ...f, time: e.target.value || null }))}
+              className="text-xs" style={{ ...EDIT_INPUT, width: 88 }} />
+          </div>
+          <input type="text" value={form.location ?? ''}
+            onChange={e => setForm(f => ({ ...f, location: e.target.value || null }))}
+            placeholder="Local"
+            className="w-full text-xs" style={EDIT_INPUT} />
+          <div className="flex gap-1.5 pt-0.5">
+            <button onClick={handleSave} disabled={saving}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[9px] text-xs font-bold transition-all disabled:opacity-60"
+              style={{ background:'linear-gradient(140deg,#3D6641,#2C4A2E)', color:'#fff' }}>
+              {saving ? <Loader2 size={12} className="animate-spin"/> : <Check size={12} strokeWidth={3}/>}
+              {saving ? 'Salvando...' : 'Salvar'}
+            </button>
+            <button onClick={cancelEdit} disabled={saving}
+              className="px-3 py-1.5 rounded-[9px] text-xs font-bold transition-all disabled:opacity-60"
+              style={{ background:'rgba(26,43,28,0.06)', color:'rgba(26,43,28,0.55)', border:'1px solid rgba(61,102,65,0.16)' }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -84,22 +182,33 @@ function ActivityDetailCard({ a, i, onDelete, canEdit }: {
         <div className="mt-1.5"><CategoryBadge category={a.category}/></div>
       </div>
       {canEdit && (
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          title="Excluir atividade"
-          className="flex-none w-7 h-7 rounded-[9px] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:!opacity-100"
-          style={{ background:'rgba(220,38,38,0.08)', border:'1px solid rgba(220,38,38,0.16)', color: deleting ? 'rgba(220,38,38,0.40)' : '#DC2626' }}>
-          {deleting ? <Loader2 size={13} className="animate-spin"/> : <Trash2 size={13}/>}
-        </button>
+        <div className="flex-none flex flex-col gap-1">
+          <button
+            onClick={e => { e.stopPropagation(); setEditing(true) }}
+            title="Editar atividade"
+            className="w-7 h-7 rounded-[9px] flex items-center justify-center transition-all lg:opacity-0 lg:group-hover:opacity-100 hover:!opacity-100"
+            style={{ background:'rgba(61,102,65,0.08)', border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
+            <Pencil size={12}/>
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            title="Excluir atividade"
+            className="w-7 h-7 rounded-[9px] flex items-center justify-center transition-all lg:opacity-0 lg:group-hover:opacity-100 hover:!opacity-100"
+            style={{ background:'rgba(220,38,38,0.08)', border:'1px solid rgba(220,38,38,0.16)', color: deleting ? 'rgba(220,38,38,0.40)' : '#DC2626' }}>
+            {deleting ? <Loader2 size={13} className="animate-spin"/> : <Trash2 size={13}/>}
+          </button>
+        </div>
       )}
     </div>
   )
 }
 
-function DayDetail({ selectedDay, selectedDayActs, onClose, onDelete, canEdit }: {
+function DayDetail({ selectedDay, selectedDayActs, onClose, onDelete, onSave, canEdit }: {
   selectedDay: Date; selectedDayActs: ActivityWithChild[]; onClose: ()=>void
-  onDelete: (id: string) => Promise<void>; canEdit: boolean
+  onDelete: (id: string) => Promise<void>
+  onSave: (id: string, patch: ActivityPatch) => Promise<boolean>
+  canEdit: boolean
 }) {
   return (
     <>
@@ -134,7 +243,7 @@ function DayDetail({ selectedDay, selectedDayActs, onClose, onDelete, canEdit }:
               <p className="text-sm italic" style={{ color:'rgba(26,43,28,0.40)' }}>Nenhuma atividade neste dia.</p>
             </div>
           : selectedDayActs.map((a,i)=>(
-              <ActivityDetailCard key={a.id} a={a} i={i} onDelete={onDelete} canEdit={canEdit}/>
+              <ActivityDetailCard key={a.id} a={a} i={i} onDelete={onDelete} onSave={onSave} canEdit={canEdit}/>
             ))
         }
       </div>
@@ -210,6 +319,17 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
   async function handleDelete(id: string) {
     await supabase.from('activities').delete().eq('id', id)
     setActivities(prev => prev.filter(a => a.id !== id))
+  }
+
+  // Se a data for alterada, a atividade simplesmente deixa de casar com o dia
+  // selecionado e some do painel — o card reaparece no novo dia, já que
+  // selectedDayActs é derivado de `activities` a cada render.
+  async function handleSave(id: string, patch: ActivityPatch): Promise<boolean> {
+    const { error } = await supabase.from('activities').update(patch).eq('id', id)
+    if (error) { toast('Não foi possível salvar. Tente novamente.', 'error'); return false }
+    setActivities(prev => prev.map(a => (a.id === id ? { ...a, ...patch } : a)))
+    toast('Atividade atualizada ✓')
+    return true
   }
 
   function closeSheet() { setSelectedDay(null); setDragY(0) }
@@ -397,7 +517,7 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
         {selectedDay&&(
           <div className="hidden lg:flex w-72 flex-shrink-0 flex-col overflow-hidden animate-fade-in"
             style={{ borderLeft:'1px solid rgba(61,102,65,0.16)', backgroundImage:'linear-gradient(160deg,#FFFFFF 0%,#F8F3EA 100%)', boxShadow:'-4px 0 20px rgba(44,74,46,0.07)' }}>
-            <DayDetail selectedDay={selectedDay} selectedDayActs={selectedDayActs} onClose={closeSheet} onDelete={handleDelete} canEdit={canEdit}/>
+            <DayDetail selectedDay={selectedDay} selectedDayActs={selectedDayActs} onClose={closeSheet} onDelete={handleDelete} onSave={handleSave} canEdit={canEdit}/>
           </div>
         )}
       </div>
@@ -427,7 +547,7 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
               style={{ touchAction:'none' }}>
               <div className="w-10 h-1 rounded-full" style={{ background:'rgba(61,102,65,0.28)' }}/>
             </div>
-            <DayDetail selectedDay={selectedDay} selectedDayActs={selectedDayActs} onClose={closeSheet} onDelete={handleDelete} canEdit={canEdit}/>
+            <DayDetail selectedDay={selectedDay} selectedDayActs={selectedDayActs} onClose={closeSheet} onDelete={handleDelete} onSave={handleSave} canEdit={canEdit}/>
           </div>
         </>
       )}
