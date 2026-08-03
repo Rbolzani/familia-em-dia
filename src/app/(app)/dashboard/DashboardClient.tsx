@@ -6,10 +6,10 @@ import {
   SunMedium, MapPin,
   ChevronLeft, ChevronRight,
   CalendarCheck, CalendarRange, Stethoscope,
-  StickyNote, Plus, Trash2, Check, Syringe, Pencil,
+  StickyNote, Plus, Trash2, Check, Syringe, Pencil, Loader2,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { ActivityQuickEdit } from '@/components/activities/ActivityQuickEdit'
+import { ActivityQuickEdit, useActivityDelete } from '@/components/activities/ActivityQuickEdit'
 import { Activity, Child } from '@/lib/types'
 import { mergeActivities } from '@/lib/merge-activities'
 import { format } from 'date-fns'
@@ -94,6 +94,21 @@ function SectionH({ children }: { children: React.ReactNode }) {
       {children}
       <span className="flex-1 h-[2px] rounded" style={{ background:'linear-gradient(90deg,rgba(61,102,65,0.22),transparent)', minWidth:20 }}/>
     </div>
+  )
+}
+
+// Subcomponente para o botão de excluir do mini-calendário: useActivityDelete
+// é um hook e não pode ser chamado dentro do .map da lista de atividades.
+function MiniCalDeleteButton({ ids, title, onDeleted }: {
+  ids: string[]; title: string; onDeleted: () => void
+}) {
+  const { deleting, remove } = useActivityDelete(onDeleted)
+  return (
+    <button onClick={()=>remove(ids, title)} disabled={deleting} title="Excluir atividade"
+      className="w-6 h-6 rounded-[8px] flex items-center justify-center transition-all"
+      style={{ background:'rgba(220,38,38,0.08)', border:'1px solid rgba(220,38,38,0.16)', color: deleting?'rgba(220,38,38,0.40)':'#DC2626' }}>
+      {deleting ? <Loader2 size={11} className="animate-spin"/> : <Trash2 size={11}/>}
+    </button>
   )
 }
 
@@ -256,11 +271,14 @@ function MiniCalendar({ activitiesByDate: initialByDate, canEdit, onChanged }: {
                   </div>
                   {a.time && <span style={{ fontSize:11, color:'rgba(26,43,28,0.45)', flexShrink:0 }}>{a.time.slice(0,5)}</span>}
                   {canEdit && (
-                    <button onClick={()=>setEditingId(a.id)} title="Editar atividade"
-                      className="flex-none w-6 h-6 rounded-[8px] flex items-center justify-center transition-all"
-                      style={{ background:'rgba(61,102,65,0.10)', border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
-                      <Pencil size={11}/>
-                    </button>
+                    <div className="flex-none flex gap-1 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
+                      <button onClick={()=>setEditingId(a.id)} title="Editar atividade"
+                        className="w-6 h-6 rounded-[8px] flex items-center justify-center transition-all"
+                        style={{ background:'rgba(61,102,65,0.10)', border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
+                        <Pencil size={11}/>
+                      </button>
+                      <MiniCalDeleteButton ids={group.map(item=>item.id)} title={a.title} onDeleted={afterEdit}/>
+                    </div>
                   )}
                 </div>
               )
@@ -282,6 +300,7 @@ function ActivityRow({ activities, canEdit, onChanged }: {
   const todayDs= format(new Date(), 'yyyy-MM-dd')
   const overdue= activity.status==='pendente'&&!!activity.date&&activity.date<todayDs
   const [editing, setEditing] = useState(false)
+  const { deleting, remove } = useActivityDelete(onChanged)
 
   const dateLabel = activity.date
     ? format(new Date(activity.date+'T00:00:00'), "EEE, dd/MM", {locale:ptBR}).replace(/^\w/,c=>c.toUpperCase())
@@ -308,7 +327,7 @@ function ActivityRow({ activities, canEdit, onChanged }: {
 
   return (
     <Link href={`/${activity.category==='escola'?'escola':activity.category==='saude'?'saude':'atividades'}`}>
-      <div style={ACT}
+      <div style={ACT} className="group"
         onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.transform='translateX(5px) rotate(0.25deg)';el.style.boxShadow='0 6px 20px rgba(44,74,46,0.12),0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.90) inset,0 1px 0 rgba(0,0,0,0.04) inset'}}
         onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.transform='';el.style.boxShadow=''}}>
 
@@ -348,13 +367,23 @@ function ActivityRow({ activities, canEdit, onChanged }: {
         </div>
 
         {canEdit && (
-          <button
-            onClick={e => { e.preventDefault(); e.stopPropagation(); setEditing(true) }}
-            title="Editar atividade"
-            className="flex-none w-7 h-7 rounded-[9px] flex items-center justify-center transition-all"
-            style={{ background:'rgba(61,102,65,0.08)', border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
-            <Pencil size={12}/>
-          </button>
+          <div className="flex-none flex flex-col gap-1 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
+            <button
+              onClick={e => { e.preventDefault(); e.stopPropagation(); setEditing(true) }}
+              title="Editar atividade"
+              className="w-7 h-7 rounded-[9px] flex items-center justify-center transition-all"
+              style={{ background:'rgba(61,102,65,0.08)', border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
+              <Pencil size={12}/>
+            </button>
+            <button
+              onClick={e => { e.preventDefault(); e.stopPropagation(); remove(activities.map(a=>a.id), activity.title) }}
+              disabled={deleting}
+              title="Excluir atividade"
+              className="w-7 h-7 rounded-[9px] flex items-center justify-center transition-all"
+              style={{ background:'rgba(220,38,38,0.08)', border:'1px solid rgba(220,38,38,0.16)', color: deleting?'rgba(220,38,38,0.40)':'#DC2626' }}>
+              {deleting ? <Loader2 size={12} className="animate-spin"/> : <Trash2 size={12}/>}
+            </button>
+          </div>
         )}
       </div>
     </Link>

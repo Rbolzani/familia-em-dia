@@ -24,6 +24,31 @@ const INPUT: React.CSSProperties = {
   minWidth: 0,
 }
 
+// Exclusão de atividade, com a mesma confirmação e tratamento de erro em
+// todas as telas. Recebe a lista de ids porque uma linha visual pode agrupar
+// a mesma atividade de vários filhos.
+export function useActivityDelete(onDeleted: () => void) {
+  const supabase = createClient()
+  const [deleting, setDeleting] = useState(false)
+
+  async function remove(ids: string[], title: string) {
+    if (!confirm(`Excluir "${title}"?`)) return
+    setDeleting(true)
+    const { error } = await supabase.from('activities').delete().in('id', ids)
+    if (error) {
+      setDeleting(false)
+      toast('Não foi possível excluir. Tente novamente.', 'error')
+      return
+    }
+    toast('Atividade excluída')
+    // `deleting` segue true de propósito: o spinner fica até a lista ser
+    // recarregada e o card sumir.
+    onDeleted()
+  }
+
+  return { deleting, remove }
+}
+
 export function ActivityQuickEdit({ ids, initial, onDone, onSaved }: {
   // Uma linha visual pode representar várias atividades (a mesma atividade
   // para filhos diferentes, agrupada por mergeActivities) — a edição vale
