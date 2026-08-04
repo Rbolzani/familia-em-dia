@@ -135,7 +135,8 @@ interface SummaryActivity {
 // template (ver painel-projeto / CLAUDE.md para o corpo aprovado).
 export interface DailySummary {
   full: string        // versão texto corrido, para Twilio/texto livre (usa \n\n real)
-  params: [string, string, string, string, string]  // [data, hoje, próximos 7 dias, documentos, vacinas]
+  // [data, aulas de hoje, hoje, próximos 7 dias, documentos, vacinas]
+  params: [string, string, string, string, string, string]
 }
 
 // ── Monta o resumo do dia + próximos 7 dias para um usuário ─────────────────
@@ -171,10 +172,11 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   const today = spDate(0)
   const weekEnd = spDate(7)
 
-  // A rotina de aulas fica de fora do resumo: são ~9 matérias por dia (~45 na
-  // semana), que afogariam os compromissos que realmente importam — e o
-  // parâmetro do template da Meta tem limite de tamanho. `or` com is.null é
-  // obrigatório: `neq` sozinho descartaria as atividades normais (NULL).
+  // A rotina de aulas sai desta consulta e vai para a sua própria seção (só
+  // as de HOJE): na semana são ~45 aulas, que afogariam os compromissos e
+  // estourariam o limite de tamanho do parâmetro do template da Meta. `or`
+  // com is.null é obrigatório: `neq` sozinho descartaria as atividades
+  // normais, que têm school_kind NULL.
   const actsQuery = admin
     .from('activities')
     .select('title, category, date, time, takes_user_id, picks_user_id, child:children(name)')
@@ -198,6 +200,19 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   })
   const todayActs = activities.filter(a => a.date === today)
   const nextActs = activities.filter(a => a.date > today)
+
+  // Aulas de hoje — consulta própria, só a grade do dia.
+  const classQuery = admin
+    .from('activities')
+    .select('title, time, child:children(name)')
+    .eq('category', 'escola')
+    .eq('school_kind', 'aula')
+    .eq('date', today)
+    .neq('status', 'cancelado')
+    .order('time', { nullsFirst: false })
+  const { data: rawClasses } = familyIds.length > 0
+    ? await classQuery.in('family_id', familyIds)
+    : await classQuery.eq('user_id', userId)
 
   // Plano efetivo da família = plano do owner (ativo/trial). A agenda diária é
   // recurso PAGO; o aviso de grace é notificação de conta e é tratado à parte
@@ -230,6 +245,23 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   // já tem a quebra de linha entre seções — aqui só juntamos os itens DENTRO
   // de cada seção com " | " (o parâmetro do template não pode ter \n real).
   const dataParam = fmtShort(today)
+
+  // ── Aulas de hoje ────────────────────────────────────────────────────────
+  // O nome do filho só entra quando há aula de mais de um filho no dia: com
+  // um filho só ele seria repetido em todas as linhas sem informar nada.
+  const classList = (rawClasses ?? []) as unknown as Array<{ title: string; time: string | null; child: { name: string } | null }>
+  const classChildren = new Set(classList.map(c => c.child?.name).filter(Boolean))
+  const MAX_CLASSES = 14
+  let aulasParam = 'Nenhuma aula hoje 🎒'
+  if (classList.length > 0) {
+    const items = classList.slice(0, MAX_CLASSES).map(c => {
+      const hora = c.time ? `${c.time.slice(0, 5)} ` : ''
+      const quem = classChildren.size > 1 && c.child?.name ? ` (${c.child.name})` : ''
+      return `${hora}${c.title}${quem}`
+    })
+    if (classList.length > MAX_CLASSES) items.push(`… e mais ${classList.length - MAX_CLASSES} no app`)
+    aulasParam = items.join(' | ')
+  }
 
   let hojeParam: string
   if (todayActs.length > 0) {
@@ -319,6 +351,7 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
 
   const full = [
     `🌿 Bom dia! Resumo da Família — ${dataParam}`,
+    `🎒 Aulas de hoje\n${aulasParam}`,
     `🔥 Hoje\n${hojeParam}`,
     `📅 Próximos 7 dias\n${proximosParam}`,
     `📄 Documentos — vencimentos\n${documentosParam}`,
@@ -327,7 +360,7 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
 
   return {
     full,
-    params: [dataParam, hojeParam, proximosParam, documentosParam, vacinasParam],
+    params: [dataParam, aulasParam, hojeParam, proximosParam, documentosParam, vacinasParam],
   }
 }
 

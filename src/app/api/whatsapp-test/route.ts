@@ -20,8 +20,9 @@ export async function POST() {
 
   const admin = adminClient()
   const summary = await buildDailySummary(admin, user.id)
-  const params: [string, string, string, string, string] = summary?.params ?? [
+  const params: [string, string, string, string, string, string] = summary?.params ?? [
     'teste de conexão OK!',
+    'Nenhuma aula hoje 🎒',
     'Nenhuma atividade hoje.',
     'Nenhuma atividade nos próximos 7 dias.',
     'Nenhum vencimento nos próximos 15 dias.',
