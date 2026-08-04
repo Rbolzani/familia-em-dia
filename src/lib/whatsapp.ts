@@ -171,12 +171,17 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   const today = spDate(0)
   const weekEnd = spDate(7)
 
+  // A rotina de aulas fica de fora do resumo: são ~9 matérias por dia (~45 na
+  // semana), que afogariam os compromissos que realmente importam — e o
+  // parâmetro do template da Meta tem limite de tamanho. `or` com is.null é
+  // obrigatório: `neq` sozinho descartaria as atividades normais (NULL).
   const actsQuery = admin
     .from('activities')
     .select('title, category, date, time, takes_user_id, picks_user_id, child:children(name)')
     .gte('date', today)
     .lte('date', weekEnd)
     .neq('status', 'cancelado')
+    .or('school_kind.is.null,school_kind.neq.aula')
     .order('date')
     .order('time', { nullsFirst: false })
 

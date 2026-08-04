@@ -282,10 +282,13 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
     const start = format(startOfMonth(date),'yyyy-MM-dd')
     const end   = format(endOfMonth(date),  'yyyy-MM-dd')
     const [{ data: acts }, { data: kids }] = await Promise.all([
+      // Mesmo filtro do carregamento inicial (ver calendario/page.tsx): as
+      // aulas vivem na grade semanal, não no calendário de atividades.
       supabase.from('activities')
         .select('*, child:children(name, avatar_color)')
         .gte('date',start).lte('date',end)
         .neq('status','cancelado')
+        .or('school_kind.is.null,school_kind.neq.aula')
         .order('time',{nullsFirst:false}),
       supabase.from('children').select('*').order('sort_order'),
     ])
