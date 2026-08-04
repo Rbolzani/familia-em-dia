@@ -37,7 +37,7 @@ export default async function EscolaPage() {
 
   return (
     <ActivitiesPage
-      category="escola" title="Atividades Escolares" emoji="📘" color="#2563eb"
+      category="escola" title="Escola" emoji="📘" color="#2563eb"
       initialActivities={activities ?? []} initialChildren={children ?? []}
       familyMembers={familyMembers} currentUserId={user.id}
       familyId={familyId} isOwner={isOwner} initialSuggestions={suggestions ?? []}

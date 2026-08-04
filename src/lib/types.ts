@@ -13,6 +13,13 @@ export interface Child {
   created_at: string
 }
 
+// Tipos de item dentro da categoria "escola".
+export type SchoolKind = 'atividade' | 'aula'
+export const SCHOOL_KIND_LABELS: Record<SchoolKind, string> = {
+  atividade: 'Atividades escolares',
+  aula: 'Rotina de aulas',
+}
+
 export interface Activity {
   id: string
   user_id: string
@@ -26,6 +33,9 @@ export interface Activity {
   status: ActivityStatus
   location: string | null
   recurrence: string | null
+  // Só para category = 'escola': separa provas/eventos ('atividade') da
+  // rotina diária de aulas ('aula'). NULL equivale a 'atividade'.
+  school_kind: SchoolKind | null
   ai_generated: boolean
   takes_user_id: string | null
   picks_user_id: string | null

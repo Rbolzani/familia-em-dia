@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Child, type DocumentCategory } from '@/lib/types'
+import { Child, type DocumentCategory, type SchoolKind, SCHOOL_KIND_LABELS } from '@/lib/types'
 import { VAULT_CATEGORIES } from '@/lib/vault'
 import {
   Sparkles, Upload, FileText, Camera, Check, X, Loader2,
@@ -110,6 +110,10 @@ export default function IAPage() {
 
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
+  // Destino das atividades de escola na aba /escola. A IA decide a CATEGORIA
+  // (escola/saúde/extra); o usuário decide se o que capturou é agenda de
+  // provas/eventos ou a grade semanal de aulas.
+  const [schoolKind, setSchoolKind] = useState<SchoolKind>('atividade')
 
   const [aiUsed,  setAiUsed]  = useState<number | null>(null)
   const [aiLimit, setAiLimit] = useState<number | null>(null)
@@ -218,6 +222,7 @@ export default function IAPage() {
           user_id: user.id, child_id, category: a.category,
           title: a.title, description: a.description, date: a.date ?? null,
           time: a.time, location: a.location, ai_generated: true, alert_days: 3,
+          ...(a.category === 'escola' ? { school_kind: schoolKind } : {}),
         })))
       if (actsToSave.length) {
         const { error: actErr } = await supabase.from('activities').insert(actsToSave)
@@ -612,6 +617,34 @@ export default function IAPage() {
                   {activities.length !== datedRenderItems.length && datedRenderItems.some(it => it.kind === 'group') ? `, ${activities.length - undatedActivities.length} ocorrências` : ''})
                 </h3>
               </div>
+
+              {/* Destino na aba Escola — só quando a IA classificou algo como escola */}
+              {activities.some(a => a.category === 'escola') && (
+                <div className="mb-3 p-3 rounded-[13px]" style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.18)' }}>
+                  <label className="block text-[11px] font-bold uppercase tracking-[0.08em] mb-2" style={{ color: 'rgba(26,43,28,0.55)' }}>
+                    O que você capturou de escola?
+                  </label>
+                  <div className="flex gap-2">
+                    {(['atividade', 'aula'] as SchoolKind[]).map(k => {
+                      const active = schoolKind === k
+                      return (
+                        <button key={k} type="button" onClick={() => setSchoolKind(k)}
+                          className="flex-1 py-2 px-3 rounded-[11px] text-xs font-bold transition-all"
+                          style={active
+                            ? { background: '#2563EB', color: '#fff', border: '1px solid #2563EB' }
+                            : { background: 'rgba(255,255,255,0.80)', color: 'rgba(26,43,28,0.55)', border: '1px solid rgba(37,99,235,0.20)' }}>
+                          {k === 'atividade' ? '📘' : '🕘'} {SCHOOL_KIND_LABELS[k]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[11px] italic mt-2" style={{ color: 'rgba(26,43,28,0.45)' }}>
+                    {schoolKind === 'atividade'
+                      ? 'Provas, trabalhos, reuniões e eventos — vão para “Atividades escolares”.'
+                      : 'Grade semanal de aulas — vai para “Rotina de aulas”.'}
+                  </p>
+                </div>
+              )}
               {activities.length === 0 ? (
                 <p className="text-xs italic px-2" style={{ color: 'rgba(26,43,28,0.40)' }}>Nenhuma atividade agendada identificada</p>
               ) : datedRenderItems.length === 0 ? (

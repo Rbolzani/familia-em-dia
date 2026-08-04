@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Activity, ActivityCategory, Child } from '@/lib/types'
+import { Activity, ActivityCategory, Child, SchoolKind, SCHOOL_KIND_LABELS } from '@/lib/types'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { DeadlineBadge } from '@/components/ui/Badge'
@@ -97,6 +97,9 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
     return () => { supabase.removeChannel(channel) }
   }, [familyId])
   const [filterChild, setFilterChild] = useState('')
+  // Só a aba Escola separa "atividades escolares" de "rotina de aulas".
+  const isSchool = category === 'escola'
+  const [filterKind, setFilterKind] = useState<SchoolKind>('atividade')
   const [modal, setModal] = useState<{ mode: 'new' | 'edit'; activity?: Activity } | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ ...emptyForm })
@@ -139,6 +142,8 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
       title: form.title.trim(), description: form.description.trim() || null,
       date: form.date || null, time: form.time || null, alert_days: form.alert_days,
       location: form.location.trim() || null,
+      // Novo item criado na aba Escola nasce no filtro que está aberto.
+      ...(isSchool ? { school_kind: filterKind } : {}),
     }
     const { error } = modal?.mode === 'new'
       ? await supabase.from('activities').insert(payload)
@@ -164,6 +169,8 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
     if (!a.date) return false           // no date → reminders, not here
     if (a.date < todayDs) return false
     if (filterChild && a.child_id !== filterChild) return false
+    // Linhas antigas não têm school_kind — NULL conta como 'atividade'.
+    if (isSchool && (a.school_kind ?? 'atividade') !== filterKind) return false
     return true
   })
 
@@ -197,6 +204,33 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
         )}
       </div>
 
+      {/* Escola: alterna entre atividades escolares e rotina de aulas */}
+      {isSchool && (
+        <div className="flex gap-2 animate-fade-up">
+          {(['atividade', 'aula'] as SchoolKind[]).map(k => {
+            const active = filterKind === k
+            const count = activities.filter(a =>
+              !!a.date && a.date >= todayDs &&
+              (!filterChild || a.child_id === filterChild) &&
+              (a.school_kind ?? 'atividade') === k
+            ).length
+            return (
+              <button key={k} onClick={() => setFilterKind(k)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all"
+                style={active
+                  ? { background:'#14463A', color:'#fff', border:'1px solid rgba(61,102,65,0.40)', boxShadow:'0 2px 8px rgba(44,74,46,0.22)' }
+                  : { background:'rgba(255,255,255,0.70)', color:'rgba(26,43,28,0.50)', border:'1px solid rgba(61,102,65,0.14)' }}>
+                {k === 'atividade' ? '📘' : '🕘'} {SCHOOL_KIND_LABELS[k]}
+                <span className="px-1.5 py-0.5 rounded-full text-[10px]"
+                  style={active ? { background:'rgba(255,255,255,0.20)' } : { background:'rgba(26,43,28,0.06)' }}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* Filter bar — child selector only */}
       {children.length > 1 && (
         <div className="card p-3 flex gap-2 items-center animate-fade-up">
@@ -224,7 +258,9 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
       ) : filtered.length === 0 ? (
         <EmptyState
           title="Tudo tranquilo por aqui"
-          subtitle={`Nenhuma atividade de ${title.toLowerCase()} agendada.${canEdit ? ' Use “+ Nova” ou “Captura com IA” no topo para adicionar — a IA extrai tudo sozinha.' : ''}`}
+          subtitle={`${isSchool
+            ? `Nada em “${SCHOOL_KIND_LABELS[filterKind]}”.`
+            : `Nenhuma atividade de ${title.toLowerCase()} agendada.`}${canEdit ? ' Use “+ Nova” ou “Captura com IA” no topo para adicionar — a IA extrai tudo sozinha.' : ''}`}
         />
       ) : (
         <div className="space-y-2.5 stagger">
