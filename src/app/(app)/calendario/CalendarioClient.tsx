@@ -214,6 +214,10 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [classes, setClasses] = useState<ActivityWithChild[]>([])
   const [loadingClasses, setLoadingClasses] = useState(false)
+  // Filtro de filho PRÓPRIO da grade de aulas. Separado do `filterChild` da
+  // agenda de atividades de propósito: são visões independentes, e trocar de
+  // filho numa não deve reconfigurar a outra pelas costas do usuário.
+  const [filterChildAulas, setFilterChildAulas] = useState('')
 
   // As aulas não vêm do estado `activities` (que carrega o mês inteiro): a
   // grade é semanal e uma semana pode cruzar dois meses, então busca própria.
@@ -312,7 +316,7 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
   const selectedDayActs = (selectedDay?actsForDay(selectedDay):[]) as ActivityWithChild[]
 
   // ── Grade semanal de aulas ────────────────────────────────────────────────
-  const weekClasses = classes.filter(c => !filterChild || c.child_id === filterChild)
+  const weekClasses = classes.filter(c => !filterChildAulas || c.child_id === filterChildAulas)
   // As linhas saem dos horários que existem nos dados — cada escola tem sua
   // grade, então nada de faixas fixas no código.
   const classTimes = [...new Set(weekClasses.map(c => c.time?.slice(0,5) ?? '--:--'))].sort()
@@ -524,11 +528,11 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
                   </select>
                 )}
               </>
-            ) : children.length > 1 ? (
+            ) : children.length > 0 ? (
               // Grade de aulas: só filtro por filho (natureza não se aplica).
               <>
                 <span className="text-xs font-semibold" style={{ color:'rgba(26,43,28,0.45)' }}>👶 Filho</span>
-                <select value={filterChild} onChange={e=>setFilterChild(e.target.value)}
+                <select value={filterChildAulas} onChange={e=>setFilterChildAulas(e.target.value)}
                   className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
                   style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:130 }}>
                   <option value="">Todos</option>
@@ -599,7 +603,7 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
                             <div className="text-[10.5px] font-bold leading-tight" style={{ color:'#1A2B1C' }}>
                               {c.title}
                             </div>
-                            {!filterChild && c.child?.name && (
+                            {!filterChildAulas && c.child?.name && (
                               <div className="text-[9px] font-semibold mt-0.5 truncate"
                                 style={{ color: c.child.avatar_color ?? '#5A8C5E' }}>
                                 {c.child.name}
