@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, Clock, MapPin, X, BookOpen, Hea
 import { ActivityQuickEdit, type ActivityPatch } from '@/components/activities/ActivityQuickEdit'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
-  isToday, startOfWeek, endOfWeek, addMonths, subMonths,
+  isToday, startOfWeek, endOfWeek, addMonths, subMonths, addDays,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -208,6 +208,36 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
   const [selectedDay, setSelectedDay] = useState<Date|null>(null)
   const [loading,     setLoading]     = useState(false)
 
+  // ── Visão: agenda de atividades × grade semanal de aulas ──────────────────
+  const [calView, setCalView] = useState<'atividades'|'aulas'>('atividades')
+  // Semana começa na segunda: a grade escolar é de 2ª a 6ª.
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
+  const [classes, setClasses] = useState<ActivityWithChild[]>([])
+  const [loadingClasses, setLoadingClasses] = useState(false)
+
+  // As aulas não vêm do estado `activities` (que carrega o mês inteiro): a
+  // grade é semanal e uma semana pode cruzar dois meses, então busca própria.
+  useEffect(() => {
+    if (calView !== 'aulas') return
+    let cancelled = false
+    setLoadingClasses(true)
+    const start = format(weekStart, 'yyyy-MM-dd')
+    const end   = format(addDays(weekStart, 6), 'yyyy-MM-dd')
+    supabase.from('activities')
+      .select('*, child:children(name, avatar_color)')
+      .eq('category', 'escola').eq('school_kind', 'aula')
+      .gte('date', start).lte('date', end)
+      .neq('status', 'cancelado')
+      .order('time', { nullsFirst: false })
+      .then(({ data }) => {
+        if (cancelled) return
+        setClasses((data ?? []) as unknown as ActivityWithChild[])
+        setLoadingClasses(false)
+      })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calView, weekStart])
+
   // Seletor de mês/ano — abre ao clicar no título, evitando navegar mês a mês
   // para chegar num período distante.
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -278,6 +308,23 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
   const actsForDay      = (day:Date) => filtered.filter(a=>a.date===format(day,'yyyy-MM-dd'))
   const selectedDayActs = (selectedDay?actsForDay(selectedDay):[]) as ActivityWithChild[]
 
+  // ── Grade semanal de aulas ────────────────────────────────────────────────
+  const weekClasses = classes.filter(c => !filterChild || c.child_id === filterChild)
+  // As linhas saem dos horários que existem nos dados — cada escola tem sua
+  // grade, então nada de faixas fixas no código.
+  const classTimes = [...new Set(weekClasses.map(c => c.time?.slice(0,5) ?? '--:--'))].sort()
+  // 2ª a 6ª por padrão; estende até sábado/domingo se houver aula neles.
+  const maxOffset = weekClasses.reduce((max, c) => {
+    if (!c.date) return max
+    const off = Math.round((new Date(c.date + 'T12:00:00').getTime() - weekStart.getTime()) / 86_400_000)
+    return off > max ? off : max
+  }, 4)
+  const weekDays = Array.from({ length: Math.min(Math.max(maxOffset + 1, 5), 7) }, (_, i) => addDays(weekStart, i))
+  const classAt = (day: Date, hhmm: string) => {
+    const ds = format(day, 'yyyy-MM-dd')
+    return weekClasses.filter(c => c.date === ds && (c.time?.slice(0,5) ?? '--:--') === hhmm)
+  }
+
   async function handleDelete(id: string) {
     await supabase.from('activities').delete().eq('id', id)
     setActivities(prev => prev.filter(a => a.id !== id))
@@ -312,8 +359,31 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
           borderBottom:'1px solid rgba(61,102,65,0.16)',
           boxShadow:'0 2px 8px rgba(44,74,46,0.07),0 -1px 0 rgba(255,255,255,0.85) inset' }}>
 
-        {/* Row 1: month nav + filter combo */}
+        {/* Row 1: navegação — mês (atividades) ou semana (aulas) */}
         <div className="flex items-center justify-between px-4 py-2.5">
+          {calView === 'aulas' ? (
+            <div className="flex items-center gap-2">
+              <button onClick={()=>setWeekStart(d=>addDays(d,-7))}
+                className="w-8 h-8 rounded-[11px] flex items-center justify-center"
+                style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.09),0 -1px 0 rgba(255,255,255,0.85) inset', color:'#3D6641' }}>
+                <ChevronLeft size={15}/>
+              </button>
+              <span className="text-[15px] font-bold" style={{ fontFamily:'var(--font-lora)', color:'#1A2B1C', minWidth:150, textAlign:'center' }}>
+                {format(weekStart,"d 'de' MMM",{locale:ptBR})} – {format(addDays(weekStart,4),"d 'de' MMM",{locale:ptBR})}
+                {loadingClasses && <span className="ml-1 text-[11px] font-normal italic" style={{ color:'rgba(26,43,28,0.38)' }}>…</span>}
+              </span>
+              <button onClick={()=>setWeekStart(d=>addDays(d,7))}
+                className="w-8 h-8 rounded-[11px] flex items-center justify-center"
+                style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.09),0 -1px 0 rgba(255,255,255,0.85) inset', color:'#3D6641' }}>
+                <ChevronRight size={15}/>
+              </button>
+              <button onClick={()=>setWeekStart(startOfWeek(new Date(),{weekStartsOn:1}))}
+                className="text-xs font-bold px-3 py-1 rounded-full ml-1"
+                style={{ background:'rgba(61,102,65,0.10)', color:'#3D6641', border:'1px solid rgba(61,102,65,0.18)' }}>
+                Esta semana
+              </button>
+            </div>
+          ) : (
           <div className="flex items-center gap-2">
             <button onClick={()=>setCurrentDate(d=>subMonths(d,1))}
               className="w-8 h-8 rounded-[11px] flex items-center justify-center"
@@ -382,10 +452,20 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
               Hoje
             </button>
           </div>
+          )}
 
           {/* Dynamic filter combo — changes based on view */}
           <div>
-            {viewMode === 'child' ? (
+            {calView === 'aulas' ? (
+              children.length > 1 ? (
+                <select value={filterChild} onChange={e=>setFilterChild(e.target.value)}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
+                  style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:110 }}>
+                  <option value="">Todos</option>
+                  {children.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              ) : null
+            ) : viewMode === 'child' ? (
               <select value={filterChild} onChange={e=>setFilterChild(e.target.value)}
                 className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
                 style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:110 }}>
@@ -403,7 +483,32 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
           </div>
         </div>
 
-        {/* Row 2: view toggle */}
+        {/* Row 2a: alterna entre a agenda de atividades e a grade de aulas */}
+        <div className="flex px-4 pb-2 gap-2">
+          {([
+            { key:'atividades', label:'Atividades',     icon:'🗓️' },
+            { key:'aulas',      label:'Rotina de aulas', icon:'🕘' },
+          ] as const).map(v=>(
+            <button key={v.key}
+              onClick={()=>{ setCalView(v.key); setSelectedDay(null) }}
+              style={{
+                display:'flex', alignItems:'center', gap:5,
+                padding:'5px 14px', borderRadius:20, fontSize:12, fontWeight:700,
+                cursor:'pointer', transition:'all .18s',
+                border:`1px solid ${calView===v.key?'rgba(61,102,65,0.40)':'rgba(61,102,65,0.14)'}`,
+                background: calView===v.key ? '#14463A' : 'rgba(255,255,255,0.70)',
+                color: calView===v.key ? '#fff' : 'rgba(26,43,28,0.50)',
+                boxShadow: calView===v.key
+                  ? '0 2px 8px rgba(44,74,46,0.22),0 -1px 0 rgba(255,255,255,0.12) inset'
+                  : '0 1px 3px rgba(44,74,46,0.06)',
+              }}>
+              <span style={{ fontSize:13 }}>{v.icon}</span> {v.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Row 2b: agrupamento — só faz sentido na agenda de atividades */}
+        {calView === 'atividades' && (
         <div className="flex px-4 pb-2 gap-2">
           {([
             { key:'child',    label:'Por natureza', icon:'📂' },
@@ -428,9 +533,86 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
             </button>
           ))}
         </div>
+        )}
       </div>
 
-      {/* Body */}
+      {/* Body — grade semanal de aulas */}
+      {calView === 'aulas' ? (
+        <div className="flex-1 min-h-0 overflow-auto p-3">
+          {classTimes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 text-center px-6">
+              <p className="text-sm italic" style={{ color:'rgba(26,43,28,0.45)' }}>
+                {loadingClasses ? 'Carregando a grade…' : 'Nenhuma aula cadastrada nesta semana.'}
+              </p>
+              {!loadingClasses && (
+                <p className="text-xs italic mt-1.5" style={{ color:'rgba(26,43,28,0.35)' }}>
+                  Capture a grade de horários em “Captura com IA” e escolha “Rotina de aulas”.
+                </p>
+              )}
+            </div>
+          ) : (
+            // minWidth garante rolagem horizontal no mobile em vez de espremer
+            // as colunas a ponto de o nome da matéria ficar ilegível.
+            <div style={{ minWidth: 92 + weekDays.length * 96 }}>
+              {/* Cabeçalho dos dias */}
+              <div className="grid sticky top-0 z-10"
+                style={{ gridTemplateColumns:`60px repeat(${weekDays.length}, minmax(88px,1fr))`,
+                  background:'#F8F3EA', borderBottom:'1px solid rgba(61,102,65,0.14)' }}>
+                <div />
+                {weekDays.map(d => {
+                  const today = isToday(d)
+                  return (
+                    <div key={d.toISOString()} className="text-center py-2">
+                      <div className="text-[10px] font-extrabold uppercase tracking-[0.05em]"
+                        style={{ color: today ? '#14463A' : 'rgba(26,43,28,0.38)' }}>
+                        {format(d,'EEE',{locale:ptBR}).replace('.','')}
+                      </div>
+                      <div className="text-[11px] font-bold mt-0.5"
+                        style={{ color: today ? '#14463A' : 'rgba(26,43,28,0.55)' }}>
+                        {format(d,'dd/MM')}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Linhas por horário */}
+              {classTimes.map(hhmm => (
+                <div key={hhmm} className="grid"
+                  style={{ gridTemplateColumns:`60px repeat(${weekDays.length}, minmax(88px,1fr))`,
+                    borderBottom:'1px solid rgba(61,102,65,0.07)' }}>
+                  <div className="text-[10px] font-bold py-2 pr-2 text-right"
+                    style={{ color:'rgba(26,43,28,0.42)' }}>{hhmm}</div>
+                  {weekDays.map(d => {
+                    const cell = classAt(d, hhmm)
+                    return (
+                      <div key={d.toISOString()} className="p-[3px]"
+                        style={{ borderLeft:'1px solid rgba(61,102,65,0.07)' }}>
+                        {cell.map(c => (
+                          <div key={c.id} className="rounded-[8px] px-1.5 py-1 mb-[3px]"
+                            title={`${c.title}${c.child?.name ? ` — ${c.child.name}` : ''}`}
+                            style={{ background:'rgba(37,99,235,0.10)', border:'1px solid rgba(37,99,235,0.22)' }}>
+                            <div className="text-[10.5px] font-bold leading-tight" style={{ color:'#1A2B1C' }}>
+                              {c.title}
+                            </div>
+                            {!filterChild && c.child?.name && (
+                              <div className="text-[9px] font-semibold mt-0.5 truncate"
+                                style={{ color: c.child.avatar_color ?? '#5A8C5E' }}>
+                                {c.child.name}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+      /* Body — agenda mensal de atividades */
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden">
 
@@ -526,6 +708,7 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
           </div>
         )}
       </div>
+      )}
 
       {/* Mobile bottom sheet */}
       {selectedDay&&(
