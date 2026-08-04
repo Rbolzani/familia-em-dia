@@ -47,14 +47,11 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
   const router   = useRouter()
   const { isActive: tourActive } = useTour()
 
+  // A lista vem pronta do Server Component; basta reidratar quando a prop
+  // muda (navegação / router.refresh do RealtimeSync). Antes havia um SELECT
+  // extra a cada troca de página, que só repetia o dado já recebido.
   const [liveChildren, setLiveChildren] = useState<SidebarChild[]>(initial)
-  useEffect(() => {
-    createClient()
-      .from('children')
-      .select('id,name,avatar_color,avatar_url,birth_date,school_name')
-      .order('sort_order')
-      .then(({ data }) => { if (data) setLiveChildren(data) })
-  }, [pathname])
+  useEffect(() => { setLiveChildren(initial) }, [initial])
 
   const [palIdx,           setPalIdx]           = useState(0)
   const [sepia,            setSepia]            = useState(0)
@@ -115,7 +112,11 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [pathname])
+    // Assina uma vez por família ativa. Antes dependia de `pathname`, o que
+    // derrubava e reabria o canal WebSocket (+3 queries) a CADA navegação —
+    // principal causa da lentidão ao trocar de aba no mobile. O próprio
+    // Realtime já mantém a lista atualizada, sem precisar do refetch por rota.
+  }, [activeFamilyId])
 
   useEffect(() => {
     if (!notifOpen) return
@@ -147,14 +148,23 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
   const cfgPanelRef = useRef<HTMLDivElement>(null) // cfg sub-panel — outside app-wrap, needs filter
 
   // ── Apply CSS filter ────────────────────────────────────────────────
+  // IMPORTANTE: um `filter` no wrapper do app inteiro promove a árvore toda a
+  // uma camada de composição e vira containing block dos position:fixed —
+  // caríssimo no mobile. Por isso, no tema padrão (Floresta, sem ajustes), a
+  // propriedade é REMOVIDA em vez de receber um filtro identidade
+  // (hue-rotate(0deg) saturate(1)... é visualmente nulo, mas custa igual).
   useEffect(() => {
     const el    = appRef.current
     const nav   = navRef.current
     const cfg   = cfgPanelRef.current
     if (!el) return
     const { hue, sat } = PALETTES[palIdx]
+    const isDefaultTheme = !darkMode && hue === 0 && sat === 1
+      && sepia === 0 && brightness === 100 && contrast === 100
     let filterStr: string
-    if (darkMode) {
+    if (isDefaultTheme) {
+      filterStr = ''
+    } else if (darkMode) {
       const darkHue = (180 + hue) % 360
       filterStr = `invert(1) hue-rotate(${darkHue}deg) saturate(${(sat * 0.95).toFixed(2)}) brightness(0.90) contrast(1.06)`
     } else {
