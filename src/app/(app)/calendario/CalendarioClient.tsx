@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Activity, Child } from '@/lib/types'
 import { CategoryBadge } from '@/components/ui/Badge'
 import { useAccess } from '@/components/access/AccessContext'
-import { ChevronLeft, ChevronRight, Clock, MapPin, X, BookOpen, HeartPulse, Trophy, CalendarDays, Trash2, Loader2, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Clock, MapPin, X, BookOpen, HeartPulse, Trophy, CalendarDays, Trash2, Loader2, Pencil } from 'lucide-react'
 import { ActivityQuickEdit, type ActivityPatch } from '@/components/activities/ActivityQuickEdit'
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
@@ -26,6 +26,12 @@ const CAT_ICO_BG: Record<string, string> = {
 const CAT_ICON: Record<string, React.ElementType> = {
   escola: BookOpen, saude: HeartPulse, extracurricular: Trophy,
 }
+// Rótulos curtos dos 12 meses em pt-BR ("jan", "fev", ...), derivados do
+// próprio locale para não duplicar nomes de mês no código.
+const MONTH_LABELS = Array.from({ length: 12 }, (_, m) =>
+  format(new Date(2000, m, 1), 'MMM', { locale: ptBR }).replace('.', '')
+)
+
 const LEGEND = [
   { key:'escola',          color:'#2563EB', label:'Escola'         },
   { key:'saude',           color:'#065F46', label:'Saúde'          },
@@ -202,6 +208,35 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
   const [selectedDay, setSelectedDay] = useState<Date|null>(null)
   const [loading,     setLoading]     = useState(false)
 
+  // Seletor de mês/ano — abre ao clicar no título, evitando navegar mês a mês
+  // para chegar num período distante.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerYear, setPickerYear] = useState(currentDate.getFullYear())
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  // O ano do seletor acompanha o mês exibido enquanto ele estiver fechado.
+  useEffect(() => { if (!pickerOpen) setPickerYear(currentDate.getFullYear()) }, [currentDate, pickerOpen])
+
+  useEffect(() => {
+    if (!pickerOpen) return
+    function onDocDown(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerOpen(false)
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setPickerOpen(false) }
+    document.addEventListener('mousedown', onDocDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [pickerOpen])
+
+  function pickMonth(monthIndex: number) {
+    setCurrentDate(new Date(pickerYear, monthIndex, 1))
+    setSelectedDay(null)
+    setPickerOpen(false)
+  }
+
   // track if we've already loaded the current month (initial data covers it)
   const loadedMonth = useRef(format(new Date(),'yyyy-MM'))
 
@@ -285,11 +320,57 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
               style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.09),0 -1px 0 rgba(255,255,255,0.85) inset', color:'#3D6641' }}>
               <ChevronLeft size={15}/>
             </button>
-            <h1 className="text-[16px] font-bold capitalize"
-              style={{ fontFamily:'var(--font-lora)', color:'#1A2B1C', minWidth:120, textAlign:'center' }}>
-              {format(currentDate,'MMMM yyyy',{locale:ptBR})}
-              {loading && <span className="ml-1 text-[11px] font-normal italic" style={{ color:'rgba(26,43,28,0.38)' }}>…</span>}
-            </h1>
+            <div ref={pickerRef} className="relative">
+              <button onClick={()=>setPickerOpen(o=>!o)}
+                aria-haspopup="dialog" aria-expanded={pickerOpen}
+                title="Escolher mês e ano"
+                className="text-[16px] font-bold capitalize flex items-center gap-1 px-2 py-1 rounded-[10px] transition-colors hover:bg-black/[0.04]"
+                style={{ fontFamily:'var(--font-lora)', color:'#1A2B1C', minWidth:120, justifyContent:'center' }}>
+                {format(currentDate,'MMMM yyyy',{locale:ptBR})}
+                {loading && <span className="text-[11px] font-normal italic" style={{ color:'rgba(26,43,28,0.38)' }}>…</span>}
+                <ChevronDown size={13} style={{ color:'rgba(26,43,28,0.40)', transform: pickerOpen?'rotate(180deg)':'none', transition:'transform .2s' }}/>
+              </button>
+
+              {pickerOpen && (
+                <div className="absolute z-50 mt-1 p-3 rounded-[14px] animate-fade-in"
+                  style={{ top:'100%', left:0, width:236,
+                    backgroundImage:'linear-gradient(160deg,#FFFFFF 0%,#F8F3EA 100%)',
+                    border:'1px solid rgba(61,102,65,0.22)',
+                    boxShadow:'0 8px 28px rgba(44,74,46,0.18)' }}>
+                  {/* Navegação de ano */}
+                  <div className="flex items-center justify-between mb-2.5">
+                    <button onClick={()=>setPickerYear(y=>y-1)}
+                      className="w-7 h-7 rounded-[9px] flex items-center justify-center transition-colors hover:bg-black/[0.05]"
+                      style={{ border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
+                      <ChevronLeft size={13}/>
+                    </button>
+                    <span className="text-sm font-bold" style={{ color:'#1A2B1C' }}>{pickerYear}</span>
+                    <button onClick={()=>setPickerYear(y=>y+1)}
+                      className="w-7 h-7 rounded-[9px] flex items-center justify-center transition-colors hover:bg-black/[0.05]"
+                      style={{ border:'1px solid rgba(61,102,65,0.18)', color:'#3D6641' }}>
+                      <ChevronRight size={13}/>
+                    </button>
+                  </div>
+                  {/* Grade de meses */}
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {MONTH_LABELS.map((label, idx) => {
+                      const isCurrent = currentDate.getFullYear()===pickerYear && currentDate.getMonth()===idx
+                      const isThisMonth = new Date().getFullYear()===pickerYear && new Date().getMonth()===idx
+                      return (
+                        <button key={label} onClick={()=>pickMonth(idx)}
+                          className="py-1.5 rounded-[9px] text-xs font-bold capitalize transition-all"
+                          style={isCurrent
+                            ? { background:'#14463A', color:'#fff', border:'1px solid rgba(61,102,65,0.40)' }
+                            : { background:'rgba(255,255,255,0.70)', color: isThisMonth?'#3D6641':'rgba(26,43,28,0.62)',
+                                border:`1px solid ${isThisMonth?'rgba(61,102,65,0.40)':'rgba(61,102,65,0.14)'}` }}>
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
             <button onClick={()=>setCurrentDate(d=>addMonths(d,1))}
               className="w-8 h-8 rounded-[11px] flex items-center justify-center"
               style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.09),0 -1px 0 rgba(255,255,255,0.85) inset', color:'#3D6641' }}>
