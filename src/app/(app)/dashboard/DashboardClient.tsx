@@ -693,10 +693,10 @@ export default function DashboardClient({ userName, children, todayClasses, toda
   // As aulas têm card próprio; os contadores de atividades e dos próximos 7
   // dias já recebem as listas sem a rotina de aulas (filtradas no servidor).
   const stats = [
-    { n:todayClasses.length,       label:'Aulas hoje',      icon:BookOpen,      icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#3B82F6' },
-    { n:todayActivities.length,    label:'Atividades hoje', icon:CalendarCheck, icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#2563EB' },
-    { n:upcomingActivities.length, label:'Próximos 7 dias', icon:CalendarRange, icolor:'#B45309', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
-    { n:reminders.length,          label:'Lembretes',       icon:StickyNote,    icolor:'#92400E', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
+    { n:todayClasses.length,       label:'Aulas hoje',      short:'Aulas',      icon:BookOpen,      icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#3B82F6' },
+    { n:todayActivities.length,    label:'Atividades hoje', short:'Atividades', icon:CalendarCheck, icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#2563EB' },
+    { n:upcomingActivities.length, label:'Próximos 7 dias', short:'7 dias',     icon:CalendarRange, icolor:'#B45309', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
+    { n:reminders.length,          label:'Lembretes',       short:'Lembretes',  icon:StickyNote,    icolor:'#92400E', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
   ]
 
   return (
@@ -732,10 +732,12 @@ export default function DashboardClient({ userName, children, todayClasses, toda
         </div>
       </div>
 
-      {/* Stats — 4 cards: 2x2 no mobile, 4 em linha no desktop */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-[10px] md:gap-[14px] mb-5 md:mb-7">
+      {/* Stats — 4 cards em uma única linha (mobile e desktop). No mobile o
+          espaço por card fica ~80px, então padding, ícone, número e rótulo
+          encolhem e o rótulo usa a versão curta para não quebrar linha. */}
+      <div className="grid grid-cols-4 gap-[6px] md:gap-[14px] mb-5 md:mb-7">
         {stats.map((s,i)=>(
-          <div key={i} style={{ ...STAT, padding:'14px 12px' }}
+          <div key={i} style={{ ...STAT, padding:'10px 8px' }}
             className="md:p-[22px_20px]"
             onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.transform='translateY(-4px) rotate(-0.4deg)';el.style.boxShadow='0 12px 36px rgba(44,74,46,0.14),0 2px 8px rgba(44,74,46,0.09),0 -1px 0 rgba(255,255,255,0.85) inset,0 1px 0 rgba(0,0,0,0.04) inset'}}
             onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.transform='';el.style.boxShadow=''}}>
@@ -743,12 +745,15 @@ export default function DashboardClient({ userName, children, todayClasses, toda
             <div aria-hidden className="absolute pointer-events-none"
               style={{ top:-24, right:-24, width:80, height:80, borderRadius:'50%', background:s.corner, opacity:0.10 }}/>
 
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-[10px] md:rounded-[13px] flex items-center justify-center mb-2 md:mb-4"
+            <div className="w-7 h-7 md:w-10 md:h-10 rounded-[9px] md:rounded-[13px] flex items-center justify-center mb-1.5 md:mb-4"
               style={{ backgroundImage:s.ibg, border:'1px solid rgba(0,0,0,0.06)', boxShadow:'0 1px 3px rgba(0,0,0,0.10),0 -1px 0 rgba(255,255,255,0.60) inset' }}>
-              <s.icon size={14} color={s.icolor} strokeWidth={2}/>
+              <s.icon size={13} color={s.icolor} strokeWidth={2}/>
             </div>
-            <div style={{ fontFamily:'var(--font-lora)', lineHeight:1, color:'#1A2B1C' }} className="text-[26px] md:text-[40px] font-bold">{s.n}</div>
-            <div style={{ color:'rgba(26,43,28,0.36)', fontWeight:500 }} className="text-[10px] md:text-[12.5px] mt-1 leading-tight">{s.label}</div>
+            <div style={{ fontFamily:'var(--font-lora)', lineHeight:1, color:'#1A2B1C' }} className="text-[21px] md:text-[40px] font-bold">{s.n}</div>
+            <div style={{ color:'rgba(26,43,28,0.36)', fontWeight:500 }} className="text-[9px] md:text-[12.5px] mt-1 leading-tight">
+              <span className="md:hidden">{s.short}</span>
+              <span className="hidden md:inline">{s.label}</span>
+            </div>
           </div>
         ))}
       </div>
