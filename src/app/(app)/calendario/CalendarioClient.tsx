@@ -457,86 +457,87 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
           </div>
           )}
 
-          {/* Dynamic filter combo — changes based on view */}
-          <div>
-            {calView === 'aulas' ? (
-              children.length > 1 ? (
+        </div>
+
+        {/* Row 2: à esquerda a visão (atividades × aulas); à direita os
+            sub-filtros da visão ativa, sempre no mesmo canto. */}
+        <div className="flex items-center justify-between gap-2 px-4 pb-2 flex-wrap">
+          <div className="flex gap-2">
+            {([
+              { key:'atividades', label:'Atividades',     icon:'🗓️' },
+              { key:'aulas',      label:'Rotina de aulas', icon:'🕘' },
+            ] as const).map(v=>(
+              <button key={v.key}
+                onClick={()=>{ setCalView(v.key); setSelectedDay(null) }}
+                style={{
+                  display:'flex', alignItems:'center', gap:5,
+                  padding:'5px 14px', borderRadius:20, fontSize:12, fontWeight:700,
+                  cursor:'pointer', transition:'all .18s',
+                  border:`1px solid ${calView===v.key?'rgba(61,102,65,0.40)':'rgba(61,102,65,0.14)'}`,
+                  background: calView===v.key ? '#14463A' : 'rgba(255,255,255,0.70)',
+                  color: calView===v.key ? '#fff' : 'rgba(26,43,28,0.50)',
+                  boxShadow: calView===v.key
+                    ? '0 2px 8px rgba(44,74,46,0.22),0 -1px 0 rgba(255,255,255,0.12) inset'
+                    : '0 1px 3px rgba(44,74,46,0.06)',
+                }}>
+                <span style={{ fontSize:13 }}>{v.icon}</span> {v.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {calView === 'atividades' ? (
+              <>
+                {([
+                  { key:'child',    label:'Por natureza', icon:'📂' },
+                  { key:'category', label:'Por filho',    icon:'👶' },
+                ] as const).map(v=>(
+                  <button key={v.key}
+                    onClick={()=>{ setViewMode(v.key); setFilterChild(''); setFilterCat(''); setSelectedDay(null) }}
+                    style={{
+                      display:'flex', alignItems:'center', gap:5,
+                      padding:'5px 14px', borderRadius:20, fontSize:12, fontWeight:700,
+                      cursor:'pointer', transition:'all .18s',
+                      border:`1px solid ${viewMode===v.key?'rgba(61,102,65,0.40)':'rgba(61,102,65,0.14)'}`,
+                      background: viewMode===v.key ? '#14463A' : 'rgba(255,255,255,0.70)',
+                      color: viewMode===v.key ? '#fff' : 'rgba(26,43,28,0.50)',
+                      boxShadow: viewMode===v.key
+                        ? '0 2px 8px rgba(44,74,46,0.22),0 -1px 0 rgba(255,255,255,0.12) inset'
+                        : '0 1px 3px rgba(44,74,46,0.06)',
+                    }}>
+                    <span style={{ fontSize:13 }}>{v.icon}</span> {v.label}
+                  </button>
+                ))}
+                {viewMode === 'child' ? (
+                  <select value={filterChild} onChange={e=>setFilterChild(e.target.value)}
+                    className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
+                    style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:110 }}>
+                    <option value="">Todos</option>
+                    {children.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                ) : (
+                  <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}
+                    className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
+                    style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:130 }}>
+                    <option value="">Todas</option>
+                    {CATEGORIES.map(c=><option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                )}
+              </>
+            ) : children.length > 1 ? (
+              // Grade de aulas: só filtro por filho (natureza não se aplica).
+              <>
+                <span className="text-xs font-semibold" style={{ color:'rgba(26,43,28,0.45)' }}>👶 Filho</span>
                 <select value={filterChild} onChange={e=>setFilterChild(e.target.value)}
                   className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
-                  style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:110 }}>
+                  style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:130 }}>
                   <option value="">Todos</option>
                   {children.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-              ) : null
-            ) : viewMode === 'child' ? (
-              <select value={filterChild} onChange={e=>setFilterChild(e.target.value)}
-                className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
-                style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:110 }}>
-                <option value="">Todos</option>
-                {children.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            ) : (
-              <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}
-                className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
-                style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:130 }}>
-                <option value="">Todas</option>
-                {CATEGORIES.map(c=><option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            )}
+              </>
+            ) : null}
           </div>
         </div>
-
-        {/* Row 2a: alterna entre a agenda de atividades e a grade de aulas */}
-        <div className="flex px-4 pb-2 gap-2">
-          {([
-            { key:'atividades', label:'Atividades',     icon:'🗓️' },
-            { key:'aulas',      label:'Rotina de aulas', icon:'🕘' },
-          ] as const).map(v=>(
-            <button key={v.key}
-              onClick={()=>{ setCalView(v.key); setSelectedDay(null) }}
-              style={{
-                display:'flex', alignItems:'center', gap:5,
-                padding:'5px 14px', borderRadius:20, fontSize:12, fontWeight:700,
-                cursor:'pointer', transition:'all .18s',
-                border:`1px solid ${calView===v.key?'rgba(61,102,65,0.40)':'rgba(61,102,65,0.14)'}`,
-                background: calView===v.key ? '#14463A' : 'rgba(255,255,255,0.70)',
-                color: calView===v.key ? '#fff' : 'rgba(26,43,28,0.50)',
-                boxShadow: calView===v.key
-                  ? '0 2px 8px rgba(44,74,46,0.22),0 -1px 0 rgba(255,255,255,0.12) inset'
-                  : '0 1px 3px rgba(44,74,46,0.06)',
-              }}>
-              <span style={{ fontSize:13 }}>{v.icon}</span> {v.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Row 2b: agrupamento — só faz sentido na agenda de atividades */}
-        {calView === 'atividades' && (
-        <div className="flex px-4 pb-2 gap-2">
-          {([
-            { key:'child',    label:'Por natureza', icon:'📂' },
-            { key:'category', label:'Por filho',    icon:'👶' },
-          ] as const).map(v=>(
-            <button key={v.key}
-              onClick={()=>{ setViewMode(v.key); setFilterChild(''); setFilterCat(''); setSelectedDay(null) }}
-              style={{
-                display:'flex', alignItems:'center', gap:5,
-                padding:'5px 14px', borderRadius:20, fontSize:12, fontWeight:700,
-                cursor:'pointer', transition:'all .18s',
-                border:`1px solid ${viewMode===v.key?'rgba(61,102,65,0.40)':'rgba(61,102,65,0.14)'}`,
-                background: viewMode===v.key
-                  ? '#14463A'
-                  : 'rgba(255,255,255,0.70)',
-                color: viewMode===v.key ? '#fff' : 'rgba(26,43,28,0.50)',
-                boxShadow: viewMode===v.key
-                  ? '0 2px 8px rgba(44,74,46,0.22),0 -1px 0 rgba(255,255,255,0.12) inset'
-                  : '0 1px 3px rgba(44,74,46,0.06)',
-              }}>
-              <span style={{ fontSize:13 }}>{v.icon}</span> {v.label}
-            </button>
-          ))}
-        </div>
-        )}
       </div>
 
       {/* Body — grade semanal de aulas */}
