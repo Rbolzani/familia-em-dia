@@ -13,11 +13,16 @@ export default async function LogisticaPage() {
   const { familyId } = await getActiveFamily(supabase)
 
   const [{ data: activities }, { data: children }, { data: rawMembers }, { data: pendingSuggestions }] = await Promise.all([
+    // Rotina de aulas não tem logística (ninguém "leva/busca" a cada aula do
+    // dia) — a aba lista só atividades de escola, saúde e extracurricular.
+    // Precisa ser `or` com is.null: `neq('school_kind','aula')` sozinho
+    // descartaria também as linhas com school_kind NULL, que são atividades.
     supabase.from('activities')
       .select('*, child:children(name, avatar_color)')
       .not('date', 'is', null)
       .gte('date', todayStr)
       .neq('status', 'cancelado')
+      .or('school_kind.is.null,school_kind.neq.aula')
       .order('date').order('time', { nullsFirst: false }),
     supabase.from('children').select('*').order('sort_order'),
     familyId
