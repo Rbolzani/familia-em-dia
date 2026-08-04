@@ -31,13 +31,24 @@ export function titlesSimilar(a: string, b: string): boolean {
   return overlap / Math.max(setA.size, setB.size) >= 0.80
 }
 
-export function mergeActivities<T extends { title: string; date: string | null; category: string }>(
+/**
+ * Agrupa a MESMA atividade repetida para filhos diferentes num único card
+ * (ex.: "Reunião de pais" da Gabi e do João vira um card com dois badges).
+ *
+ * O horário faz parte da identidade: duas aulas seguidas da mesma matéria
+ * ("Zoom 12:30" e "Zoom 13:15") são eventos distintos e devem virar cards
+ * separados, cada um com seu horário de início. Sem comparar `time`, elas
+ * viravam um card só — exibindo apenas o primeiro horário e repetindo o
+ * nome do filho uma vez por ocorrência.
+ */
+export function mergeActivities<T extends { title: string; date: string | null; time?: string | null; category: string }>(
   acts: T[]
 ): T[][] {
   const groups: T[][] = []
   for (const a of acts) {
     const existing = groups.find(g =>
       g[0].date === a.date &&
+      (g[0].time ?? null) === (a.time ?? null) &&
       g[0].category === a.category &&
       titlesSimilar(g[0].title, a.title)
     )
