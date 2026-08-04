@@ -25,7 +25,8 @@ type ActWithChild = Activity & { child: { name: string; avatar_color: string } }
 interface Props {
   userName: string
   children: Child[]
-  todayActivities:    ActWithChild[]
+  todayClasses:       ActWithChild[]  // rotina de aulas de hoje (escola/aula)
+  todayActivities:    ActWithChild[]  // demais atividades de hoje (sem aulas)
   upcomingActivities: ActWithChild[]
   monthActivities:    ActWithChild[]   // full month — for mini-calendar dots + click detail
   reminders:          ActWithChild[]  // activities with no date
@@ -155,6 +156,9 @@ function MiniCalendar({ activitiesByDate: initialByDate, canEdit, onChanged }: {
       .then(({ data }) => {
         const byDate = (data ?? []).reduce<Record<string, ActWithChild[]>>((acc, a) => {
           if (!a.date) return acc
+          // Rotina de aulas não pontua o calendário — mesmo critério aplicado
+          // no servidor ao mês inicial (ver dashboard/page.tsx).
+          if (a.category === 'escola' && a.school_kind === 'aula') return acc
           if (!acc[a.date]) acc[a.date] = []
           acc[a.date].push(a as ActWithChild)
           return acc
@@ -671,7 +675,7 @@ function VaccineAlertsPanel({ alerts }: { alerts: VaccineAlert[] }) {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-export default function DashboardClient({ userName, children, todayActivities, upcomingActivities, monthActivities, reminders, vaccineAlerts }: Props) {
+export default function DashboardClient({ userName, children, todayClasses, todayActivities, upcomingActivities, monthActivities, reminders, vaccineAlerts }: Props) {
   const router = useRouter()
   const { canEdit } = useAccess()
   // As listas vêm do Server Component; após uma edição, router.refresh() traz
@@ -686,7 +690,10 @@ export default function DashboardClient({ userName, children, todayActivities, u
     return acc
   }, {})
 
+  // As aulas têm card próprio; os contadores de atividades e dos próximos 7
+  // dias já recebem as listas sem a rotina de aulas (filtradas no servidor).
   const stats = [
+    { n:todayClasses.length,       label:'Aulas hoje',      icon:BookOpen,      icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#3B82F6' },
     { n:todayActivities.length,    label:'Atividades hoje', icon:CalendarCheck, icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#2563EB' },
     { n:upcomingActivities.length, label:'Próximos 7 dias', icon:CalendarRange, icolor:'#B45309', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
     { n:reminders.length,          label:'Lembretes',       icon:StickyNote,    icolor:'#92400E', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
@@ -725,8 +732,8 @@ export default function DashboardClient({ userName, children, todayActivities, u
         </div>
       </div>
 
-      {/* Stats — 3 cards: grid-cols-3 on desktop, grid-cols-3 on mobile (smaller padding) */}
-      <div className="grid grid-cols-3 gap-[10px] md:gap-[14px] mb-5 md:mb-7">
+      {/* Stats — 4 cards: 2x2 no mobile, 4 em linha no desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-[10px] md:gap-[14px] mb-5 md:mb-7">
         {stats.map((s,i)=>(
           <div key={i} style={{ ...STAT, padding:'14px 12px' }}
             className="md:p-[22px_20px]"
@@ -751,7 +758,18 @@ export default function DashboardClient({ userName, children, todayActivities, u
 
         {/* Left */}
         <div className="min-w-0">
-          <SectionH>Atividades de Hoje</SectionH>
+          <SectionH>Aulas de Hoje</SectionH>
+          {todayClasses.length===0 ? (
+            <div className="text-center py-6" style={{ ...STAT, display:'block', padding:20 }}>
+              <p className="italic" style={{ fontSize:13.5, color:'rgba(26,43,28,0.45)' }}>Nenhuma aula hoje 🎒</p>
+            </div>
+          ) : (
+            mergeActivities(todayClasses).map(g=><ActivityRow key={g[0].id} activities={g} canEdit={canEdit} onChanged={onChanged}/>)
+          )}
+
+          <div className="mt-5 md:mt-6">
+            <SectionH>Atividades de Hoje</SectionH>
+          </div>
           {todayActivities.length===0 ? (
             <div className="text-center py-8" style={{ ...STAT, display:'block', padding:28 }}>
               <div className="text-3xl mb-2">🎉</div>

@@ -99,13 +99,25 @@ export default async function DashboardPage() {
 
   const userName = user.user_metadata?.full_name?.split(' ')[0] || 'Olá'
 
+  // "Rotina de aulas" (escola + school_kind='aula') é a grade semanal — ela
+  // se repete todo dia e abafaria a agenda real. Por isso aparece só na sua
+  // própria seção "Aulas de Hoje" e fica de fora das atividades, dos próximos
+  // 7 dias e dos pontinhos do mini-calendário.
+  const isAula = (a: { category: string; school_kind?: string | null }) =>
+    a.category === 'escola' && a.school_kind === 'aula'
+
+  const todayAll     = todayActivities ?? []
+  const todayClasses = todayAll.filter(isAula)
+  const todayOthers  = todayAll.filter(a => !isAula(a))
+
   return (
     <DashboardClient
       userName={userName}
       children={children ?? []}
-      todayActivities={todayActivities ?? []}
-      upcomingActivities={upcomingActivities ?? []}
-      monthActivities={(monthActivities ?? []) as Parameters<typeof DashboardClient>[0]['monthActivities']}
+      todayClasses={todayClasses}
+      todayActivities={todayOthers}
+      upcomingActivities={(upcomingActivities ?? []).filter(a => !isAula(a))}
+      monthActivities={(monthActivities ?? []).filter(a => !isAula(a)) as Parameters<typeof DashboardClient>[0]['monthActivities']}
       reminders={(reminders ?? []) as Parameters<typeof DashboardClient>[0]['reminders']}
       vaccineAlerts={vaccineAlerts}
     />
