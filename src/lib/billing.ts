@@ -127,11 +127,16 @@ export async function getAiUsageThisMonth(userId: string): Promise<number> {
 // Usa o cliente com RLS — a query automaticamente retorna só os arquivos da família.
 export async function getFamilyStorageUsedBytes(): Promise<number> {
   const supabase = await createClient()
-  const { data } = await supabase
-    .from('document_files')
-    .select('file_size')
-  if (!data) return 0
-  return data.reduce((sum, f) => sum + (f.file_size ?? 0), 0)
+  // Soma no banco (RPC). Antes trazia todas as linhas de document_files e
+  // somava aqui — o PostgREST corta a resposta em 1000 linhas por padrão, de
+  // modo que uma família com mais de 1000 arquivos teria a cota SUBCONTADA e
+  // conseguiria ultrapassar o limite do plano sem ser barrada.
+  const { data, error } = await supabase.rpc('family_storage_used_bytes')
+  if (error) {
+    console.error('[billing] family_storage_used_bytes falhou:', error)
+    return 0
+  }
+  return Number(data ?? 0)
 }
 
 // Incrementa o contador de IA do mês. Reseta se for mês novo.

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS } from '@/lib/billing'
 
+// O padrão da Vercel é 10s. O tempo de subida do arquivo pelo usuário conta
+// para a duração da função, e um PDF/foto grande em 4G lento passa disso —
+// o upload morreria no meio sem mensagem clara.
+export const maxDuration = 60
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

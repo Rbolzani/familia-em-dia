@@ -159,17 +159,11 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     .select('family_id')
     .eq('user_id', userId)
 
-  let userIds = [userId]
   const familyIds = (myMemberships ?? []).map(m => m.family_id)
-  if (familyIds.length > 0) {
-    const { data: allMembers } = await admin
-      .from('family_members')
-      .select('user_id, display_name')
-      .in('family_id', familyIds)
-    if (allMembers) userIds = [...new Set([userId, ...allMembers.map(m => m.user_id)])]
-  }
 
-  // Nomes para leva/busca (relativo ao destinatário)
+  // Nomes para leva/busca (relativo ao destinatário). Havia duas consultas
+  // idênticas a family_members aqui — a primeira alimentava um `userIds` que
+  // nunca era lido. Uma só, portanto.
   const names = new Map<string, string>()
   if (familyIds.length > 0) {
     const { data: mems } = await admin

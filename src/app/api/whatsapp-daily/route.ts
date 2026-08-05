@@ -63,13 +63,21 @@ export async function GET(req: NextRequest) {
   let skipped = 0
   let failed = 0
 
-  for (const s of settings) {
+  // Processa em paralelo com teto de concorrência. Sequencialmente cada
+  // usuário custa ~600ms (consultas + POST na Meta), o que estoura o
+  // maxDuration de 60s a partir de ~100 usuários no mesmo horário — e o
+  // estouro é silencioso: a função é morta e quem estava no fim da fila
+  // simplesmente não recebe. Com 8 em paralelo, 500 usuários levam ~37s.
+  // O teto também protege o rate limit da Cloud API.
+  const CONCURRENCY = 8
+
+  async function processUser(s: (typeof settings)[number]) {
     try {
       const summary = await buildDailySummary(admin, s.user_id)
       if (!summary) {
         console.log(`[whatsapp-daily] user ${s.user_id}: sem atividades no período, pulando`)
         skipped++
-        continue
+        return
       }
       const result = await sendWhatsApp(s.whatsapp_number!, summary.params)
       if (result.ok) {
@@ -84,6 +92,18 @@ export async function GET(req: NextRequest) {
       failed++
     }
   }
+
+  // Fila compartilhada: cada "worker" puxa o próximo índice ao terminar, em
+  // vez de fatiar em blocos — assim um usuário lento não segura os demais.
+  let cursor = 0
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, settings.length) }, async () => {
+      while (cursor < settings.length) {
+        const s = settings[cursor++]
+        await processUser(s)
+      }
+    })
+  )
 
   // ── Avisos de grace (notificação de conta) — independe do toggle/horário ──
   let grace = { sent: 0, skipped: 0, failed: 0 }

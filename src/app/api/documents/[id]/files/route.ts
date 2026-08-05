@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS } from '@/lib/billing'
 
+// Mesmo motivo do /api/documents/upload: o padrão de 10s da Vercel não cobre
+// a subida de um arquivo grande em conexão móvel lenta.
+export const maxDuration = 60
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
