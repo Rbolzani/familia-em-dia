@@ -1,0 +1,31 @@
+-- Remove policy órfã do Storage que anulava o gate de papel nos documentos.
+--
+-- PROBLEMA
+-- A policy "users own their documents storage" (PERMISSIVE, cmd = ALL) sobrou
+-- do modelo antigo, anterior ao family_id. Ela concedia SELECT/INSERT/UPDATE/
+-- DELETE em qualquer objeto do bucket `documents` cujo primeiro segmento do
+-- caminho fosse o uid do usuário — sem checar papel nem família.
+--
+-- Como o PostgreSQL combina policies permissivas com OR, ela ANULAVA os gates
+-- das policies corretas:
+--   • documents_storage_insert exige auth_can_edit()  → um parceiro read_only
+--     conseguia SUBIR documentos.
+--   • documents_storage_delete exige auth_can_edit()  → um parceiro read_only
+--     conseguia EXCLUIR os próprios arquivos.
+--   • ex-parceiro removido da família mantinha acesso aos arquivos que subiu.
+-- (Não havia vazamento entre famílias: o uid teria de bater com a pasta.)
+--
+-- É a mesma classe de falha já registrada no CLAUDE.md ("policies permissivas
+-- órfãs combinadas por OR"), desta vez no schema storage.
+--
+-- SEGURANÇA DA REMOÇÃO — verificado antes de aplicar:
+--   INSERT → coberto por documents_storage_insert (com auth_can_edit)
+--   SELECT → coberto por documents_storage_select (com family_id)
+--   DELETE → coberto por documents_storage_delete (family_id + auth_can_edit)
+--   UPDATE → não usado: os dois uploads do app usam `upsert: false`
+DROP POLICY IF EXISTS "users own their documents storage" ON storage.objects;
+
+-- ── ROLLBACK (se algum fluxo inesperado quebrar) ────────────────────────────
+-- CREATE POLICY "users own their documents storage" ON storage.objects
+--   FOR ALL TO public
+--   USING (bucket_id = 'documents' AND (auth.uid())::text = (storage.foldername(name))[1]);
