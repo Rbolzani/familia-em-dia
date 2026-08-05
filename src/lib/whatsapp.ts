@@ -460,11 +460,16 @@ export async function runGraceNotices(admin: SupabaseClient): Promise<{ sent: nu
       const number = await resolveWhatsAppNumber(admin, memberId)
       if (!number) { skipped++; continue }
 
+      // Texto deliberadamente SEM chamada de compra ("assine", preço, link de
+      // planos). O template é da categoria Utilidade, que exige informar o
+      // estado da conta; qualquer convite a comprar reclassifica como
+      // Marketing — mais caro por conversa, sujeito a limite e ao opt-out do
+      // usuário, o que é inaceitável para um aviso de conta. A ação fica no
+      // app, para onde o rodapé fixo do template aponta.
       const isOwner = memberId === o.user_id
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.familiaemdia.com.br'
       const body = isOwner
-        ? `🌿 *Família em Dia*\n\n⚠️ *Atenção:* seu parceiro(a) será desconectado ${dayStr}. Assine um plano para manter o acesso compartilhado: ${appUrl}/planos`
-        : `🌿 *Família em Dia*\n\n⚠️ *Atenção:* sua conexão com a família será encerrada ${dayStr}. Peça ao responsável que assine o plano Família para manter seu acesso.`
+        ? `O acesso compartilhado da sua família será encerrado ${dayStr}.`
+        : `Sua conexão com a família será encerrada ${dayStr}.`
 
       const result = await sendWhatsApp(number, body, accountTemplate)
       if (result.ok) sent++; else { failed++; console.error(`[grace] falha p/ ${memberId}:`, result.error) }
