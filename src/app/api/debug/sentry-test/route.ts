@@ -10,8 +10,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get('secret')
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+  // Autenticação por header, NUNCA por query string: um `?secret=` ficaria
+  // gravado no histórico do navegador e nos logs de acesso da Vercel — e este
+  // é o mesmo segredo que protege o cron do resumo diário.
+  const auth = req.headers.get('authorization')
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
