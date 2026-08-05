@@ -31,7 +31,14 @@ function sanitizeParam(s: string): string {
 // {{n}} do template, e as quebras de linha entre seções ficam no texto fixo
 // do template, não no parâmetro). Twilio e texto livre não têm essa restrição
 // e usam \n\n real entre seções.
-export async function sendWhatsApp(to: string, content: string | string[]): Promise<{ ok: boolean; error?: string; metaResponse?: string }> {
+export async function sendWhatsApp(
+  to: string,
+  content: string | string[],
+  // Permite usar OUTRO template que não o do resumo diário. Necessário porque
+  // a contagem de parâmetros faz parte do contrato do template: mandar 1
+  // parâmetro para um template de 5 é rejeitado pela Meta.
+  templateOverride?: string,
+): Promise<{ ok: boolean; error?: string; metaResponse?: string }> {
   const isMultiPart = Array.isArray(content)
 
   // ── Twilio sandbox (teste) ─────────────────────────────────────────────────
@@ -67,7 +74,7 @@ export async function sendWhatsApp(to: string, content: string | string[]): Prom
   const phoneId = process.env.WHATSAPP_PHONE_ID
   if (!token || !phoneId) return { ok: false, error: 'WHATSAPP_TOKEN/WHATSAPP_PHONE_ID não configurados' }
 
-  const templateName = process.env.WHATSAPP_TEMPLATE_NAME
+  const templateName = templateOverride ?? process.env.WHATSAPP_TEMPLATE_NAME
   let payload: Record<string, unknown>
   if (templateName === 'hello_world') {
     payload = {
@@ -400,6 +407,29 @@ export async function runGraceNotices(admin: SupabaseClient): Promise<{ sent: nu
   const today = spDate(0)
   let sent = 0, skipped = 0, failed = 0
 
+  // O cron roda a cada 15 min e o dedup é por DIA — sem esta janela, o aviso
+  // sairia na primeira execução após a meia-noite, acordando a família às
+  // 00:15 para falar de assinatura.
+  const hourSP = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false,
+  }).format(new Date()))
+  if (hourSP < 9 || hourSP >= 21) {
+    return { sent: 0, skipped: 0, failed: 0 }
+  }
+
+  // O aviso de conta é UMA frase → precisa de um template de 1 parâmetro.
+  // O `resumo_diario` tem 5: mandar 1 para ele é rejeitado pela Meta, que é
+  // o motivo de este aviso nunca ter sido entregue. Sem o template próprio
+  // configurado, falha de forma barulhenta em vez de silenciosa.
+  const accountTemplate = process.env.WHATSAPP_TEMPLATE_ACCOUNT
+  if (!accountTemplate && process.env.WHATSAPP_TEMPLATE_NAME) {
+    console.error(
+      '[grace] WHATSAPP_TEMPLATE_ACCOUNT não configurado — o aviso de grace ' +
+      'seria rejeitado pela Meta (contagem de parâmetros). Nenhum envio feito.'
+    )
+    return { sent: 0, skipped: 0, failed: 0 }
+  }
+
   const { data: owners } = await admin
     .from('subscriptions')
     .select('user_id, partner_grace_until')
@@ -436,7 +466,7 @@ export async function runGraceNotices(admin: SupabaseClient): Promise<{ sent: nu
         ? `🌿 *Família em Dia*\n\n⚠️ *Atenção:* seu parceiro(a) será desconectado ${dayStr}. Assine um plano para manter o acesso compartilhado: ${appUrl}/planos`
         : `🌿 *Família em Dia*\n\n⚠️ *Atenção:* sua conexão com a família será encerrada ${dayStr}. Peça ao responsável que assine o plano Família para manter seu acesso.`
 
-      const result = await sendWhatsApp(number, body)
+      const result = await sendWhatsApp(number, body, accountTemplate)
       if (result.ok) sent++; else { failed++; console.error(`[grace] falha p/ ${memberId}:`, result.error) }
 
       // Marca como enviado hoje (mesmo em falha, evita retry no mesmo dia).
