@@ -4,18 +4,19 @@
 // ou "monitoramento mudo" — foi justamente esse falso "tudo certo" que
 // mascarou a instrumentação faltando (o register() do Next nunca rodava).
 //
-// Protegida pelo CRON_SECRET para não virar um endpoint público capaz de
-// poluir a cota de 5.000 erros/mês. REMOVER depois de validar.
-import { NextRequest, NextResponse } from 'next/server'
+// Exige apenas SESSÃO de usuário logado — nada de segredo em URL nem em
+// header. Basta abrir o endereço no navegador já logado no app. Evita expor
+// o CRON_SECRET no histórico do navegador e nos logs de acesso da Vercel.
+// REMOVER depois de validar.
+import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
+import { createClient } from '@/lib/supabase/server'
 
-export async function GET(req: NextRequest) {
-  // Autenticação por header, NUNCA por query string: um `?secret=` ficaria
-  // gravado no histórico do navegador e nos logs de acesso da Vercel — e este
-  // é o mesmo segredo que protege o cron do resumo diário.
-  const auth = req.headers.get('authorization')
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Faça login no app e acesse novamente.' }, { status: 401 })
   }
 
   const dsnConfigurado = !!process.env.NEXT_PUBLIC_SENTRY_DSN
