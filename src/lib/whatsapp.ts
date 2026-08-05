@@ -130,13 +130,24 @@ interface SummaryActivity {
   child: { name: string } | null
 }
 
-// Resumo diário em 4 seções — cada posição de `params` vira um {{n}} do
+// A seção "Aulas de hoje" só é enviada quando o template APROVADO na Meta
+// tem os 6 parâmetros. Enviar 6 para um template de 5 (ou vice-versa) faz a
+// Meta rejeitar a mensagem inteira, então a contagem é explícita aqui:
+//   false (padrão) → 5 params, template `resumo_diario` legado
+//   true           → 6 params, template `resumo_diario_v2` com 🎒 Aulas
+// No cutover, trocar junto com WHATSAPP_TEMPLATE_NAME na Vercel.
+// Tolerante a "true"/"TRUE"/"1": um valor digitado com outra caixa no painel
+// da Vercel cairia silenciosamente em 5 params e quebraria o template v2.
+export const templateHasClasses = () =>
+  ['true', '1'].includes((process.env.WHATSAPP_TEMPLATE_HAS_CLASSES ?? '').trim().toLowerCase())
+
+// Resumo diário em seções — cada posição de `params` vira um {{n}} do
 // template Meta; as quebras de linha entre seções ficam no texto fixo do
 // template (ver painel-projeto / CLAUDE.md para o corpo aprovado).
 export interface DailySummary {
   full: string        // versão texto corrido, para Twilio/texto livre (usa \n\n real)
-  // [data, aulas de hoje, hoje, próximos 7 dias, documentos, vacinas]
-  params: [string, string, string, string, string, string]
+  // [data, (aulas de hoje), hoje, próximos 7 dias, documentos, vacinas]
+  params: string[]
 }
 
 // ── Monta o resumo do dia + próximos 7 dias para um usuário ─────────────────
@@ -360,7 +371,9 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
 
   return {
     full,
-    params: [dataParam, aulasParam, hojeParam, proximosParam, documentosParam, vacinasParam],
+    params: templateHasClasses()
+      ? [dataParam, aulasParam, hojeParam, proximosParam, documentosParam, vacinasParam]
+      : [dataParam, hojeParam, proximosParam, documentosParam, vacinasParam],
   }
 }
 

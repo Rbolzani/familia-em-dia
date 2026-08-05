@@ -1,7 +1,7 @@
 // Envia um resumo de teste AGORA para o número salvo do usuário logado.
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { adminClient, buildDailySummary, sendWhatsApp } from '@/lib/whatsapp'
+import { adminClient, buildDailySummary, sendWhatsApp, templateHasClasses } from '@/lib/whatsapp'
 
 export async function POST() {
   const supabase = await createClient()
@@ -20,9 +20,11 @@ export async function POST() {
 
   const admin = adminClient()
   const summary = await buildDailySummary(admin, user.id)
-  const params: [string, string, string, string, string, string] = summary?.params ?? [
+  // O fallback precisa ter a MESMA contagem de parâmetros do template ativo
+  // (ver templateHasClasses em lib/whatsapp.ts).
+  const params: string[] = summary?.params ?? [
     'teste de conexão OK!',
-    'Nenhuma aula hoje 🎒',
+    ...(templateHasClasses() ? ['Nenhuma aula hoje 🎒'] : []),
     'Nenhuma atividade hoje.',
     'Nenhuma atividade nos próximos 7 dias.',
     'Nenhum vencimento nos próximos 15 dias.',
