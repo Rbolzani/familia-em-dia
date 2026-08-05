@@ -34,6 +34,11 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+  // O Next emite só a tag padrão `mobile-web-app-capable`. O iOS anterior ao
+  // 16.4 ignora essa e o `display: standalone` do manifest — sem a tag legada
+  // com prefixo apple-, o app adicionado à tela inicial abre COM a barra do
+  // Safari em vez de standalone. Público majoritariamente iPhone: vale manter.
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 
 export const viewport: Viewport = {
