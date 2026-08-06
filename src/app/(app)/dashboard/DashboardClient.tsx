@@ -6,7 +6,7 @@ import {
   SunMedium, MapPin,
   ChevronLeft, ChevronRight,
   CalendarCheck, CalendarRange, Stethoscope,
-  StickyNote, Plus, Trash2, Check, Syringe, Pencil, Loader2,
+  StickyNote, Plus, Trash2, Check, Syringe, Pencil, Loader2, AlertTriangle, FileWarning,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ActivityQuickEdit, useActivityDelete } from '@/components/activities/ActivityQuickEdit'
@@ -17,7 +17,8 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/components/access/AccessContext'
-import type { VaccineAlert } from './page'
+import type { VaccineAlert, ImportantAlert } from './page'
+import { getVaultCategory } from '@/lib/vault'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type ActWithChild = Activity & { child: { name: string; avatar_color: string } }
@@ -31,6 +32,7 @@ interface Props {
   monthActivities:    ActWithChild[]   // full month — for mini-calendar dots + click detail
   reminders:          ActWithChild[]  // activities with no date
   vaccineAlerts:      VaccineAlert[]
+  importantAlerts:    ImportantAlert[]  // vencimentos do Cofre (docs + vacinas)
 }
 
 // ── Textures ───────────────────────────────────────────────────────────────
@@ -459,40 +461,34 @@ function RemindersPanel({ initial, allChildren }: { initial: ActWithChild[]; all
     setEditText(item.title)
   }
 
+  // Cara de quadro de cortiça: fundo terroso texturizado e sombra "para
+  // dentro", como se os papéis estivessem presos numa superfície com
+  // profundidade — em vez de mais um card branco igual aos outros.
   const PANEL: React.CSSProperties = {
     borderRadius: '20px 13px 18px 15px',
-    border: '1px solid rgba(61,102,65,0.20)',
-    background: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"), linear-gradient(155deg,#FFFDF7 0%,#F9F4E8 100%)`,
-    backgroundSize: '200px 200px, 100% 100%',
-    boxShadow: '0 4px 18px rgba(44,74,46,0.09),0 1px 4px rgba(44,74,46,0.06),0 -1px 0 rgba(255,255,255,0.85) inset',
-    padding: '18px 16px',
-    // subtle "pinboard" feel with a warm tint
+    border: '1px solid rgba(146,64,14,0.22)',
+    background: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23c)' opacity='0.14'/%3E%3C/svg%3E"), linear-gradient(155deg,#E8D3AE 0%,#D9C096 100%)`,
+    backgroundSize: '140px 140px, 100% 100%',
+    boxShadow: 'inset 0 2px 12px rgba(120,72,20,0.22), inset 0 -1px 0 rgba(255,255,255,0.30), 0 4px 18px rgba(44,74,46,0.10)',
+    padding: '14px 12px',
   }
 
   return (
     <div style={PANEL}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-[9px] flex items-center justify-center"
-            style={{ background:'linear-gradient(140deg,#FEF3C7,#FDE68A)', border:'1px solid rgba(146,64,14,0.12)' }}>
-            <StickyNote size={14} color="#92400E"/>
-          </div>
-          <span style={{ fontFamily:'var(--font-lora)', fontSize:15, fontWeight:600, color:'#1A2B1C' }}>
-            Lembretes
-          </span>
-          {items.length > 0 && (
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background:'rgba(146,64,14,0.10)', color:'#92400E' }}>
-              {items.length}
-            </span>
-          )}
-        </div>
+      {/* Sem título aqui: quem nomeia o bloco é o SectionH "Mural de
+          Lembretes" logo acima — repetir seria redundante. Sobra só a
+          contagem e o botão de adicionar. */}
+      <div className="flex items-center justify-between mb-2.5 px-0.5">
+        <span className="text-[11px] font-bold uppercase tracking-[0.08em]"
+          style={{ color:'rgba(120,72,20,0.65)' }}>
+          {items.length > 0 ? `${items.length} lembrete${items.length !== 1 ? 's' : ''}` : 'tudo em dia'}
+        </span>
         {canEdit && (
           <button
             onClick={() => setAdding(a => !a)}
+            title="Adicionar lembrete"
             className="w-7 h-7 rounded-[9px] flex items-center justify-center transition-all hover:scale-110"
-            style={{ background: adding ? 'rgba(220,38,38,0.10)' : 'rgba(61,102,65,0.10)', color: adding ? '#DC2626' : '#3D6641', border:'1px solid rgba(0,0,0,0.06)' }}>
+            style={{ background:'rgba(255,255,255,0.75)', color: adding ? '#DC2626' : '#7A4A12', border:'1px solid rgba(120,72,20,0.20)', boxShadow:'0 1px 3px rgba(120,72,20,0.20)' }}>
             <Plus size={14} style={{ transform: adding ? 'rotate(45deg)' : 'none', transition:'transform .2s' }}/>
           </button>
         )}
@@ -535,17 +531,18 @@ function RemindersPanel({ initial, allChildren }: { initial: ActWithChild[]; all
 
       {/* Empty state */}
       {items.length === 0 && !adding && (
-        <div className="text-center py-5">
+        <div className="text-center py-6 rounded-[12px]"
+          style={{ background:'rgba(255,255,255,0.35)', border:'1px dashed rgba(120,72,20,0.28)' }}>
           <div className="text-2xl mb-1">✅</div>
-          <p className="text-[12px] italic" style={{ color:'rgba(26,43,28,0.40)' }}>
-            Nenhum lembrete pendente.<br/>Tudo organizado!
+          <p className="text-[12px] italic" style={{ color:'rgba(90,55,15,0.65)' }}>
+            Mural vazio.<br/>Nenhum lembrete pendente!
           </p>
         </div>
       )}
 
       {/* List */}
-      <div className="space-y-2">
-        {items.map(item => {
+      <div className="space-y-2.5">
+        {items.map((item, idx) => {
           const cat = REMINDER_CAT[item.category] ?? REMINDER_CAT.escola
 
           if (editingId === item.id) {
@@ -576,9 +573,20 @@ function RemindersPanel({ initial, allChildren }: { initial: ActWithChild[]; all
             )
           }
 
+          // Cada lembrete é um papelzinho preso no mural: leve inclinação
+          // alternada e sombra projetada, para não parecer uma lista comum.
+          const tilt = (idx % 3 === 0 ? -0.7 : idx % 3 === 1 ? 0.5 : -0.3)
           return (
-            <div key={item.id} className="flex items-start gap-2.5 group p-2 rounded-[11px] transition-colors"
-              style={{ background:'rgba(255,255,255,0.70)', border:'1px solid rgba(61,102,65,0.10)' }}>
+            <div key={item.id} className="flex items-start gap-2.5 group p-2.5 relative transition-transform hover:!rotate-0 hover:-translate-y-[1px]"
+              style={{ background:'linear-gradient(160deg,#FFFEF8 0%,#FFF8E3 100%)',
+                border:'1px solid rgba(120,72,20,0.14)', borderRadius:'3px 10px 4px 9px',
+                boxShadow:'0 2px 6px rgba(90,55,15,0.20), 0 1px 0 rgba(255,255,255,0.70) inset',
+                transform:`rotate(${tilt}deg)` }}>
+              {/* Alfinete */}
+              <span aria-hidden className="absolute rounded-full"
+                style={{ top:-3, left:'50%', width:7, height:7, transform:'translateX(-50%)',
+                  background:'radial-gradient(circle at 30% 30%, #F87171, #B91C1C)',
+                  boxShadow:'0 1px 2px rgba(0,0,0,0.35)' }}/>
               {/* Done button */}
               {canEdit && (
                 <button onClick={() => handleDone(item.id)}
@@ -623,43 +631,59 @@ function RemindersPanel({ initial, allChildren }: { initial: ActWithChild[]; all
       </div>
 
       {/* Footer hint */}
-      <p className="text-[10px] italic text-center mt-3" style={{ color:'rgba(26,43,28,0.30)' }}>
+      <p className="text-[10px] italic text-center mt-3" style={{ color:'rgba(90,55,15,0.50)' }}>
         Atividades sem data ficam aqui automaticamente
       </p>
     </div>
   )
 }
 
-// ── Vaccine Alerts Panel ───────────────────────────────────────────────────
-function VaccineAlertsPanel({ alerts }: { alerts: VaccineAlert[] }) {
+// ── Alertas Importantes ────────────────────────────────────────────────────
+// Vencimentos do Cofre (documentos + doses de vacina) já vencidos ou a vencer.
+// Substitui o antigo painel só de vacinas: contrato, boleto e carteirinha
+// vencendo importam tanto quanto uma dose atrasada.
+function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
   if (!alerts.length) return null
+  const vencidos = alerts.filter(a => a.status === 'vencido').length
+
   return (
     <div>
-      <SectionH><Syringe size={18} color="#DB2777"/> Vacinas</SectionH>
+      <SectionH>
+        <AlertTriangle size={18} color="#DC2626"/> Alertas Importantes
+        {vencidos > 0 && (
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+            style={{ background:'rgba(220,38,38,0.10)', color:'#B91C1C' }}>
+            {vencidos} vencido{vencidos !== 1 ? 's' : ''}
+          </span>
+        )}
+      </SectionH>
       <div className="space-y-2">
         {alerts.map((a, i) => {
-          const isVencida = a.status === 'vencido'
-          const accent = isVencida ? '#DC2626' : '#D97706'
-          const badgeBg = isVencida ? 'rgba(220,38,38,0.10)' : 'rgba(245,158,11,0.10)'
-          const badgeColor = isVencida ? '#B91C1C' : '#92400E'
-          const dayLabel = isVencida
-            ? `Vencida há ${Math.abs(a.daysLeft)} dia${Math.abs(a.daysLeft) !== 1 ? 's' : ''}`
-            : a.daysLeft === 0 ? 'Hoje!'
-            : a.daysLeft === 1 ? 'Amanhã'
+          const cat = getVaultCategory(a.category)
+          const Icon = a.kind === 'vacina' ? Syringe : (cat?.icon ?? FileWarning)
+          const isVencido = a.status === 'vencido'
+          const accent = isVencido ? '#DC2626' : '#D97706'
+          const badgeBg = isVencido ? 'rgba(220,38,38,0.10)' : 'rgba(245,158,11,0.10)'
+          const badgeColor = isVencido ? '#B91C1C' : '#92400E'
+          const dias = Math.abs(a.daysLeft)
+          const dayLabel = isVencido
+            ? `Venceu há ${dias} dia${dias !== 1 ? 's' : ''}`
+            : a.daysLeft === 0 ? 'Vence hoje!'
+            : a.daysLeft === 1 ? 'Vence amanhã'
             : `Em ${a.daysLeft} dias`
           return (
-            <Link key={i} href={`/vault/vacinacao/${a.documentId}`}>
+            <Link key={`${a.documentId}-${i}`} href={`/vault/${a.category}/${a.documentId}`}>
               <div className="flex items-center gap-3 p-3 rounded-xl transition-all hover:brightness-95"
-                style={{ background: isVencida ? 'rgba(220,38,38,0.04)' : 'rgba(245,158,11,0.05)', border: `1px solid ${accent}30` }}>
+                style={{ background: isVencido ? 'rgba(220,38,38,0.04)' : 'rgba(245,158,11,0.05)', border:`1px solid ${accent}30` }}>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: badgeBg }}>
-                  <Syringe size={13} color={accent} />
+                  <Icon size={13} color={accent} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-bold truncate" style={{ color: '#1A2B1C' }}>{a.vaccineName}</p>
-                  {a.childName && (
-                    <p className="text-[11px]" style={{ color: 'rgba(26,43,28,0.50)' }}>{a.childName}</p>
-                  )}
+                  <p className="text-[13px] font-bold truncate" style={{ color:'#1A2B1C' }}>{a.title}</p>
+                  <p className="text-[11px] truncate" style={{ color:'rgba(26,43,28,0.50)' }}>
+                    {[a.childName, a.kind === 'vacina' ? 'próxima dose' : cat?.label].filter(Boolean).join(' · ')}
+                  </p>
                 </div>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
                   style={{ background: badgeBg, color: badgeColor }}>
@@ -675,7 +699,7 @@ function VaccineAlertsPanel({ alerts }: { alerts: VaccineAlert[] }) {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-export default function DashboardClient({ userName, children, todayClasses, todayActivities, upcomingActivities, monthActivities, reminders, vaccineAlerts }: Props) {
+export default function DashboardClient({ userName, children, todayClasses, todayActivities, upcomingActivities, monthActivities, reminders, vaccineAlerts, importantAlerts }: Props) {
   const router = useRouter()
   const { canEdit } = useAccess()
   // As listas vêm do Server Component; após uma edição, router.refresh() traz
@@ -798,11 +822,11 @@ export default function DashboardClient({ userName, children, todayClasses, toda
             <SectionH>Calendário</SectionH>
             <MiniCalendar activitiesByDate={activitiesByDate} canEdit={canEdit} onChanged={onChanged}/>
           </div>
-          <VaccineAlertsPanel alerts={vaccineAlerts}/>
           <div>
-            <SectionH>Lembretes</SectionH>
+            <SectionH>Mural de Lembretes</SectionH>
             <RemindersPanel initial={reminders} allChildren={children}/>
           </div>
+          <ImportantAlertsPanel alerts={importantAlerts}/>
         </div>
       </div>
 

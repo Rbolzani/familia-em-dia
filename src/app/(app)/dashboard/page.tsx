@@ -14,6 +14,20 @@ export interface VaccineAlert {
   status: 'vencido' | 'a_vencer'
 }
 
+// Alerta unificado do Cofre: vencimento de documento OU próxima dose de
+// vacina. Só entram itens já vencidos ou vencendo em até 30 dias — o painel
+// perde o sentido se virar a lista completa de documentos.
+export interface ImportantAlert {
+  documentId: string
+  kind: 'documento' | 'vacina'
+  title: string
+  category: string          // gaveta do cofre, para cor e rótulo
+  childName: string | null
+  date: string
+  daysLeft: number
+  status: 'vencido' | 'a_vencer'
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -38,6 +52,7 @@ export default async function DashboardPage() {
     { data: monthActivities },
     { data: reminders },
     { data: vaccineDocs },
+    { data: expiringDocs },
   ] = await Promise.all([
     supabase.from('children').select('*').order('sort_order'),
 
@@ -72,6 +87,12 @@ export default async function DashboardPage() {
     supabase.from('documents')
       .select('id, title, metadata, child:children(name)')
       .eq('doc_type', 'vacinacao'),
+
+    // Documentos com data de validade — alimentam os Alertas Importantes
+    supabase.from('documents')
+      .select('id, title, category, expires_at, child:children(name)')
+      .not('expires_at', 'is', null)
+      .order('expires_at'),
   ])
 
   // Compute upcoming vaccine dose alerts (vencido + a_vencer nos próximos 30 dias)
@@ -93,6 +114,45 @@ export default async function DashboardPage() {
     }
   }
   vaccineAlerts.sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'vencido' ? -1 : 1
+    return a.daysLeft - b.daysLeft
+  })
+
+  // ── Alertas Importantes: documentos vencendo + doses de vacina ────────────
+  // Reaproveita expiryStatus (mesma régua do Cofre) para não haver divergência
+  // entre o que o Vault mostra como "a vencer" e o que o dashboard alerta.
+  const importantAlerts: ImportantAlert[] = []
+
+  for (const doc of expiringDocs ?? []) {
+    const st = expiryStatus(doc.expires_at)
+    if (st !== 'vencido' && st !== 'a_vencer') continue
+    importantAlerts.push({
+      documentId: doc.id,
+      kind: 'documento',
+      title: doc.title,
+      category: doc.category,
+      childName: (doc.child as unknown as { name: string } | null)?.name ?? null,
+      date: doc.expires_at,
+      daysLeft: daysToExpiry(doc.expires_at) ?? 0,
+      status: st,
+    })
+  }
+
+  for (const v of vaccineAlerts) {
+    importantAlerts.push({
+      documentId: v.documentId,
+      kind: 'vacina',
+      title: v.vaccineName,
+      category: 'vacinacao',
+      childName: v.childName,
+      date: v.proxima_dose,
+      daysLeft: v.daysLeft,
+      status: v.status,
+    })
+  }
+
+  // Vencidos primeiro; dentro de cada grupo, o mais urgente no topo.
+  importantAlerts.sort((a, b) => {
     if (a.status !== b.status) return a.status === 'vencido' ? -1 : 1
     return a.daysLeft - b.daysLeft
   })
@@ -120,6 +180,7 @@ export default async function DashboardPage() {
       monthActivities={(monthActivities ?? []).filter(a => !isAula(a)) as Parameters<typeof DashboardClient>[0]['monthActivities']}
       reminders={(reminders ?? []) as Parameters<typeof DashboardClient>[0]['reminders']}
       vaccineAlerts={vaccineAlerts}
+      importantAlerts={importantAlerts}
     />
   )
 }
