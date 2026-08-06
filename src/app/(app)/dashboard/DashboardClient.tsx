@@ -467,12 +467,23 @@ function RemindersPanel({ initial, allChildren }: { initial: ActWithChild[]; all
   // Cara de quadro de cortiça: fundo terroso texturizado e sombra "para
   // dentro", como se os papéis estivessem presos numa superfície com
   // profundidade — em vez de mais um card branco igual aos outros.
+  // Textura de cortiça montada em camadas: quatro conjuntos de pontinhos
+  // (claros e escuros) com tamanhos de repetição primos entre si — assim o
+  // padrão não fica visivelmente "quadriculado" — sobre um ruído fractal e o
+  // gradiente terroso de base.
   const PANEL: React.CSSProperties = {
     borderRadius: '20px 13px 18px 15px',
-    border: '1px solid rgba(146,64,14,0.22)',
-    background: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23c)' opacity='0.14'/%3E%3C/svg%3E"), linear-gradient(155deg,#E8D3AE 0%,#D9C096 100%)`,
-    backgroundSize: '140px 140px, 100% 100%',
-    boxShadow: 'inset 0 2px 12px rgba(120,72,20,0.22), inset 0 -1px 0 rgba(255,255,255,0.30), 0 4px 18px rgba(44,74,46,0.10)',
+    border: '1px solid rgba(146,64,14,0.28)',
+    background: [
+      'radial-gradient(circle at 22% 34%, rgba(255,246,225,0.55) 0 1.6px, transparent 2.2px)',
+      'radial-gradient(circle at 68% 71%, rgba(122,74,18,0.28) 0 2.1px, transparent 2.8px)',
+      'radial-gradient(circle at 47% 12%, rgba(122,74,18,0.20) 0 1.3px, transparent 1.9px)',
+      'radial-gradient(circle at 83% 26%, rgba(255,246,225,0.40) 0 1.1px, transparent 1.7px)',
+      `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23c)' opacity='0.20'/%3E%3C/svg%3E")`,
+      'linear-gradient(155deg,#E5CFA6 0%,#D3B78A 100%)',
+    ].join(','),
+    backgroundSize: '23px 29px, 37px 31px, 19px 43px, 41px 23px, 140px 140px, 100% 100%',
+    boxShadow: 'inset 0 2px 14px rgba(110,64,14,0.28), inset 0 -1px 0 rgba(255,255,255,0.25), 0 4px 18px rgba(44,74,46,0.12)',
     padding: '14px 12px',
   }
 
@@ -652,7 +663,7 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
   return (
     <div>
       <SectionH>
-        <AlertTriangle size={18} color="#DC2626"/> Alertas Importantes
+        <AlertTriangle size={18} color="#DC2626"/> Alertas
         {vencidos > 0 && (
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
             style={{ background:'rgba(220,38,38,0.10)', color:'#B91C1C' }}>
