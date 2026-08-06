@@ -92,9 +92,12 @@ function fmtDate() {
   return format(new Date(),"EEEE, d 'de' MMMM 'de' yyyy",{locale:ptBR}).replace(/^\w/,c=>c.toUpperCase())
 }
 function SectionH({ children }: { children: React.ReactNode }) {
+  // flex-wrap + min-w-0: títulos longos com selo ("Alertas Importantes · 3
+  // vencidos") formavam uma linha indivisível que empurrava a largura da
+  // coluna no mobile. Fonte menor no celular pelo mesmo motivo.
   return (
-    <div className="flex items-center gap-3 mb-4"
-      style={{ fontFamily:'var(--font-lora)', fontSize:22, fontWeight:600, color:'#1A2B1C' }}>
+    <div className="flex items-center gap-2 md:gap-3 mb-4 flex-wrap min-w-0 text-[18px] md:text-[22px]"
+      style={{ fontFamily:'var(--font-lora)', fontWeight:600, color:'#1A2B1C' }}>
       {children}
       <span className="flex-1 h-[2px] rounded" style={{ background:'linear-gradient(90deg,rgba(61,102,65,0.22),transparent)', minWidth:20 }}/>
     </div>
@@ -657,7 +660,11 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
           </span>
         )}
       </SectionH>
-      <div className="space-y-2">
+      {/* min-w-0 aqui e no Link: `truncate` implica white-space:nowrap, então
+          a min-content do título é o texto INTEIRO ("Alteração e Consolidação
+          do Contrato Social..." = 443px). Sem cortar essa propagação, o
+          painel exigia 578px numa tela de 412px e o layout estourava. */}
+      <div className="space-y-2 min-w-0">
         {alerts.map((a, i) => {
           const cat = getVaultCategory(a.category)
           const Icon = a.kind === 'vacina' ? Syringe : (cat?.icon ?? FileWarning)
@@ -672,7 +679,7 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
             : a.daysLeft === 1 ? 'Vence amanhã'
             : `Em ${a.daysLeft} dias`
           return (
-            <Link key={`${a.documentId}-${i}`} href={`/vault/${a.category}/${a.documentId}`}>
+            <Link key={`${a.documentId}-${i}`} href={`/vault/${a.category}/${a.documentId}`} className="block min-w-0">
               <div className="flex items-center gap-3 p-3 rounded-xl transition-all hover:brightness-95"
                 style={{ background: isVencido ? 'rgba(220,38,38,0.04)' : 'rgba(245,158,11,0.05)', border:`1px solid ${accent}30` }}>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -782,8 +789,12 @@ export default function DashboardClient({ userName, children, todayClasses, toda
         ))}
       </div>
 
-      {/* Two-column layout */}
-      <div className="layout-cols grid gap-[18px] md:gap-[22px]" style={{ gridTemplateColumns:'1fr 308px' }}>
+      {/* Two-column layout.
+          min-w-0 no grid E nas duas colunas: sem isso o mínimo automático do
+          grid (minmax(auto,1fr)) deixa o conteúdo empurrar a largura além da
+          tela, e o overflow-x-hidden do container apenas corta o excesso —
+          é a causa da "tela cortada à direita" no mobile. */}
+      <div className="layout-cols grid gap-[18px] md:gap-[22px] min-w-0" style={{ gridTemplateColumns:'1fr 308px' }}>
 
         {/* Left */}
         <div className="min-w-0">
@@ -817,7 +828,7 @@ export default function DashboardClient({ userName, children, todayClasses, toda
         </div>
 
         {/* Right */}
-        <div className="space-y-[18px] md:space-y-[22px]">
+        <div className="space-y-[18px] md:space-y-[22px] min-w-0">
           <div>
             <SectionH>Calendário</SectionH>
             <MiniCalendar activitiesByDate={activitiesByDate} canEdit={canEdit} onChanged={onChanged}/>
