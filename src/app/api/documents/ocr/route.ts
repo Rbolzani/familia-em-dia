@@ -32,8 +32,21 @@ Campos comuns na raiz (preencha conforme o significado no tipo — ver catálogo
 Catálogo de tipos (o que extrair de cada um):
 ${CATALOG}
 
-Regra especial — vacinacao: "metadata.vacinas" é um array de objetos:
-[{ "nome": "BCG", "data_aplicacao": "YYYY-MM-DD|null", "dose": "1ª dose|reforço|null", "proxima_dose": "YYYY-MM-DD|null" }]
+Regra especial — vacinacao:
+"metadata.vacinas" é o HISTÓRICO do que JÁ FOI APLICADO. Array de objetos:
+[{ "nome": "BCG", "data_aplicacao": "YYYY-MM-DD|null", "dose": "1ª dose|reforço|null" }]
+
+NUNCA invente data de próxima dose. Comprovantes de vacinação registram apenas
+as doses tomadas; não existe campo de agendamento neles. A data de uma dose
+JAMAIS deve ser copiada como "próxima dose" de outra.
+
+"metadata.doses_pendentes" é um array de textos curtos, para doses que têm
+campo IMPRESSO no comprovante mas estão SEM data preenchida.
+Ex.: o cartão traz os blocos "1ª DOSE" e "2ª DOSE", o primeiro preenchido e o
+segundo em branco → ["2ª dose"].
+Se todos os blocos impressos estiverem preenchidos, retorne [].
+NUNCA deduza doses a partir de calendário vacinal, idade ou fabricante — só
+reporte um campo que esteja visivelmente vazio no papel.
 
 Formato de saída — retorne APENAS um JSON válido (sem markdown, sem texto fora):
 {

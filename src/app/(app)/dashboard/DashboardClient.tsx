@@ -17,7 +17,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/components/access/AccessContext'
-import type { VaccineAlert, ImportantAlert } from './page'
+import type { ImportantAlert } from './page'
 import { getVaultCategory } from '@/lib/vault'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -31,8 +31,7 @@ interface Props {
   upcomingActivities: ActWithChild[]
   monthActivities:    ActWithChild[]   // full month — for mini-calendar dots + click detail
   reminders:          ActWithChild[]  // activities with no date
-  vaccineAlerts:      VaccineAlert[]
-  importantAlerts:    ImportantAlert[]  // vencimentos do Cofre (docs + vacinas)
+  importantAlerts:    ImportantAlert[]  // vencimentos de documentos do Cofre
 }
 
 // ── Textures ───────────────────────────────────────────────────────────────
@@ -669,7 +668,7 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
       <div className="space-y-2 min-w-0">
         {alerts.map((a, i) => {
           const cat = getVaultCategory(a.category)
-          const Icon = a.kind === 'vacina' ? Syringe : (cat?.icon ?? FileWarning)
+          const Icon = cat?.icon ?? FileWarning
           const isVencido = a.status === 'vencido'
           const accent = isVencido ? '#DC2626' : '#D97706'
           const badgeBg = isVencido ? 'rgba(220,38,38,0.10)' : 'rgba(245,158,11,0.10)'
@@ -691,7 +690,7 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-bold truncate" style={{ color:'#1A2B1C' }}>{a.title}</p>
                   <p className="text-[11px] truncate" style={{ color:'rgba(26,43,28,0.50)' }}>
-                    {[a.childName, a.kind === 'vacina' ? 'próxima dose' : cat?.label].filter(Boolean).join(' · ')}
+                    {[a.childName, cat?.label].filter(Boolean).join(' · ')}
                   </p>
                 </div>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
@@ -708,7 +707,7 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-export default function DashboardClient({ userName, children, todayClasses, todayActivities, upcomingActivities, monthActivities, reminders, vaccineAlerts, importantAlerts }: Props) {
+export default function DashboardClient({ userName, children, todayClasses, todayActivities, upcomingActivities, monthActivities, reminders, importantAlerts }: Props) {
   const router = useRouter()
   const { canEdit } = useAccess()
   // As listas vêm do Server Component; após uma edição, router.refresh() traz

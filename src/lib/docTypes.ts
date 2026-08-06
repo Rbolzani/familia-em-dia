@@ -44,12 +44,48 @@ export interface DocTypeDef {
   fields: DocField[]       // campos específicos (além de título/filho/tags/arquivos)
 }
 
-// Uma entrada de vacina (estrutura do campo 'vacinas').
+// Uma entrada de vacina (estrutura do campo 'vacinas') — apenas HISTÓRICO do
+// que já foi aplicado.
+//
+// Não existe "proxima_dose" de propósito: comprovantes de vacinação registram
+// só as doses tomadas, sem agendar as seguintes. O campo existia e o OCR o
+// preenchia com a data da dose SEGUINTE já aplicada, transformando histórico
+// em agendamento — e o app passava a alertar "dose vencida" sobre uma dose que
+// já tinha sido tomada. Vacina tem histórico e pendência, não vencimento.
 export interface VacinaItem {
   nome: string
   data_aplicacao: string | null  // YYYY-MM-DD
   dose: string | null            // ex.: "1ª dose", "reforço"
-  proxima_dose: string | null    // YYYY-MM-DD — alimenta o alerta de agendamento
+}
+
+// Doses com campo IMPRESSO no comprovante mas SEM data preenchida — ex.: o
+// cartão traz o bloco "2ª DOSE" em branco. É leitura do documento, nunca
+// inferência de calendário vacinal. Vira sugestão de lembrete no mural.
+export type DosesPendentes = string[]
+
+/**
+ * Doses ainda pendentes de verdade: tira da lista do OCR as que já aparecem
+ * como aplicadas em `vacinas`. Sem isso, o registro da dose faltante não
+ * silenciaria o aviso — o usuário preencheria a 2ª dose e o app continuaria
+ * cobrando por ela.
+ */
+export function dosesRealmentePendentes(
+  vacinas: VacinaItem[] | undefined,
+  dosesPendentes: string[] | undefined,
+): string[] {
+  // "2ª dose", "2a Dose" e "2º reforço" precisam casar. O indicador ordinal
+  // (ª/º) não é acento — o NFD não o decompõe —, então é removido à parte, e
+  // o "a"/"o" solto depois de um dígito também.
+  const norm = (s: string) =>
+    s.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[ªº]/g, '')
+      .replace(/(\d)[ao](?![a-z0-9])/g, '$1')
+      .replace(/[^a-z0-9]/g, '')
+  const aplicadas = new Set(
+    (vacinas ?? []).filter(v => v.data_aplicacao && v.dose).map(v => norm(v.dose as string)),
+  )
+  return (dosesPendentes ?? []).filter(d => d && !aplicadas.has(norm(d)))
 }
 
 export const DOC_TYPES: Record<DocType, DocTypeDef> = {

@@ -55,7 +55,6 @@ function VacinasView({ items }: { items: VacinaItem[] }) {
       <p className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'rgba(26,43,28,0.50)' }}>Vacinas</p>
       <div className="space-y-2">
         {items.map((v, i) => {
-          const m = EXPIRY_META[vaultExpiryStatus(v.proxima_dose)]
           return (
             <div key={i} className="rounded-xl p-2.5" style={{ background: 'rgba(61,102,65,0.05)', border: '1px solid rgba(61,102,65,0.12)' }}>
               <div className="flex items-center justify-between gap-2">
@@ -66,11 +65,8 @@ function VacinasView({ items }: { items: VacinaItem[] }) {
                 <span className="text-[11.5px]" style={{ color: 'rgba(26,43,28,0.55)' }}>
                   {v.data_aplicacao ? `Aplicada em ${fmtDate(v.data_aplicacao)}` : 'Sem data de aplicação'}
                 </span>
-                {v.proxima_dose && (
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: m.bg, color: m.color }}>
-                    Próxima dose: {fmtDate(v.proxima_dose)} · {expiryLabel(v.proxima_dose)}
-                  </span>
-                )}
+                {/* Sem selo de vencimento: a lista é o HISTÓRICO do cartão.
+                    Dose faltante vira lembrete no mural, não alarme aqui. */}
               </div>
             </div>
           )

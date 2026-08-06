@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 import { Plus, X } from 'lucide-react'
-import { getDocType, type DocType, type DocField, type VacinaItem } from '@/lib/docTypes'
+import { getDocType, dosesRealmentePendentes, type DocType, type DocField, type VacinaItem } from '@/lib/docTypes'
 
 interface Props {
   docType: DocType
@@ -35,12 +35,49 @@ function maskCpfCnpj(value: string): string {
 // Usado nos formulários de upload (overview/gaveta) e na edição do detalhe.
 export default function DocFormFields({ docType, values, onChange }: Props) {
   const def = getDocType(docType)
+  // Some sozinho quando o usuário registra a dose na lista acima.
+  const pendentes = dosesRealmentePendentes(
+    values.vacinas as VacinaItem[] | undefined,
+    values.doses_pendentes as string[] | undefined,
+  )
   return (
     <>
       {def.fields.map(f => (
         <Field key={f.key} f={f} value={values[f.key]} onChange={v => onChange(f.key, v)} />
       ))}
+      {docType === 'vacinacao' && pendentes.length > 0 && (
+        <DosesPendentesSugestao
+          doses={pendentes}
+          criar={values.criar_lembrete_doses !== false}
+          onToggle={v => onChange('criar_lembrete_doses', v)}
+        />
+      )}
     </>
+  )
+}
+
+// O OCR detectou um bloco de dose IMPRESSO e em branco no comprovante.
+// Sugere criar um lembrete no mural — sem criar nada sozinho, porque o
+// usuário está apenas subindo um arquivo e não pediu tarefa nenhuma.
+function DosesPendentesSugestao({ doses, criar, onToggle }: {
+  doses: string[]; criar: boolean; onToggle: (v: boolean) => void
+}) {
+  return (
+    <div className="rounded-xl p-3" style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.24)' }}>
+      <p className="text-[12.5px] font-bold mb-1" style={{ color: '#92400E' }}>
+        {doses.length === 1 ? 'Uma dose parece não registrada' : 'Algumas doses parecem não registradas'}
+      </p>
+      <p className="text-[11.5px] mb-2" style={{ color: 'rgba(26,43,28,0.60)' }}>
+        No comprovante, {doses.map(d => `“${d}”`).join(', ')} {doses.length === 1 ? 'está' : 'estão'} sem data preenchida.
+      </p>
+      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+        <input type="checkbox" checked={criar} onChange={e => onToggle(e.target.checked)}
+          style={{ accentColor: '#D97706', width: 16, height: 16 }} />
+        <span className="text-[12.5px] font-semibold" style={{ color: '#1A2B1C' }}>
+          Criar lembrete no mural
+        </span>
+      </label>
+    </div>
   )
 }
 
@@ -95,7 +132,7 @@ function VacinasEditor({ label, items, onChange }: { label: string; items: Vacin
     onChange(items.map((it, j) => j === i ? { ...it, ...patch } : it))
   }
   function add() {
-    onChange([...items, { nome: '', data_aplicacao: null, dose: null, proxima_dose: null }])
+    onChange([...items, { nome: '', data_aplicacao: null, dose: null }])
   }
   function remove(i: number) {
     onChange(items.filter((_, j) => j !== i))
@@ -113,7 +150,9 @@ function VacinasEditor({ label, items, onChange }: { label: string; items: Vacin
                 <X size={15} color="rgba(26,43,28,0.50)" />
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            {/* Só histórico: o que foi aplicado e quando. Sem "próxima dose" —
+                o comprovante não agenda doses futuras. */}
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <span className="block text-[10px] font-semibold mb-1" style={{ color: 'rgba(26,43,28,0.45)' }}>Aplicada em</span>
                 <input type="date" className="input-field w-full" value={it.data_aplicacao ?? ''} onChange={e => update(i, { data_aplicacao: e.target.value || null })} />
@@ -121,10 +160,6 @@ function VacinasEditor({ label, items, onChange }: { label: string; items: Vacin
               <div>
                 <span className="block text-[10px] font-semibold mb-1" style={{ color: 'rgba(26,43,28,0.45)' }}>Dose</span>
                 <input className="input-field w-full" placeholder="1ª / reforço" value={it.dose ?? ''} onChange={e => update(i, { dose: e.target.value || null })} />
-              </div>
-              <div>
-                <span className="block text-[10px] font-semibold mb-1" style={{ color: 'rgba(26,43,28,0.45)' }}>Próxima dose</span>
-                <input type="date" className="input-field w-full" value={it.proxima_dose ?? ''} onChange={e => update(i, { proxima_dose: e.target.value || null })} />
               </div>
             </div>
           </div>

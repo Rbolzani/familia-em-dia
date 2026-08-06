@@ -2,6 +2,7 @@
 // e montagem do resumo matinal da família.
 import { createClient as createAdminClient, SupabaseClient } from '@supabase/supabase-js'
 import { toWhatsAppNumber } from './cpf'
+import { dosesRealmentePendentes, type VacinaItem } from './docTypes'
 
 const GRAPH_URL = 'https://graph.facebook.com/v25.0'
 
@@ -339,27 +340,26 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     ? await vaccineQuery.in('family_id', familyIds)
     : await vaccineQuery.eq('user_id', userId)
 
+  // Doses faltando no comprovante — SEM prazo. Vacina não vence: o cartão
+  // registra o que foi aplicado e, quando um bloco impresso está em branco,
+  // isso é uma pendência sem data. Antes esta seção usava um "proxima_dose"
+  // que o OCR inventava a partir da data da dose seguinte, e anunciava como
+  // vencida uma dose que já havia sido tomada.
   const vaccineLines: string[] = []
-  const cutoff = spDate(30)  // próximos 30 dias
   for (const doc of vaccineDocs ?? []) {
-    const vacinas = ((doc.metadata as Record<string, unknown>)?.vacinas ?? []) as Array<{ nome?: string; proxima_dose?: string | null }>
-    for (const v of vacinas) {
-      if (!v.proxima_dose || !v.nome) continue
-      if (v.proxima_dose > cutoff) continue  // mais de 30 dias, pula
-      const childName = (doc.child as unknown as { name: string } | null)?.name
-      const daysLeft = Math.ceil((new Date(v.proxima_dose + 'T23:59:59').getTime() - Date.now()) / 86_400_000)
-      const status = daysLeft < 0
-        ? `vencida há ${Math.abs(daysLeft)} dia${Math.abs(daysLeft) !== 1 ? 's' : ''}`
-        : daysLeft === 0 ? 'hoje!'
-        : daysLeft === 1 ? 'amanhã'
-        : `em ${daysLeft} dias`
-      const who = childName ? ` (${childName})` : ''
-      vaccineLines.push(`${v.nome}${who} — dose ${status}`)
-    }
+    const meta = (doc.metadata ?? {}) as Record<string, unknown>
+    const pendentes = dosesRealmentePendentes(
+      meta.vacinas as VacinaItem[] | undefined,
+      meta.doses_pendentes as string[] | undefined,
+    )
+    if (pendentes.length === 0) continue
+    const childName = (doc.child as unknown as { name: string } | null)?.name
+    const who = childName ? ` (${childName})` : ''
+    vaccineLines.push(`${doc.title}${who} — falta ${pendentes.join(', ')}`)
   }
   const vacinasParam = vaccineLines.length > 0
     ? vaccineLines.join(' | ')
-    : 'Nenhuma dose prevista nos próximos 30 dias.'
+    : 'Nenhuma dose pendente.'
 
   const full = [
     `🌿 Bom dia! Resumo da Família — ${dataParam}`,
