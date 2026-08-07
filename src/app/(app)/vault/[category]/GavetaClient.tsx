@@ -11,6 +11,7 @@ import { ocrDocument } from '@/lib/ocr'
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS } from '@/lib/docTypes'
 import type { DocType } from '@/lib/docTypes'
 import DocFormFields from '@/components/vault/DocFormFields'
+import { applyDoseReminders } from '@/lib/doseReminders'
 
 function expiryStatus(expires_at: string | null): 'vencido' | 'a vencer' | 'valido' | null {
   if (!expires_at) return null
@@ -102,6 +103,11 @@ export default function GavetaClient({ category, children, documents: initialDoc
     setUploading(true)
     try {
       const { columns, metadata } = splitDocValues(docType, values)
+      // Antes de montar o FormData: cria os lembretes de dose faltante e tira
+      // `doses_pendentes` do metadata, para não duplicar num salvamento futuro.
+      const lembretes = await applyDoseReminders({
+        docType, values, metadata, docTitle: title.trim(), childId: childId || null,
+      })
       const form = new FormData()
       form.append('title', title.trim())
       form.append('category', category)
@@ -121,7 +127,9 @@ export default function GavetaClient({ category, children, documents: initialDoc
       const json = await res.json()
       if (!res.ok) { toast(json.error ?? 'Falha no upload', 'error'); return }
 
-      toast('Documento salvo com sucesso ✓')
+      toast(lembretes > 0
+        ? `Documento salvo ✓ · ${lembretes === 1 ? '1 lembrete criado' : `${lembretes} lembretes criados`} no mural`
+        : 'Documento salvo com sucesso ✓')
       const childRef = children.find(c => c.id === childId)
       setDocs(prev => [{ ...json.document, child: childRef ? { id: childRef.id, name: childRef.name, avatar_color: childRef.avatar_color } : null, files: json.files }, ...prev])
       setShowUpload(false)

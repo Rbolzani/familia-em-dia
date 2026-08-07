@@ -63,6 +63,22 @@ export interface VacinaItem {
 // inferência de calendário vacinal. Vira sugestão de lembrete no mural.
 export type DosesPendentes = string[]
 
+// Chave do metadata onde a lista vive. Não é um DocField (não é editável à
+// mão), então seedDocValues/splitDocValues a tratam como caso especial.
+export const DOSES_PENDENTES_KEY = 'doses_pendentes'
+
+/**
+ * Título do lembrete de dose faltante, ex.: "Tomar 2ª dose — Tríplice viral".
+ * Se o nome da vacina já estiver embutido na descrição da dose, não repete.
+ */
+export function doseReminderTitle(dose: string, docTitle: string): string {
+  const d = dose.trim()
+  const t = docTitle.trim()
+  const base = /^(tomar|aplicar)\b/i.test(d) ? d : `Tomar ${d}`
+  if (!t || base.toLowerCase().includes(t.toLowerCase())) return base.slice(0, 80)
+  return `${base} — ${t}`.slice(0, 80)
+}
+
 /**
  * Doses ainda pendentes de verdade: tira da lista do OCR as que já aparecem
  * como aplicadas em `vacinas`. Sem isso, o registro da dose faltante não
@@ -233,6 +249,12 @@ export function seedDocValues(type: DocType, source: DocSource): Record<string, 
     if (f.column) out[f.key] = (source[f.column] ?? '') as unknown
     else out[f.key] = source.metadata?.[f.key] ?? emptyFor(f)
   }
+  // `doses_pendentes` não é campo editável — é saída do OCR que alimenta a
+  // sugestão de lembrete. Sem este passthrough ela se perderia aqui (e no
+  // split), e a sugestão nunca apareceria.
+  if (type === 'vacinacao') {
+    out[DOSES_PENDENTES_KEY] = source.metadata?.[DOSES_PENDENTES_KEY] ?? []
+  }
   return out
 }
 
@@ -254,6 +276,10 @@ export function splitDocValues(type: DocType, values: Record<string, unknown>): 
     } else {
       metadata[f.key] = v
     }
+  }
+  if (type === 'vacinacao') {
+    const pend = values[DOSES_PENDENTES_KEY]
+    if (Array.isArray(pend) && pend.length > 0) metadata[DOSES_PENDENTES_KEY] = pend
   }
   return { columns, metadata }
 }

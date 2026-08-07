@@ -9,6 +9,7 @@ import { useAccess } from '@/components/access/AccessContext'
 import { getVaultCategory, VAULT_CATEGORIES, expiryStatus as vaultExpiryStatus, EXPIRY_META, expiryLabel } from '@/lib/vault'
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS, type DocType, type VacinaItem } from '@/lib/docTypes'
 import DocFormFields from '@/components/vault/DocFormFields'
+import { applyDoseReminders } from '@/lib/doseReminders'
 
 function fileIcon(mime: string | null) {
   if (!mime) return <File size={18} />
@@ -143,6 +144,12 @@ export default function DocumentDetailClient({ document: doc, category, children
     setSavingEdit(true)
     try {
       const { columns, metadata } = splitDocValues(eDocType, eValues)
+      // Cria os lembretes de dose faltante e tira `doses_pendentes` do
+      // metadata antes do PATCH, para não duplicar numa edição futura.
+      const lembretes = await applyDoseReminders({
+        docType: eDocType, values: eValues, metadata,
+        docTitle: eTitle.trim(), childId: eChildId || null,
+      })
       const res = await fetch(`/api/documents/${doc.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -156,7 +163,9 @@ export default function DocumentDetailClient({ document: doc, category, children
       })
       const json = await res.json()
       if (!res.ok) { toast(json.error ?? 'Erro ao salvar', 'error'); return }
-      toast('Documento atualizado ✓')
+      toast(lembretes > 0
+        ? `Documento atualizado ✓ · ${lembretes === 1 ? '1 lembrete criado' : `${lembretes} lembretes criados`} no mural`
+        : 'Documento atualizado ✓')
       setShowEdit(false)
       // Se mudou de gaveta, navega para a nova URL; senão recarrega os dados.
       if (eCategory !== category) router.push(`/vault/${eCategory}/${doc.id}`)

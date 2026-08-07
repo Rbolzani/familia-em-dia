@@ -12,6 +12,7 @@ import { ocrDocument } from '@/lib/ocr'
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS } from '@/lib/docTypes'
 import type { DocType } from '@/lib/docTypes'
 import DocFormFields from '@/components/vault/DocFormFields'
+import { applyDoseReminders } from '@/lib/doseReminders'
 import { createClient } from '@/lib/supabase/client'
 
 interface DocSummary {
@@ -153,6 +154,12 @@ export default function VaultClient({ children, documents: initialDocuments, can
     setUploading(true)
     try {
       const { columns, metadata } = splitDocValues(uDocType, uValues)
+      // Antes de montar o FormData: cria os lembretes de dose faltante e tira
+      // `doses_pendentes` do metadata, para não duplicar num salvamento futuro.
+      const lembretes = await applyDoseReminders({
+        docType: uDocType, values: uValues, metadata,
+        docTitle: uTitle.trim(), childId: uChildId || null,
+      })
       const form = new FormData()
       form.append('title', uTitle.trim())
       form.append('category', uCategory)
@@ -170,7 +177,9 @@ export default function VaultClient({ children, documents: initialDocuments, can
       const res = await fetch('/api/documents/upload', { method: 'POST', body: form })
       const json = await res.json()
       if (!res.ok) { toast(json.error ?? 'Falha no upload', 'error'); return }
-      toast('Documento salvo com sucesso ✓')
+      toast(lembretes > 0
+        ? `Documento salvo ✓ · ${lembretes === 1 ? '1 lembrete criado' : `${lembretes} lembretes criados`} no mural`
+        : 'Documento salvo com sucesso ✓')
       // add to local list so counts update instantly
       setDocuments(prev => [{ id: json.document.id, category: uCategory, child_id: uChildId || null, title: uTitle.trim(), expires_at: columns.expires_at ?? null }, ...prev])
       setShowUpload(false)
