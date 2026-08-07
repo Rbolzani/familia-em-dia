@@ -145,8 +145,12 @@ export default function IAPage() {
   }
 
   function addFiles(files: FileList | File[]) {
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/'))
-    if (!arr.length) { setError('Selecione apenas imagens (PNG, JPG, WEBP, GIF).'); return }
+    // O iOS às vezes entrega `type` vazio numa foto vinda da câmera/Arquivos —
+    // aí só a extensão identifica a imagem. O servidor converte HEIC em JPEG.
+    const IMG_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif']
+    const arr = Array.from(files).filter(f =>
+      f.type.startsWith('image/') || IMG_EXTS.includes((f.name.split('.').pop() ?? '').toLowerCase()))
+    if (!arr.length) { setError('Selecione apenas imagens (PNG, JPG, WEBP, GIF, HEIC).'); return }
     setImages(prev => [...prev, ...arr])
     arr.forEach(f => setPreviews(prev => [...prev, URL.createObjectURL(f)]))
     setActivities(null); setReminders(null); setDocuments(null); setError('')

@@ -10,6 +10,7 @@ import { getVaultCategory, VAULT_CATEGORIES, expiryStatus as vaultExpiryStatus, 
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS, type DocType, type VacinaItem } from '@/lib/docTypes'
 import DocFormFields from '@/components/vault/DocFormFields'
 import { applyDoseReminders } from '@/lib/doseReminders'
+import { OCR_ACCEPT_ATTR } from '@/lib/ocr'
 
 function fileIcon(mime: string | null) {
   if (!mime) return <File size={18} />
@@ -536,7 +537,7 @@ export default function DocumentDetailClient({ document: doc, category, children
               </button>
             </div>
             <form onSubmit={uploadMoreFiles} className="space-y-3">
-              <input ref={fileRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp"
+              <input ref={fileRef} type="file" multiple accept={OCR_ACCEPT_ATTR}
                 className="hidden" onChange={e => setNewFiles(Array.from(e.target.files ?? []))} />
               <button type="button" onClick={() => fileRef.current?.click()}
                 className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed text-sm font-medium transition-colors hover:bg-black/5"

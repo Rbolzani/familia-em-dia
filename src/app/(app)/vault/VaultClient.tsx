@@ -8,7 +8,7 @@ import { useAccess } from '@/components/access/AccessContext'
 import { VAULT_CATEGORIES, VAULT_CATEGORY_KEYS, getVaultCategory, expiryStatus, EXPIRY_META, expiryLabel } from '@/lib/vault'
 import type { DocumentCategory } from '@/lib/types'
 import { toast } from '@/components/ui/Toast'
-import { ocrDocument } from '@/lib/ocr'
+import { ocrDocument, OCR_ACCEPT_ATTR } from '@/lib/ocr'
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS } from '@/lib/docTypes'
 import type { DocType } from '@/lib/docTypes'
 import DocFormFields from '@/components/vault/DocFormFields'
@@ -525,7 +525,7 @@ export default function VaultClient({ children, documents: initialDocuments, can
               </button>
             </div>
 
-            <input ref={fileRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+            <input ref={fileRef} type="file" multiple accept={OCR_ACCEPT_ATTR} className="hidden"
               onChange={e => handleUFilesSelected(Array.from(e.target.files ?? []))} />
 
             {/* STEP 1 — Upload */}
