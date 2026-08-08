@@ -251,16 +251,6 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
         </div>
         {canEdit && !selectMode && (
           <div className="flex items-center gap-2 flex-shrink-0">
-            {filtered.length > 0 && (
-              <button
-                onClick={() => setSelectMode(true)}
-                title="Selecionar várias para excluir"
-                className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-sm font-bold transition-all hover:brightness-105 active:scale-95"
-                style={{ background: '#fff', color: 'rgba(26,43,28,0.62)', border: '1px solid rgba(20,70,58,0.18)', boxShadow: '0 2px 8px rgba(44,74,46,0.10)' }}>
-                <ListChecks size={16} />
-                <span className="hidden sm:inline">Selecionar</span>
-              </button>
-            )}
             {/* Captura com IA — apenas desktop (mobile já tem na topbar) */}
             <Link href="/ia"
               className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all hover:brightness-105 active:scale-95"
@@ -278,10 +268,11 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
         )}
       </div>
 
-      {/* Escola: alterna entre atividades escolares e rotina de aulas */}
-      {isSchool && (
-        <div className="flex gap-2 animate-fade-up">
-          {(['atividade', 'aula'] as SchoolKind[]).map(k => {
+      {/* Linha de chips (Escola) + "Selecionar" encostado à direita.
+          Nas outras categorias não há chips, e a linha existe só para o botão. */}
+      {(isSchool || (canEdit && !selectMode && filtered.length > 0)) && (
+        <div className="flex gap-2 items-center flex-wrap animate-fade-up">
+          {isSchool && (['atividade', 'aula'] as SchoolKind[]).map(k => {
             const active = filterKind === k
             const count = activities.filter(a =>
               !!a.date && a.date >= todayDs &&
@@ -302,6 +293,16 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
               </button>
             )
           })}
+
+          {canEdit && !selectMode && filtered.length > 0 && (
+            <button
+              onClick={() => setSelectMode(true)}
+              title="Selecionar várias para excluir"
+              className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all hover:brightness-105 active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.70)', color: 'rgba(26,43,28,0.50)', border: '1px solid rgba(61,102,65,0.14)' }}>
+              <ListChecks size={14} /> Selecionar
+            </button>
+          )}
         </div>
       )}
 
