@@ -185,12 +185,28 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
     setSelected(new Set())
   }
 
-  async function handleDeleteSelected(visibleIds: string[]) {
+  // Confirmação da exclusão em lote. É um modal e não um confirm() porque
+  // precisa de um checkbox: a lista só mostra o que é de hoje em diante, mas o
+  // calendário mostra o mês inteiro — quem apaga "todas" aqui e depois abre o
+  // calendário acha que a exclusão falhou. O diálogo nomeia o que sobra.
+  const [confirmBulk, setConfirmBulk] = useState<{ ids: string[]; pastIds: string[] } | null>(null)
+  const [alsoPast, setAlsoPast] = useState(false)
+
+  function handleDeleteSelected(visibleIds: string[]) {
     // Interseção com o que está na tela: nunca apagar algo que o usuário não
     // consegue ver no momento do clique.
     const ids = visibleIds.filter(id => selected.has(id))
     if (ids.length === 0) return
-    if (!confirm(`Excluir ${ids.length} atividade${ids.length !== 1 ? 's' : ''}? Esta ação não pode ser desfeita.`)) return
+    // O aviso sobre o passado só faz sentido quando a seleção cobre tudo que
+    // está à vista — é aí que a pessoa acha que "limpou a aba".
+    const pastIds = ids.length === visibleIds.length ? pastMatchingFilter.map(a => a.id) : []
+    setAlsoPast(false)
+    setConfirmBulk({ ids, pastIds })
+  }
+
+  async function runBulkDelete() {
+    if (!confirmBulk) return
+    const ids = alsoPast ? [...confirmBulk.ids, ...confirmBulk.pastIds] : confirmBulk.ids
 
     setDeletingBulk(true)
     // Em lotes: um .in() com centenas de UUIDs estoura o limite de tamanho da
@@ -204,6 +220,7 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
         setActivities(prev => prev.filter(x => !apagados.includes(x.id)))
         setSelected(new Set())
         setDeletingBulk(false)
+        setConfirmBulk(null)
         toast(apagados.length > 0
           ? `${apagados.length} excluída(s), mas o restante falhou. Tente de novo.`
           : 'Não foi possível excluir. Tente novamente.', 'error')
@@ -213,6 +230,7 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
     }
     setActivities(prev => prev.filter(x => !apagados.includes(x.id)))
     setDeletingBulk(false)
+    setConfirmBulk(null)
     exitSelectMode()
     toast(`${apagados.length} atividade${apagados.length !== 1 ? 's' : ''} excluída${apagados.length !== 1 ? 's' : ''}`)
   }
@@ -229,6 +247,17 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
     if (a.date < todayDs) return false
     if (filterChild && a.child_id !== filterChild) return false
     // Linhas antigas não têm school_kind — NULL conta como 'atividade'.
+    if (isSchool && (a.school_kind ?? 'atividade') !== filterKind) return false
+    return true
+  })
+
+  // Mesmo filtro do `filtered`, mas do outro lado de hoje: é o que continua no
+  // calendário depois de "excluir todas". Não aparece na lista — só no diálogo
+  // de confirmação, para a pessoa decidir se apaga o histórico junto.
+  const pastMatchingFilter = activities.filter(a => {
+    if (!a.date) return false
+    if (a.date >= todayDs) return false
+    if (filterChild && a.child_id !== filterChild) return false
     if (isSchool && (a.school_kind ?? 'atividade') !== filterKind) return false
     return true
   })
@@ -513,6 +542,60 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Confirmação da exclusão em lote */}
+      <Modal
+        open={!!confirmBulk}
+        onClose={() => { if (!deletingBulk) setConfirmBulk(null) }}
+        title="Excluir atividades"
+        size="sm"
+      >
+        {confirmBulk && (
+          <div className="space-y-4">
+            <p className="text-sm" style={{ color: '#1A2B1C' }}>
+              Excluir <strong>{confirmBulk.ids.length}</strong>{' '}
+              {confirmBulk.ids.length === 1 ? 'atividade' : 'atividades'} de hoje em diante?
+              Esta ação não pode ser desfeita.
+            </p>
+
+            {confirmBulk.pastIds.length > 0 && (
+              <label
+                className="flex items-start gap-2.5 p-3 rounded-2xl cursor-pointer"
+                style={{ background: 'rgba(244,82,45,0.06)', border: '1px solid rgba(244,82,45,0.20)' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={alsoPast}
+                  onChange={e => setAlsoPast(e.target.checked)}
+                  className="mt-0.5 flex-none"
+                  style={{ accentColor: '#F4522D', width: 16, height: 16 }}
+                />
+                <span className="text-xs leading-relaxed" style={{ color: 'rgba(26,43,28,0.75)' }}>
+                  Existem também <strong>{confirmBulk.pastIds.length}</strong>{' '}
+                  {confirmBulk.pastIds.length === 1 ? 'atividade anterior' : 'atividades anteriores'} a hoje,
+                  que não aparecem nesta lista mas <strong>continuam no calendário</strong>.
+                  Marque para excluir o histórico também.
+                </span>
+              </label>
+            )}
+
+            <div className="flex justify-end gap-3 pt-1">
+              <Button variant="ghost" onClick={() => setConfirmBulk(null)} disabled={deletingBulk}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={runBulkDelete}
+                disabled={deletingBulk}
+                style={{ background: 'linear-gradient(140deg,#F4522D,#D93E1C)', boxShadow: '0 4px 14px rgba(244,82,45,0.35)' }}
+              >
+                {deletingBulk
+                  ? 'Excluindo...'
+                  : `Excluir ${confirmBulk.ids.length + (alsoPast ? confirmBulk.pastIds.length : 0)}`}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )
