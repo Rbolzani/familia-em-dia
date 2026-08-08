@@ -5,7 +5,7 @@ import { Activity, ActivityCategory, Child, SchoolKind, SCHOOL_KIND_LABELS } fro
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { DeadlineBadge } from '@/components/ui/Badge'
-import { Plus, Trash2, Pencil, Filter, Clock, MapPin, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Pencil, Filter, Clock, MapPin, Sparkles, ListChecks, Check, X } from 'lucide-react'
 import Link from 'next/link'
 import { mergeActivities } from '@/lib/merge-activities'
 import { useAccess } from '@/components/access/AccessContext'
@@ -162,6 +162,65 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
     toast('Atividade excluída')
   }
 
+  // ── Seleção múltipla ──────────────────────────────────────────────────────
+  // Existe para desfazer uma captura por IA que veio errada: uma grade de aulas
+  // inteira são dezenas de linhas, e apagar uma a uma é inviável.
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deletingBulk, setDeletingBulk] = useState(false)
+
+  function toggleSelect(ids: string[]) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      // O card pode agrupar vários filhos: se algum não estiver marcado,
+      // o clique marca o grupo todo; só desmarca quando já está inteiro.
+      const allIn = ids.every(id => next.has(id))
+      ids.forEach(id => allIn ? next.delete(id) : next.add(id))
+      return next
+    })
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false)
+    setSelected(new Set())
+  }
+
+  async function handleDeleteSelected(visibleIds: string[]) {
+    // Interseção com o que está na tela: nunca apagar algo que o usuário não
+    // consegue ver no momento do clique.
+    const ids = visibleIds.filter(id => selected.has(id))
+    if (ids.length === 0) return
+    if (!confirm(`Excluir ${ids.length} atividade${ids.length !== 1 ? 's' : ''}? Esta ação não pode ser desfeita.`)) return
+
+    setDeletingBulk(true)
+    // Em lotes: um .in() com centenas de UUIDs estoura o limite de tamanho da
+    // URL no PostgREST e a requisição falha inteira.
+    const CHUNK = 100
+    const apagados: string[] = []
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const lote = ids.slice(i, i + CHUNK)
+      const { error } = await supabase.from('activities').delete().in('id', lote)
+      if (error) {
+        setActivities(prev => prev.filter(x => !apagados.includes(x.id)))
+        setSelected(new Set())
+        setDeletingBulk(false)
+        toast(apagados.length > 0
+          ? `${apagados.length} excluída(s), mas o restante falhou. Tente de novo.`
+          : 'Não foi possível excluir. Tente novamente.', 'error')
+        return
+      }
+      apagados.push(...lote)
+    }
+    setActivities(prev => prev.filter(x => !apagados.includes(x.id)))
+    setDeletingBulk(false)
+    exitSelectMode()
+    toast(`${apagados.length} atividade${apagados.length !== 1 ? 's' : ''} excluída${apagados.length !== 1 ? 's' : ''}`)
+  }
+
+  // Trocar de filtro limpa a seleção. Sem isso o usuário selecionaria itens de
+  // um filho, mudaria o filtro e apagaria coisas que saíram da tela.
+  useEffect(() => { setSelected(new Set()) }, [filterChild, filterKind])
+
   // Today in Brazil timezone — activities before today are automatically hidden
   const todayDs = new Intl.DateTimeFormat('fr-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
 
@@ -174,6 +233,11 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
     return true
   })
 
+  // Base da seleção: só o que está visível agora, nunca a lista inteira.
+  const visibleIds = filtered.map(a => a.id)
+  const selectedVisibleCount = visibleIds.filter(id => selected.has(id)).length
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length
+
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-5 space-y-5" style={{ boxSizing:'border-box' }}>
 
@@ -185,8 +249,18 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
             {filtered.length} próxima{filtered.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {canEdit && (
+        {canEdit && !selectMode && (
           <div className="flex items-center gap-2 flex-shrink-0">
+            {filtered.length > 0 && (
+              <button
+                onClick={() => setSelectMode(true)}
+                title="Selecionar várias para excluir"
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-sm font-bold transition-all hover:brightness-105 active:scale-95"
+                style={{ background: '#fff', color: 'rgba(26,43,28,0.62)', border: '1px solid rgba(20,70,58,0.18)', boxShadow: '0 2px 8px rgba(44,74,46,0.10)' }}>
+                <ListChecks size={16} />
+                <span className="hidden sm:inline">Selecionar</span>
+              </button>
+            )}
             {/* Captura com IA — apenas desktop (mobile já tem na topbar) */}
             <Link href="/ia"
               className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all hover:brightness-105 active:scale-95"
@@ -250,6 +324,43 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
         </div>
       )}
 
+      {/* Barra de seleção múltipla — sticky para o botão excluir seguir o scroll
+          numa lista longa (que é justamente o caso de uso). */}
+      {selectMode && (
+        <div className="sticky top-2 z-20 rounded-2xl p-2.5 flex items-center gap-2 flex-wrap animate-fade-up"
+          style={{ background: 'linear-gradient(140deg,#14463A,#0F3830)', boxShadow: '0 6px 20px rgba(20,70,58,0.30)' }}>
+          <button onClick={exitSelectMode}
+            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:brightness-125 active:scale-95"
+            style={{ background: 'rgba(255,255,255,0.14)', color: '#fff' }} title="Sair da seleção">
+            <X size={15} />
+          </button>
+
+          <span className="text-sm font-bold flex-shrink-0" style={{ color: '#fff' }}>
+            {selectedVisibleCount === 0
+              ? 'Selecione as atividades'
+              : `${selectedVisibleCount} selecionada${selectedVisibleCount !== 1 ? 's' : ''}`}
+          </span>
+
+          <button
+            onClick={() => setSelected(allVisibleSelected ? new Set() : new Set(visibleIds))}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:brightness-125 active:scale-95 flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.14)', color: '#fff' }}>
+            {allVisibleSelected ? 'Limpar' : `Selecionar todas (${visibleIds.length})`}
+          </button>
+
+          <button
+            onClick={() => handleDeleteSelected(visibleIds)}
+            disabled={selectedVisibleCount === 0 || deletingBulk}
+            className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 flex-shrink-0"
+            style={selectedVisibleCount === 0 || deletingBulk
+              ? { background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.40)', cursor: 'not-allowed' }
+              : { background: '#F4522D', color: '#fff', boxShadow: '0 3px 12px rgba(244,82,45,0.40)' }}>
+            <Trash2 size={13} />
+            {deletingBulk ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      )}
+
       {/* List */}
       {loading ? (
         <div className="space-y-3">
@@ -270,6 +381,9 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
               group={group}
               accent={accent}
               index={gi}
+              selectMode={selectMode}
+              selectedIds={selected}
+              onToggleSelect={toggleSelect}
               onEdit={(a) => openEdit(a)}
               onDelete={(id) => handleDelete(id)}
               onLogisticsUpdate={(actId, field, val, removeSugId) => {
@@ -411,10 +525,14 @@ type ActivityWithChild = Activity & {
 
 function ActivityCard({
   group, index, onEdit, onDelete, onLogisticsUpdate, onSuggestionCreated, familyMembers = [], currentUserId, familyId, isOwner, suggestions,
+  selectMode = false, selectedIds, onToggleSelect,
 }: {
   group: ActivityWithChild[]
   accent: string
   index: number
+  selectMode?: boolean
+  selectedIds?: Set<string>
+  onToggleSelect?: (ids: string[]) => void
   onEdit: (a: ActivityWithChild) => void
   onDelete: (id: string) => void
   onLogisticsUpdate: (actId: string, field: 'takes_user_id' | 'picks_user_id', value: string | null, removeSugId?: string) => void
@@ -430,14 +548,40 @@ function ActivityCard({
   const merged = group.length > 1
   const fmtDate = (d: string | null) => d ? format(new Date(d + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR }) : '—'
 
-  const showLogistics = !!first.date && familyMembers.length > 0 && !!currentUserId
+  // Em modo seleção a logística sai de cena: os chips são interativos e
+  // competiriam com o clique que marca o card.
+  const showLogistics = !selectMode && !!first.date && familyMembers.length > 0 && !!currentUserId
+
+  const ids = group.map(a => a.id)
+  const selCount = selectedIds ? ids.filter(id => selectedIds.has(id)).length : 0
+  const allSel   = selCount === ids.length && selCount > 0
+  const someSel  = selCount > 0 && !allSel
 
   return (
     <div
-      className="card card-lift animate-fade-up p-4"
-      style={{ animationDelay: `${index * 0.04}s` }}
+      className={`card animate-fade-up p-4${selectMode ? ' cursor-pointer' : ' card-lift'}`}
+      onClick={selectMode ? () => onToggleSelect?.(ids) : undefined}
+      style={{
+        animationDelay: `${index * 0.04}s`,
+        ...(allSel || someSel
+          ? { outline: '2px solid #14463A', outlineOffset: -1, background: 'rgba(20,70,58,0.05)' }
+          : {}),
+      }}
     >
       <div className="flex items-start gap-3">
+        {selectMode && (
+          <button
+            type="button"
+            aria-label={allSel ? 'Desmarcar' : 'Marcar'}
+            className="w-[22px] h-[22px] rounded-lg flex items-center justify-center flex-none mt-0.5 transition-all"
+            style={allSel || someSel
+              ? { background: '#14463A', border: '2px solid #14463A', color: '#fff' }
+              : { background: '#fff', border: '2px solid rgba(26,43,28,0.25)' }}>
+            {allSel && <Check size={13} strokeWidth={3.5} />}
+            {/* Grupo com vários filhos parcialmente marcado */}
+            {someSel && <span style={{ width: 9, height: 2.5, background: '#fff', borderRadius: 2 }} />}
+          </button>
+        )}
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-sm" style={{ color: '#0F1F3D' }}>
@@ -530,7 +674,7 @@ function ActivityCard({
           )}
 
           {/* Per-child action rows when merged and NO logistics */}
-          {merged && !showLogistics && canEdit && (
+          {merged && !showLogistics && canEdit && !selectMode && (
             <div className="mt-2.5 space-y-1.5 border-t pt-2" style={{ borderColor:'rgba(0,0,0,0.06)' }}>
               {group.map(a => (
                 <div key={a.id} className="flex items-center gap-2">
@@ -559,7 +703,7 @@ function ActivityCard({
         </div>
 
         {/* Actions — only shown when NOT merged */}
-        {!merged && canEdit && (
+        {!merged && canEdit && !selectMode && (
           <div className="flex gap-1.5 flex-none">
             <button onClick={() => onEdit(first)}
               className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:scale-110"
