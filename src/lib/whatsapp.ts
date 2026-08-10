@@ -149,12 +149,21 @@ interface SummaryActivity {
 export const templateHasClasses = () =>
   ['true', '1'].includes((process.env.WHATSAPP_TEMPLATE_HAS_CLASSES ?? '').trim().toLowerCase())
 
+// Mesma trava, para a seção 📌 Lembretes:
+//   false (padrão) → template `resumo_diario_v2`, 6 params, sem lembretes
+//   true           → template `resumo_diario_v3`, 7 params, com lembretes
+// É uma flag SEPARADA de HAS_CLASSES de propósito: assim o cutover v2→v3 é
+// uma variável de cada vez, e um erro de digitação degrada para o formato
+// anterior em vez de derrubar o envio.
+export const templateHasReminders = () =>
+  ['true', '1'].includes((process.env.WHATSAPP_TEMPLATE_HAS_REMINDERS ?? '').trim().toLowerCase())
+
 // Resumo diário em seções — cada posição de `params` vira um {{n}} do
 // template Meta; as quebras de linha entre seções ficam no texto fixo do
 // template (ver painel-projeto / CLAUDE.md para o corpo aprovado).
 export interface DailySummary {
   full: string        // versão texto corrido, para Twilio/texto livre (usa \n\n real)
-  // [data, (aulas de hoje), hoje, próximos 7 dias, documentos, vacinas]
+  // [data, (aulas de hoje), hoje, próximos 7 dias, (lembretes), documentos, vacinas]
   params: string[]
 }
 
@@ -304,6 +313,40 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     proximosParam = items.join(' | ')
   }
 
+  // ── Lembretes (mural do Dashboard) ───────────────────────────────────────
+  // São `activities` com date NULL: pendências sem data marcada. Concluir um
+  // lembrete no mural APAGA a linha (RemindersPanel.handleDone), então não há
+  // estado "concluído" para filtrar aqui — o que existe na tabela é pendente.
+  // Sem janela de data: um lembrete sem prazo não tem como "vencer", e é
+  // justamente por não ter data que ele some da vista e precisa do empurrão.
+  const remQuery = admin
+    .from('activities')
+    .select('title, category, created_at, child:children(name)')
+    .is('date', null)
+    .neq('status', 'cancelado')
+    .order('created_at', { ascending: false })
+  const { data: rawReminders } = familyIds.length > 0
+    ? await remQuery.in('family_id', familyIds)
+    : await remQuery.eq('user_id', userId)
+
+  // Teto menor que o das outras seções: o mural acumula ao longo dos meses e
+  // sem limite ele sozinho estouraria o tamanho do parâmetro do template.
+  const MAX_REMINDERS = 8
+  const reminderList = (rawReminders ?? []) as unknown as
+    Array<{ title: string; category: string; child: { name: string } | null }>
+  let lembretesParam = 'Nenhum lembrete pendente. 🙌'
+  if (reminderList.length > 0) {
+    const items = reminderList.slice(0, MAX_REMINDERS).map(r => {
+      const emoji = CAT_EMOJI[r.category] ?? '•'
+      const childName = r.child?.name ? ` (${r.child.name})` : ''
+      return `${emoji} ${r.title}${childName}`
+    })
+    if (reminderList.length > MAX_REMINDERS) {
+      items.push(`… e mais ${reminderList.length - MAX_REMINDERS} no app`)
+    }
+    lembretesParam = items.join(' | ')
+  }
+
   // Documentos vencidos ou vencendo nos próximos 15 dias
   const docExpiryQuery = admin
     .from('documents')
@@ -361,21 +404,27 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     ? vaccineLines.join(' | ')
     : 'Nenhuma dose pendente.'
 
+  // O texto corrido (Twilio / texto livre) não passa por template e por isso
+  // não tem restrição de contagem: mostra sempre todas as seções.
   const full = [
     `🌿 Bom dia! Resumo da Família — ${dataParam}`,
     `🎒 Aulas de hoje\n${aulasParam}`,
     `🔥 Hoje\n${hojeParam}`,
     `📅 Próximos 7 dias\n${proximosParam}`,
+    `📌 Lembretes\n${lembretesParam}`,
     `📄 Documentos — vencimentos\n${documentosParam}`,
     `💉 Vacinas — lembretes\n${vacinasParam}`,
   ].join('\n\n')
 
-  return {
-    full,
-    params: templateHasClasses()
-      ? [dataParam, aulasParam, hojeParam, proximosParam, documentosParam, vacinasParam]
-      : [dataParam, hojeParam, proximosParam, documentosParam, vacinasParam],
-  }
+  // A ordem aqui É o contrato do template — cada posição vira um {{n}}.
+  // Trocar a ordem sem trocar o template aprovado embaralha as seções.
+  const params = [dataParam]
+  if (templateHasClasses()) params.push(aulasParam)
+  params.push(hojeParam, proximosParam)
+  if (templateHasReminders()) params.push(lembretesParam)
+  params.push(documentosParam, vacinasParam)
+
+  return { full, params }
 }
 
 // ── Número de WhatsApp do usuário ────────────────────────────────────────────
