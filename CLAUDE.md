@@ -146,6 +146,10 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 ### 5. WhatsApp Daily (`/api/whatsapp-daily`)
 - Cron (Vercel) — resumo das atividades do dia + próximos 7 dias
 - Meta Cloud API com fallback Twilio
+- **Template ativo: `resumo_diario_v3`** (7 params) — seções: data · 🎒 aulas de hoje · 🔥 hoje · 📅 próximos 7 dias · 📌 lembretes · 📄 documentos · 💉 vacinas
+- **📌 Lembretes** = `activities` com `date IS NULL` (mural do Dashboard), teto de 8 itens + "… e mais N no app". Sem janela de data: lembrete sem prazo não vence. Não há status "concluído" a filtrar — concluir no mural apaga a linha.
+- ⚠️ **A contagem de parâmetros é contrato do template Meta.** Mandar 6 params para um template de 7 (ou vice-versa) faz a Meta rejeitar a mensagem inteira. Flags `WHATSAPP_TEMPLATE_HAS_CLASSES` e `WHATSAPP_TEMPLATE_HAS_REMINDERS` controlam a contagem e devem ser trocadas **junto** com `WHATSAPP_TEMPLATE_NAME`.
+- O fallback de `/api/whatsapp-test` monta os params à mão — ao criar uma seção nova, atualizar **os dois** lugares.
 - **A agenda diária é recurso pago** (plano free não recebe); o **aviso de grace** é notificação de conta e é entregue mesmo no free
 
 ### 6. Compartilhamento
@@ -229,6 +233,13 @@ GROQ_API_KEY=
 # WhatsApp
 WHATSAPP_PHONE_NUMBER_ID=
 WHATSAPP_ACCESS_TOKEN=
+# Template do resumo diário — o nome e as duas flags formam UM conjunto.
+# Trocar só um dos três muda a contagem de params e a Meta rejeita o envio.
+WHATSAPP_TEMPLATE_NAME=resumo_diario_v3
+WHATSAPP_TEMPLATE_HAS_CLASSES=true
+WHATSAPP_TEMPLATE_HAS_REMINDERS=true
+# Template de 1 param para avisos de conta (grace) — NÃO reutilizar o do resumo
+WHATSAPP_TEMPLATE_ACCOUNT=aviso_conta
 # Twilio (fallback)
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
