@@ -1,7 +1,7 @@
 // Envia um resumo de teste AGORA para o número salvo do usuário logado.
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { adminClient, buildDailySummary, sendWhatsApp, templateHasClasses } from '@/lib/whatsapp'
+import { adminClient, buildDailySummary, sendWhatsApp, templateHasClasses, templateHasReminders } from '@/lib/whatsapp'
 
 export async function POST() {
   const supabase = await createClient()
@@ -20,13 +20,15 @@ export async function POST() {
 
   const admin = adminClient()
   const summary = await buildDailySummary(admin, user.id)
-  // O fallback precisa ter a MESMA contagem de parâmetros do template ativo
-  // (ver templateHasClasses em lib/whatsapp.ts).
+  // O fallback (usuário no plano free, sem resumo) precisa ter a MESMA
+  // contagem de parâmetros do template ativo — e na MESMA ordem de
+  // buildDailySummary. Divergir faz a Meta rejeitar a mensagem inteira.
   const params: string[] = summary?.params ?? [
     'teste de conexão OK!',
     ...(templateHasClasses() ? ['Nenhuma aula hoje 🎒'] : []),
     'Nenhuma atividade hoje.',
     'Nenhuma atividade nos próximos 7 dias.',
+    ...(templateHasReminders() ? ['Nenhum lembrete pendente. 🙌'] : []),
     'Nenhum vencimento nos próximos 15 dias.',
     'Nenhuma dose prevista nos próximos 30 dias.',
   ]
