@@ -1,7 +1,7 @@
 // Envia um resumo de teste AGORA para o número salvo do usuário logado.
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { adminClient, buildDailySummary, sendWhatsApp, templateHasClasses, templateHasReminders } from '@/lib/whatsapp'
+import { adminClient, buildDailySummary, sendWhatsApp, templateHasClasses, templateHasReminders, templateHasExams } from '@/lib/whatsapp'
 
 export async function POST() {
   const supabase = await createClient()
@@ -28,6 +28,7 @@ export async function POST() {
     ...(templateHasClasses() ? ['Nenhuma aula hoje 🎒'] : []),
     'Nenhuma atividade hoje.',
     'Nenhuma atividade nos próximos 7 dias.',
+    ...(templateHasExams() ? ['Nenhuma prova nos próximos 7 dias.'] : []),
     ...(templateHasReminders() ? ['Nenhum lembrete pendente. 🙌'] : []),
     'Nenhum vencimento nos próximos 15 dias.',
     'Nenhuma dose prevista nos próximos 30 dias.',

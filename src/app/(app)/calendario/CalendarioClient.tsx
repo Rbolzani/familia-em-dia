@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Activity, Child } from '@/lib/types'
+import { Activity, Child, SCHOOL_KIND_GERAL_FILTER } from '@/lib/types'
 import { CategoryBadge } from '@/components/ui/Badge'
 import { useAccess } from '@/components/access/AccessContext'
 import { ChevronLeft, ChevronRight, ChevronDown, Clock, MapPin, X, BookOpen, HeartPulse, Trophy, CalendarDays, Trash2, Loader2, Pencil } from 'lucide-react'
@@ -209,7 +209,14 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
   const [loading,     setLoading]     = useState(false)
 
   // ── Visão: agenda de atividades × grade semanal de aulas ──────────────────
-  const [calView, setCalView] = useState<'atividades'|'aulas'>('atividades')
+  const [calView, setCalView] = useState<'atividades'|'aulas'|'provas'>('atividades')
+
+  // Provas têm carga própria pelo mesmo motivo das aulas: elas foram tiradas
+  // do estado `activities` (que alimenta a visão de atividades), então
+  // precisam de uma busca dedicada para aparecer na sua visão.
+  const [exams, setExams] = useState<ActivityWithChild[]>([])
+  const [loadingExams, setLoadingExams] = useState(false)
+  const [filterChildProvas, setFilterChildProvas] = useState('')
   // Semana começa na segunda: a grade escolar é de 2ª a 6ª.
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [classes, setClasses] = useState<ActivityWithChild[]>([])
@@ -241,6 +248,28 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calView, weekStart])
+
+  // Provas do mês exibido — mesma grade mensal das atividades, outra fonte.
+  useEffect(() => {
+    if (calView !== 'provas') return
+    let cancelled = false
+    setLoadingExams(true)
+    const start = format(startOfMonth(currentDate), 'yyyy-MM-dd')
+    const end   = format(endOfMonth(currentDate),   'yyyy-MM-dd')
+    supabase.from('activities')
+      .select('*, child:children(name, avatar_color)')
+      .eq('category', 'escola').eq('school_kind', 'prova')
+      .gte('date', start).lte('date', end)
+      .neq('status', 'cancelado')
+      .order('date').order('time', { nullsFirst: false })
+      .then(({ data }) => {
+        if (cancelled) return
+        setExams((data ?? []) as unknown as ActivityWithChild[])
+        setLoadingExams(false)
+      })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calView, currentDate])
 
   // Seletor de mês/ano — abre ao clicar no título, evitando navegar mês a mês
   // para chegar num período distante.
@@ -286,13 +315,13 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
     const start = format(startOfMonth(date),'yyyy-MM-dd')
     const end   = format(endOfMonth(date),  'yyyy-MM-dd')
     const [{ data: acts }, { data: kids }] = await Promise.all([
-      // Mesmo filtro do carregamento inicial (ver calendario/page.tsx): as
-      // aulas vivem na grade semanal, não no calendário de atividades.
+      // Mesmo filtro do carregamento inicial (ver calendario/page.tsx): aulas
+      // e provas vivem em superfícies próprias, não no calendário.
       supabase.from('activities')
         .select('*, child:children(name, avatar_color)')
         .gte('date',start).lte('date',end)
         .neq('status','cancelado')
-        .or('school_kind.is.null,school_kind.neq.aula')
+        .or(SCHOOL_KIND_GERAL_FILTER)
         .order('time',{nullsFirst:false}),
       supabase.from('children').select('*').order('sort_order'),
     ])
@@ -304,11 +333,16 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
   // only re-fetch when month changes, not on initial render
   useEffect(() => { load(currentDate) }, [currentDate, load])
 
-  const filtered = activities.filter(a =>
-    viewMode === 'child'
-      ? (!filterChild || a.child_id === filterChild)
-      : (!filterCat   || a.category === filterCat)
-  )
+  // A visão de provas reaproveita a grade mensal inteira (células, bottom
+  // sheet, edição rápida) — só troca a fonte de dados e o filtro. "Por
+  // natureza" não se aplica: prova é sempre escola.
+  const filtered = calView === 'provas'
+    ? exams.filter(a => !filterChildProvas || a.child_id === filterChildProvas)
+    : activities.filter(a =>
+        viewMode === 'child'
+          ? (!filterChild || a.child_id === filterChild)
+          : (!filterCat   || a.category === filterCat)
+      )
   const calStart        = startOfWeek(startOfMonth(currentDate),{weekStartsOn:0})
   const calEnd          = endOfWeek(endOfMonth(currentDate),    {weekStartsOn:0})
   const days            = eachDayOfInterval({start:calStart, end:calEnd})
@@ -466,10 +500,12 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
         {/* Row 2: à esquerda a visão (atividades × aulas); à direita os
             sub-filtros da visão ativa, sempre no mesmo canto. */}
         <div className="flex items-center justify-between gap-2 px-4 pb-2 flex-wrap">
-          <div className="flex gap-2">
+          {/* flex-wrap: três visões não cabem lado a lado num celular estreito */}
+          <div className="flex gap-2 flex-wrap">
             {([
               { key:'atividades', label:'Atividades',     icon:'🗓️' },
               { key:'aulas',      label:'Rotina de aulas', icon:'🕘' },
+              { key:'provas',     label:'Provas',          icon:'📝' },
             ] as const).map(v=>(
               <button key={v.key}
                 onClick={()=>{ setCalView(v.key); setSelectedDay(null) }}
@@ -529,10 +565,17 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
                 )}
               </>
             ) : children.length > 0 ? (
-              // Grade de aulas: só filtro por filho (natureza não se aplica).
+              // Aulas e provas: só filtro por filho (natureza não se aplica —
+              // as duas visões são sempre da categoria escola). Cada uma tem
+              // seu próprio estado, para trocar de visão não reconfigurar a
+              // outra pelas costas do usuário.
               <>
                 <span className="text-xs font-semibold" style={{ color:'rgba(26,43,28,0.45)' }}>👶 Filho</span>
-                <select value={filterChildAulas} onChange={e=>setFilterChildAulas(e.target.value)}
+                <select
+                  value={calView === 'provas' ? filterChildProvas : filterChildAulas}
+                  onChange={e => calView === 'provas'
+                    ? setFilterChildProvas(e.target.value)
+                    : setFilterChildAulas(e.target.value)}
                   className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
                   style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset', maxWidth:130 }}>
                   <option value="">Todos</option>
@@ -636,7 +679,17 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
           {/* Legend — by child: categories; by natureza: only children */}
           <div className="flex items-center gap-3 px-3 py-1.5 flex-shrink-0 flex-wrap"
             style={{ borderBottom:'1px solid rgba(61,102,65,0.06)', background:'rgba(248,243,234,0.80)' }}>
-            {viewMode === 'child' ? (
+            {calView === 'provas' ? (
+              // Na visão de provas a legenda de categorias não informa nada
+              // (é tudo escola) — mostra os filhos, que é o que varia.
+              children.map(c=>(
+                <span key={c.id} className="flex items-center gap-1 text-[10px] font-bold"
+                  style={{ color:'rgba(26,43,28,0.55)' }}>
+                  <span style={{ width:8, height:8, borderRadius:'50%', background:c.avatar_color, display:'inline-block', flexShrink:0 }}/>
+                  {c.name}
+                </span>
+              ))
+            ) : viewMode === 'child' ? (
               LEGEND.map(l=>(
                 <span key={l.key} className="flex items-center gap-1 text-[10px] font-semibold"
                   style={{ color:'rgba(26,43,28,0.50)' }}>

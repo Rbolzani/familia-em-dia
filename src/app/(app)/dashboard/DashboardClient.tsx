@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { ActivityQuickEdit, useActivityDelete } from '@/components/activities/ActivityQuickEdit'
 import { toast } from '@/components/ui/Toast'
-import { Activity, Child } from '@/lib/types'
+import { Activity, Child, SCHOOL_KINDS_APARTE, type SchoolKind } from '@/lib/types'
 import { mergeActivities } from '@/lib/merge-activities'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -160,9 +160,9 @@ function MiniCalendar({ activitiesByDate: initialByDate, canEdit, onChanged }: {
       .then(({ data }) => {
         const byDate = (data ?? []).reduce<Record<string, ActWithChild[]>>((acc, a) => {
           if (!a.date) return acc
-          // Rotina de aulas não pontua o calendário — mesmo critério aplicado
-          // no servidor ao mês inicial (ver dashboard/page.tsx).
-          if (a.category === 'escola' && a.school_kind === 'aula') return acc
+          // Rotina de aulas e provas não pontuam o calendário — mesmo critério
+          // aplicado no servidor ao mês inicial (ver dashboard/page.tsx).
+          if (a.category === 'escola' && SCHOOL_KINDS_APARTE.includes(a.school_kind as SchoolKind)) return acc
           if (!acc[a.date]) acc[a.date] = []
           acc[a.date].push(a as ActWithChild)
           return acc

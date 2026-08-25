@@ -4,6 +4,7 @@ import { format, startOfMonth, endOfMonth } from 'date-fns'
 import DashboardClient from './DashboardClient'
 import { expiryStatus, daysToExpiry } from '@/lib/vault'
 import type { VacinaItem } from '@/lib/docTypes'
+import { SCHOOL_KINDS_APARTE, type SchoolKind } from '@/lib/types'
 
 // Alertas do Cofre: documentos já vencidos ou vencendo em até 30 dias.
 //
@@ -117,9 +118,14 @@ export default async function DashboardPage() {
   const isAula = (a: { category: string; school_kind?: string | null }) =>
     a.category === 'escola' && a.school_kind === 'aula'
 
+  // Provas seguem a mesma regra de saída (aba e seção de WhatsApp próprias),
+  // então também não entram nas listas gerais do dashboard.
+  const isAparte = (a: { category: string; school_kind?: string | null }) =>
+    a.category === 'escola' && SCHOOL_KINDS_APARTE.includes(a.school_kind as SchoolKind)
+
   const todayAll     = todayActivities ?? []
   const todayClasses = todayAll.filter(isAula)
-  const todayOthers  = todayAll.filter(a => !isAula(a))
+  const todayOthers  = todayAll.filter(a => !isAparte(a))
 
   return (
     <DashboardClient
@@ -127,8 +133,8 @@ export default async function DashboardPage() {
       children={children ?? []}
       todayClasses={todayClasses}
       todayActivities={todayOthers}
-      upcomingActivities={(upcomingActivities ?? []).filter(a => !isAula(a))}
-      monthActivities={(monthActivities ?? []).filter(a => !isAula(a)) as Parameters<typeof DashboardClient>[0]['monthActivities']}
+      upcomingActivities={(upcomingActivities ?? []).filter(a => !isAparte(a))}
+      monthActivities={(monthActivities ?? []).filter(a => !isAparte(a)) as Parameters<typeof DashboardClient>[0]['monthActivities']}
       reminders={(reminders ?? []) as Parameters<typeof DashboardClient>[0]['reminders']}
       importantAlerts={importantAlerts}
     />

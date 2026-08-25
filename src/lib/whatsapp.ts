@@ -3,6 +3,7 @@
 import { createClient as createAdminClient, SupabaseClient } from '@supabase/supabase-js'
 import { toWhatsAppNumber } from './cpf'
 import { dosesRealmentePendentes, type VacinaItem } from './docTypes'
+import { SCHOOL_KIND_GERAL_FILTER } from './types'
 
 const GRAPH_URL = 'https://graph.facebook.com/v25.0'
 
@@ -158,6 +159,12 @@ export const templateHasClasses = () =>
 export const templateHasReminders = () =>
   ['true', '1'].includes((process.env.WHATSAPP_TEMPLATE_HAS_REMINDERS ?? '').trim().toLowerCase())
 
+// Mesma trava, para a seção 📝 Provas:
+//   false (padrão) → template `resumo_diario_v3`, 7 params, sem provas
+//   true           → template `resumo_diario_v4`, 8 params, com provas
+export const templateHasExams = () =>
+  ['true', '1'].includes((process.env.WHATSAPP_TEMPLATE_HAS_EXAMS ?? '').trim().toLowerCase())
+
 // Resumo diário em seções — cada posição de `params` vira um {{n}} do
 // template Meta; as quebras de linha entre seções ficam no texto fixo do
 // template (ver painel-projeto / CLAUDE.md para o corpo aprovado).
@@ -194,18 +201,17 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   const today = spDate(0)
   const weekEnd = spDate(7)
 
-  // A rotina de aulas sai desta consulta e vai para a sua própria seção (só
-  // as de HOJE): na semana são ~45 aulas, que afogariam os compromissos e
-  // estourariam o limite de tamanho do parâmetro do template da Meta. `or`
-  // com is.null é obrigatório: `neq` sozinho descartaria as atividades
-  // normais, que têm school_kind NULL.
+  // Aulas e provas saem desta consulta e vão para as suas próprias seções.
+  // Aula por volume (~45/semana afogariam os compromissos e estourariam o
+  // limite de tamanho do parâmetro do template); prova por decisão de
+  // produto — ver SCHOOL_KIND_GERAL_FILTER em types.ts.
   const actsQuery = admin
     .from('activities')
     .select('title, category, date, time, takes_user_id, picks_user_id, child:children(name)')
     .gte('date', today)
     .lte('date', weekEnd)
     .neq('status', 'cancelado')
-    .or('school_kind.is.null,school_kind.neq.aula')
+    .or(SCHOOL_KIND_GERAL_FILTER)
     .order('date')
     .order('time', { nullsFirst: false })
 
@@ -235,6 +241,24 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   const { data: rawClasses } = familyIds.length > 0
     ? await classQuery.in('family_id', familyIds)
     : await classQuery.eq('user_id', userId)
+
+  // Provas — janela de 7 dias, não só hoje. Uma prova avisada no dia não
+  // serve para nada: o valor está em lembrar que ela está chegando, com
+  // tempo de estudar. É por isso que esta seção existe apesar de provas
+  // terem saído da agenda geral.
+  const examQuery = admin
+    .from('activities')
+    .select('title, date, time, child:children(name)')
+    .eq('category', 'escola')
+    .eq('school_kind', 'prova')
+    .gte('date', today)
+    .lte('date', weekEnd)
+    .neq('status', 'cancelado')
+    .order('date')
+    .order('time', { nullsFirst: false })
+  const { data: rawExams } = familyIds.length > 0
+    ? await examQuery.in('family_id', familyIds)
+    : await examQuery.eq('user_id', userId)
 
   // Plano efetivo da família = plano do owner (ativo/trial). A agenda diária é
   // recurso PAGO; o aviso de grace é notificação de conta e é tratado à parte
@@ -311,6 +335,25 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     })
     if (nextActs.length > 8) items.push(`… e mais ${nextActs.length - 8} no app`)
     proximosParam = items.join(' | ')
+  }
+
+  // ── Provas dos próximos 7 dias ───────────────────────────────────────────
+  // "hoje" e "amanhã" em vez da data seca: é a informação que muda o
+  // comportamento de quem lê a mensagem de manhã.
+  const examList = (rawExams ?? []) as unknown as
+    Array<{ title: string; date: string; time: string | null; child: { name: string } | null }>
+  const MAX_EXAMS = 8
+  let provasParam = 'Nenhuma prova nos próximos 7 dias.'
+  if (examList.length > 0) {
+    const amanha = spDate(1)
+    const items = examList.slice(0, MAX_EXAMS).map(e => {
+      const quando = e.date === today ? 'hoje' : e.date === amanha ? 'amanhã' : fmtShort(e.date)
+      const hora = e.time ? ` ${e.time.slice(0, 5)}` : ''
+      const childName = e.child?.name ? ` (${e.child.name})` : ''
+      return `${quando}${hora} — ${e.title}${childName}`
+    })
+    if (examList.length > MAX_EXAMS) items.push(`… e mais ${examList.length - MAX_EXAMS} no app`)
+    provasParam = items.join(' | ')
   }
 
   // ── Lembretes (mural do Dashboard) ───────────────────────────────────────
@@ -411,6 +454,7 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     `🎒 Aulas de hoje\n${aulasParam}`,
     `🔥 Hoje\n${hojeParam}`,
     `📅 Próximos 7 dias\n${proximosParam}`,
+    `📝 Provas\n${provasParam}`,
     `📌 Lembretes\n${lembretesParam}`,
     `📄 Documentos — vencimentos\n${documentosParam}`,
     `💉 Vacinas — lembretes\n${vacinasParam}`,
@@ -421,6 +465,7 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   const params = [dataParam]
   if (templateHasClasses()) params.push(aulasParam)
   params.push(hojeParam, proximosParam)
+  if (templateHasExams()) params.push(provasParam)
   if (templateHasReminders()) params.push(lembretesParam)
   params.push(documentosParam, vacinasParam)
 

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Child, type DocumentCategory, type SchoolKind, SCHOOL_KIND_LABELS } from '@/lib/types'
+import { Child, type DocumentCategory, type SchoolKind, SCHOOL_KIND_LABELS, SCHOOL_KIND_EMOJI, SCHOOL_KINDS } from '@/lib/types'
 import { VAULT_CATEGORIES } from '@/lib/vault'
 import {
   Sparkles, Upload, FileText, Camera, Check, X, Loader2,
@@ -628,24 +628,31 @@ export default function IAPage() {
                   <label className="block text-[11px] font-bold uppercase tracking-[0.08em] mb-2" style={{ color: 'rgba(26,43,28,0.55)' }}>
                     O que você capturou de escola?
                   </label>
-                  <div className="flex gap-2">
-                    {(['atividade', 'aula'] as SchoolKind[]).map(k => {
+                  {/* Três opções não cabem lado a lado no mobile — flex-wrap com
+                      base mínima deixa a terceira descer em vez de espremer. */}
+                  <div className="flex gap-2 flex-wrap">
+                    {SCHOOL_KINDS.map(k => {
                       const active = schoolKind === k
                       return (
                         <button key={k} type="button" onClick={() => setSchoolKind(k)}
                           className="flex-1 py-2 px-3 rounded-[11px] text-xs font-bold transition-all"
-                          style={active
-                            ? { background: '#2563EB', color: '#fff', border: '1px solid #2563EB' }
-                            : { background: 'rgba(255,255,255,0.80)', color: 'rgba(26,43,28,0.55)', border: '1px solid rgba(37,99,235,0.20)' }}>
-                          {k === 'atividade' ? '📘' : '🕘'} {SCHOOL_KIND_LABELS[k]}
+                          style={{
+                            minWidth: 120,
+                            ...(active
+                              ? { background: '#2563EB', color: '#fff', border: '1px solid #2563EB' }
+                              : { background: 'rgba(255,255,255,0.80)', color: 'rgba(26,43,28,0.55)', border: '1px solid rgba(37,99,235,0.20)' }),
+                          }}>
+                          {SCHOOL_KIND_EMOJI[k]} {SCHOOL_KIND_LABELS[k]}
                         </button>
                       )
                     })}
                   </div>
                   <p className="text-[11px] italic mt-2" style={{ color: 'rgba(26,43,28,0.45)' }}>
                     {schoolKind === 'atividade'
-                      ? 'Provas, trabalhos, reuniões e eventos — vão para “Atividades escolares”.'
-                      : 'Grade semanal de aulas — vai para “Rotina de aulas”.'}
+                      ? 'Trabalhos, reuniões e eventos — vão para “Atividades escolares”.'
+                      : schoolKind === 'aula'
+                      ? 'Grade semanal de aulas — vai para “Rotina de aulas”.'
+                      : 'Provas, avaliações e simulados — vão para “Calendário de provas”.'}
                   </p>
                 </div>
               )}

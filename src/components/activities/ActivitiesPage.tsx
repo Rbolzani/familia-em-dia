@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Activity, ActivityCategory, Child, SchoolKind, SCHOOL_KIND_LABELS } from '@/lib/types'
+import { Activity, ActivityCategory, Child, SchoolKind, SCHOOL_KIND_LABELS, SCHOOL_KIND_EMOJI, SCHOOL_KINDS } from '@/lib/types'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { DeadlineBadge } from '@/components/ui/Badge'
@@ -301,7 +301,7 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
           Nas outras categorias não há chips, e a linha existe só para o botão. */}
       {(isSchool || (canEdit && !selectMode && filtered.length > 0)) && (
         <div className="flex gap-2 items-center flex-wrap animate-fade-up">
-          {isSchool && (['atividade', 'aula'] as SchoolKind[]).map(k => {
+          {isSchool && SCHOOL_KINDS.map(k => {
             const active = filterKind === k
             const count = activities.filter(a =>
               !!a.date && a.date >= todayDs &&
@@ -314,7 +314,7 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
                 style={active
                   ? { background:'#14463A', color:'#fff', border:'1px solid rgba(61,102,65,0.40)', boxShadow:'0 2px 8px rgba(44,74,46,0.22)' }
                   : { background:'rgba(255,255,255,0.70)', color:'rgba(26,43,28,0.50)', border:'1px solid rgba(61,102,65,0.14)' }}>
-                {k === 'atividade' ? '📘' : '🕘'} {SCHOOL_KIND_LABELS[k]}
+                {SCHOOL_KIND_EMOJI[k]} {SCHOOL_KIND_LABELS[k]}
                 <span className="px-1.5 py-0.5 rounded-full text-[10px]"
                   style={active ? { background:'rgba(255,255,255,0.20)' } : { background:'rgba(26,43,28,0.06)' }}>
                   {count}
