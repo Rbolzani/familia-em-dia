@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Activity, ActivityCategory, Child, SchoolKind, SCHOOL_KIND_LABELS, SCHOOL_KIND_EMOJI, SCHOOL_KINDS } from '@/lib/types'
+import { Activity, ActivityCategory, Child, SchoolKind, SCHOOL_KIND_LABELS, SCHOOL_KIND_EMOJI, SCHOOL_KINDS, SCHOOL_KINDS_APARTE } from '@/lib/types'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { DeadlineBadge } from '@/components/ui/Badge'
@@ -634,7 +634,13 @@ function ActivityCard({
 
   // Em modo seleção a logística sai de cena: os chips são interativos e
   // competiriam com o clique que marca o card.
-  const showLogistics = !selectMode && !!first.date && familyMembers.length > 0 && !!currentUserId
+  // Rotina de aulas e provas não têm logística: as duas acontecem dentro do
+  // dia letivo normal, sem leva/busca próprio. Mesma regra que /logistica já
+  // aplica na consulta (SCHOOL_KINDS_APARTE) — aqui faltava, e os chips
+  // apareciam nas abas de aulas e de provas.
+  const semLogistica = first.category === 'escola'
+    && SCHOOL_KINDS_APARTE.includes(first.school_kind as SchoolKind)
+  const showLogistics = !selectMode && !semLogistica && !!first.date && familyMembers.length > 0 && !!currentUserId
 
   const ids = group.map(a => a.id)
   const selCount = selectedIds ? ids.filter(id => selectedIds.has(id)).length : 0
