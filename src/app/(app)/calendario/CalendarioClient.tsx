@@ -674,8 +674,10 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
             style={{ borderBottom:'1px solid rgba(61,102,65,0.06)', background:'rgba(248,243,234,0.80)' }}>
             {calView === 'provas' ? (
               // Na visão de provas a legenda de categorias não informa nada
-              // (é tudo escola) — mostra os filhos, que é o que varia.
-              children.map(c=>(
+              // (é tudo escola) — mostra os filhos, que é o que varia. Com um
+              // filho filtrado, a legenda mostra só ele: listar cores que não
+              // estão na grade faz parecer que o filtro não pegou.
+              children.filter(c=>!filterChildProvas || c.id===filterChildProvas).map(c=>(
                 <span key={c.id} className="flex items-center gap-1 text-[10px] font-bold"
                   style={{ color:'rgba(26,43,28,0.55)' }}>
                   <span style={{ width:8, height:8, borderRadius:'50%', background:c.avatar_color, display:'inline-block', flexShrink:0 }}/>
@@ -731,8 +733,14 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
                   </div>
                   <div className="flex flex-col gap-[2px] overflow-hidden flex-1">
                     {dayActs.slice(0,2).map((a,ai)=>{
-                      // By-category view: use child color so each child is visually distinct
-                      const pillColor = viewMode==='category' && (a as ActivityWithChild).child?.avatar_color
+                      // Cor por FILHO quando a legenda também é por filho:
+                      // na visão "Por filho" e na de Provas (onde é tudo
+                      // escola, e a cor da categoria não distinguiria nada).
+                      // Sem isto a legenda mostrava a cor do filho e a
+                      // caixinha o azul de escola — duas cores para a mesma
+                      // coisa na mesma tela.
+                      const porFilho = calView==='provas' || viewMode==='category'
+                      const pillColor = porFilho && (a as ActivityWithChild).child?.avatar_color
                         ? `${(a as ActivityWithChild).child!.avatar_color}CC`
                         : CAT_PILL_BG[a.category]??'rgba(90,140,94,0.75)'
                       return (
