@@ -53,9 +53,10 @@ const STAT: React.CSSProperties = {
   boxShadow: '0 6px 22px rgba(44,74,46,0.11),0 2px 6px rgba(44,74,46,0.07),0 -1px 0 rgba(255,255,255,0.95) inset,0 1px 0 rgba(0,0,0,0.035) inset,inset 1px 0 rgba(255,255,255,0.55),inset -1px 0 rgba(0,0,0,0.022)',
   transition: 'transform 0.25s, box-shadow 0.25s',
 }
+// O padding NÃO fica aqui: no desktop o card é mais compacto, e estilo inline
+// vence classe, então a regra responsiva precisa vir por className (ACT_PAD).
 const ACT: React.CSSProperties = {
   borderRadius: '17px 11px 15px 13px',
-  padding: '15px 18px',
   display: 'flex',
   alignItems: 'center',
   gap: 14,
@@ -69,6 +70,7 @@ const ACT: React.CSSProperties = {
   boxShadow: '0 2px 10px rgba(44,74,46,0.09),0 -1px 0 rgba(255,255,255,0.95) inset,0 1px 0 rgba(0,0,0,0.03) inset,inset 1px 0 rgba(255,255,255,0.55)',
   transition: 'transform 0.22s, box-shadow 0.22s',
 }
+const ACT_PAD = 'p-[15px_18px] md:p-[10px_14px]'
 const MINI_CAL: React.CSSProperties = {
   borderRadius: '20px 13px 18px 15px',
   padding: 22,
@@ -304,8 +306,11 @@ function MiniCalendar({ activitiesByDate: initialByDate, canEdit, onChanged }: {
 
 
 // ── Activity Row ───────────────────────────────────────────────────────────
-function ActivityRow({ activities, canEdit, onChanged }: {
+function ActivityRow({ activities, canEdit, onChanged, badge }: {
   activities: ActWithChild[]; canEdit: boolean; onChanged: () => void
+  // Selo extra à esquerda da data — hoje só as provas usam, para carregar a
+  // contagem regressiva sem precisar de um card com desenho próprio.
+  badge?: { text: string; urgent?: boolean }
 }) {
   const activity = activities[0]
   const cat    = CAT[activity.category as CatKey]??CAT.escola
@@ -322,7 +327,7 @@ function ActivityRow({ activities, canEdit, onChanged }: {
   // campos navegaria para a página da categoria.
   if (editing) {
     return (
-      <div style={{ ...ACT, alignItems:'stretch', cursor:'default' }}>
+      <div style={{ ...ACT, alignItems:'stretch', cursor:'default' }} className={ACT_PAD}>
         <div className="absolute pointer-events-none"
           style={{ left:0, top:10, bottom:10, width:4, borderRadius:'0 4px 4px 0', background:cat.bar, boxShadow:`0 0 6px ${cat.barGlow}` }}/>
         <div className="flex-1 min-w-0">
@@ -339,7 +344,7 @@ function ActivityRow({ activities, canEdit, onChanged }: {
 
   return (
     <Link href={`/${activity.category==='escola'?'escola':activity.category==='saude'?'saude':'atividades'}`}>
-      <div style={ACT} className="group"
+      <div style={ACT} className={`group ${ACT_PAD}`}
         onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.transform='translateX(5px) rotate(0.25deg)';el.style.boxShadow='0 6px 20px rgba(44,74,46,0.12),0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.90) inset,0 1px 0 rgba(0,0,0,0.04) inset'}}
         onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.transform='';el.style.boxShadow=''}}>
 
@@ -354,6 +359,14 @@ function ActivityRow({ activities, canEdit, onChanged }: {
         <div className="flex-1 min-w-0">
           <div className="font-bold" style={{ fontSize:14, color:'#1A2B1C', lineHeight:1.3 }}>{activity.title}</div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {badge && (
+              <span className="text-[11px] font-extrabold px-2.5 py-[3px] rounded-full flex-shrink-0"
+                style={badge.urgent
+                  ? { background:'rgba(220,38,38,0.10)', color:'#B91C1C', border:'1px solid rgba(220,38,38,0.24)' }
+                  : { background:'rgba(245,158,11,0.10)', color:'#92400E', border:'1px solid rgba(217,119,6,0.24)' }}>
+                {badge.text}
+              </span>
+            )}
             {/* All children badges (merged) */}
             {activities.map(a => a.child && (
               <span key={a.id} className="text-[11px] font-extrabold px-2.5 py-[3px] rounded-full text-white flex-shrink-0"
@@ -711,82 +724,45 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 // ── Próximas provas ─────────────────────────────────────────────────────────
-// Um painel, dois pesos. A prova de HOJE vira card cheio em vermelho: naquela
-// manhã ela é a informação mais importante da tela. As futuras ficam em linhas
-// compactas em âmbar, com contagem regressiva — o valor de uma prova está em
-// lembrar dela com tempo de estudar, não no dia.
-//
-// Não existe seção separada para "provas de hoje": duas seções sobre a mesma
-// coisa competem entre si e obrigam o usuário a olhar em dois lugares. E um
-// bloco fixo ficaria vazio na esmagadora maioria dos dias, que é o jeito mais
-// rápido de ensinar alguém a ignorar aquele canto da tela.
-function ExamsPanel({ exams, todayDs }: { exams: ActWithChild[]; todayDs: string }) {
+// Usa o MESMO card das demais seções (ActivityRow): card branco, editar e
+// excluir inclusos. A prova não é um objeto diferente das outras atividades —
+// só tem prazo. A urgência é comunicada por um selo ("Hoje" em vermelho,
+// "Em 3 dias" em âmbar), não por um card com desenho próprio.
+function ExamsPanel({ exams, todayDs, canEdit, onChanged }: {
+  exams: ActWithChild[]; todayDs: string; canEdit: boolean; onChanged: () => void
+}) {
   if (!exams.length) return null
 
-  const hoje = exams.filter(e => e.date === todayDs)
-  const futuras = exams.filter(e => e.date !== todayDs)
+  const hojeCount = exams.filter(e => e.date === todayDs).length
   const diasAte = (d: string) =>
     Math.round((new Date(d + 'T12:00:00').getTime() - new Date(todayDs + 'T12:00:00').getTime()) / 86_400_000)
 
   return (
-    <div>
+    <div className="min-w-0">
       <SectionH>
         <NotebookPen size={18} color="#DC2626"/> Provas
-        {hoje.length > 0 && (
+        {hojeCount > 0 && (
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
             style={{ background:'rgba(220,38,38,0.10)', color:'#B91C1C' }}>
-            {hoje.length === 1 ? 'hoje' : `${hoje.length} hoje`}
+            {hojeCount === 1 ? 'hoje' : `${hojeCount} hoje`}
           </span>
         )}
       </SectionH>
 
-      {/* min-w-0 propagado pelo mesmo motivo do painel de Alertas: `truncate`
-          implica nowrap, e sem isso o título inteiro vira a min-content. */}
-      <div className="space-y-2 min-w-0">
-        {hoje.map(e => (
-          <Link key={e.id} href="/escola" className="block min-w-0">
-            <div className="p-3.5 rounded-xl transition-all hover:brightness-95"
-              style={{ background:'rgba(220,38,38,0.06)', border:'1px solid rgba(220,38,38,0.28)' }}>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full tracking-[0.04em]"
-                  style={{ background:'rgba(220,38,38,0.12)', color:'#B91C1C' }}>
-                  🔥 HOJE{e.time ? ` · ${e.time.slice(0,5)}` : ''}
-                </span>
-              </div>
-              <p className="text-[15px] font-bold truncate" style={{ color:'#1A2B1C' }}>{e.title}</p>
-              {e.child?.name && (
-                <p className="text-[11px] truncate mt-0.5" style={{ color:'rgba(26,43,28,0.50)' }}>{e.child.name}</p>
-              )}
-            </div>
-          </Link>
-        ))}
-
-        {futuras.map(e => {
-          const d = diasAte(e.date!)
-          const label = d === 1 ? 'Amanhã' : `Em ${d} dias`
-          return (
-            <Link key={e.id} href="/escola" className="block min-w-0">
-              <div className="flex items-center gap-3 p-3 rounded-xl transition-all hover:brightness-95"
-                style={{ background:'rgba(245,158,11,0.05)', border:'1px solid rgba(217,119,6,0.30)' }}>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background:'rgba(245,158,11,0.10)' }}>
-                  <NotebookPen size={13} color="#D97706" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-bold truncate" style={{ color:'#1A2B1C' }}>{e.title}</p>
-                  <p className="text-[11px] truncate" style={{ color:'rgba(26,43,28,0.50)' }}>
-                    {[e.child?.name, e.time?.slice(0,5)].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                  style={{ background:'rgba(245,158,11,0.10)', color:'#92400E' }}>
-                  {label}
-                </span>
-              </div>
-            </Link>
-          )
-        })}
-      </div>
+      {mergeActivities(exams).map(g => {
+        const d = diasAte(g[0].date!)
+        return (
+          <ActivityRow
+            key={g[0].id}
+            activities={g}
+            canEdit={canEdit}
+            onChanged={onChanged}
+            badge={d === 0
+              ? { text: '🔥 Hoje', urgent: true }
+              : { text: d === 1 ? 'Amanhã' : `Em ${d} dias` }}
+          />
+        )
+      })}
     </div>
   )
 }
@@ -889,7 +865,7 @@ export default function DashboardClient({ userName, children, todayClasses, toda
           Renderizado só quando há provas, para o space-y não abrir um vão. */}
       {exams.length > 0 && (
         <div className="md:hidden mb-5">
-          <ExamsPanel exams={exams} todayDs={todayDs}/>
+          <ExamsPanel exams={exams} todayDs={todayDs} canEdit={canEdit} onChanged={onChanged}/>
         </div>
       )}
 
@@ -898,7 +874,11 @@ export default function DashboardClient({ userName, children, todayClasses, toda
           grid (minmax(auto,1fr)) deixa o conteúdo empurrar a largura além da
           tela, e o overflow-x-hidden do container apenas corta o excesso —
           é a causa da "tela cortada à direita" no mobile. */}
-      <div className="layout-cols grid gap-[18px] md:gap-[22px] min-w-0" style={{ gridTemplateColumns:'1fr 308px' }}>
+      {/* Coluna da direita mais larga (308 → 380px): encurta os cards da
+          esquerda, que ficavam largos demais para o pouco texto que carregam,
+          e dá folga ao mini-calendário e ao painel de provas. No mobile o
+          grid-template é sobrescrito para 1 coluna em globals.css. */}
+      <div className="layout-cols grid gap-[18px] md:gap-[22px] min-w-0" style={{ gridTemplateColumns:'1fr 380px' }}>
 
         {/* Left */}
         <div className="min-w-0">
@@ -936,7 +916,7 @@ export default function DashboardClient({ userName, children, todayClasses, toda
         <div className="space-y-[18px] md:space-y-[22px] min-w-0">
           {exams.length > 0 && (
             <div className="hidden md:block">
-              <ExamsPanel exams={exams} todayDs={todayDs}/>
+              <ExamsPanel exams={exams} todayDs={todayDs} canEdit={canEdit} onChanged={onChanged}/>
             </div>
           )}
           <div>
