@@ -740,7 +740,7 @@ function ExamsPanel({ exams, todayDs, canEdit, onChanged }: {
   return (
     <div className="min-w-0">
       <SectionH>
-        <NotebookPen size={18} color="#DC2626"/> Provas
+        Provas
         {hojeCount > 0 && (
           <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
             style={{ background:'rgba(220,38,38,0.10)', color:'#B91C1C' }}>
@@ -782,10 +782,11 @@ export default function DashboardClient({ userName, children, todayClasses, toda
     return acc
   }, {})
 
-  // As aulas têm card próprio; os contadores de atividades e dos próximos 7
-  // dias já recebem as listas sem a rotina de aulas (filtradas no servidor).
+  // Sem contador de aulas: a grade é rotina diária, o número é sempre o mesmo
+  // e não informa nada — a seção "Aulas de Hoje" logo abaixo já mostra quais
+  // são. Os contadores de atividades e dos próximos 7 dias já recebem as
+  // listas sem a rotina de aulas (filtradas no servidor).
   const stats = [
-    { n:todayClasses.length,       label:'Aulas hoje',      short:'Aulas',      icon:BookOpen,      icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#3B82F6' },
     { n:todayActivities.length,    label:'Atividades hoje', short:'Atividades', icon:CalendarCheck, icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#2563EB' },
     { n:upcomingActivities.length, label:'Próximos 7 dias', short:'7 dias',     icon:CalendarRange, icolor:'#B45309', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
     { n:exams.length,              label:'Provas (7 dias)', short:'Provas',    icon:NotebookPen,   icolor:'#B91C1C', ibg:'linear-gradient(140deg,#FEE2E2,#FECACA)', corner:'#DC2626' },
@@ -830,12 +831,10 @@ export default function DashboardClient({ userName, children, todayClasses, toda
         </div>
       </div>
 
-      {/* Stats — 5 cards em uma única linha (mobile e desktop). No mobile o
-          espaço por card fica ~64px, então padding, ícone, número e rótulo
-          encolhem e o rótulo usa a versão curta para não quebrar linha.
-          Uma linha só é inegociável aqui: quebrar em 4+1 deixa um card órfão
-          na segunda linha, que lê como erro de layout. */}
-      <div className="grid grid-cols-5 gap-[5px] md:gap-[14px] mb-5 md:mb-7">
+      {/* Stats — 4 cards em uma única linha (mobile e desktop). No mobile o
+          espaço por card fica ~80px, então padding, ícone, número e rótulo
+          encolhem e o rótulo usa a versão curta para não quebrar linha. */}
+      <div className="grid grid-cols-4 gap-[6px] md:gap-[14px] mb-5 md:mb-7">
         {stats.map((s,i)=>(
           <div key={i} style={{ ...STAT, padding:'10px 8px' }}
             className="md:p-[22px_20px]"
