@@ -7,6 +7,7 @@ import {
   ChevronLeft, ChevronRight,
   CalendarCheck, CalendarRange, Stethoscope,
   StickyNote, Plus, Trash2, Check, Syringe, Pencil, Loader2, AlertTriangle, FileWarning,
+  NotebookPen,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ActivityQuickEdit, useActivityDelete } from '@/components/activities/ActivityQuickEdit'
@@ -31,6 +32,8 @@ interface Props {
   upcomingActivities: ActWithChild[]
   monthActivities:    ActWithChild[]   // full month — for mini-calendar dots + click detail
   reminders:          ActWithChild[]  // activities with no date
+  exams:              ActWithChild[]  // provas de hoje + próximos 7 dias, por proximidade
+  todayDs:            string          // data de hoje (America/Sao_Paulo), resolvida no servidor
   importantAlerts:    ImportantAlert[]  // vencimentos de documentos do Cofre
 }
 
@@ -707,7 +710,88 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-export default function DashboardClient({ userName, children, todayClasses, todayActivities, upcomingActivities, monthActivities, reminders, importantAlerts }: Props) {
+// ── Próximas provas ─────────────────────────────────────────────────────────
+// Um painel, dois pesos. A prova de HOJE vira card cheio em vermelho: naquela
+// manhã ela é a informação mais importante da tela. As futuras ficam em linhas
+// compactas em âmbar, com contagem regressiva — o valor de uma prova está em
+// lembrar dela com tempo de estudar, não no dia.
+//
+// Não existe seção separada para "provas de hoje": duas seções sobre a mesma
+// coisa competem entre si e obrigam o usuário a olhar em dois lugares. E um
+// bloco fixo ficaria vazio na esmagadora maioria dos dias, que é o jeito mais
+// rápido de ensinar alguém a ignorar aquele canto da tela.
+function ExamsPanel({ exams, todayDs }: { exams: ActWithChild[]; todayDs: string }) {
+  if (!exams.length) return null
+
+  const hoje = exams.filter(e => e.date === todayDs)
+  const futuras = exams.filter(e => e.date !== todayDs)
+  const diasAte = (d: string) =>
+    Math.round((new Date(d + 'T12:00:00').getTime() - new Date(todayDs + 'T12:00:00').getTime()) / 86_400_000)
+
+  return (
+    <div>
+      <SectionH>
+        <NotebookPen size={18} color="#DC2626"/> Provas
+        {hoje.length > 0 && (
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+            style={{ background:'rgba(220,38,38,0.10)', color:'#B91C1C' }}>
+            {hoje.length === 1 ? 'hoje' : `${hoje.length} hoje`}
+          </span>
+        )}
+      </SectionH>
+
+      {/* min-w-0 propagado pelo mesmo motivo do painel de Alertas: `truncate`
+          implica nowrap, e sem isso o título inteiro vira a min-content. */}
+      <div className="space-y-2 min-w-0">
+        {hoje.map(e => (
+          <Link key={e.id} href="/escola" className="block min-w-0">
+            <div className="p-3.5 rounded-xl transition-all hover:brightness-95"
+              style={{ background:'rgba(220,38,38,0.06)', border:'1px solid rgba(220,38,38,0.28)' }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full tracking-[0.04em]"
+                  style={{ background:'rgba(220,38,38,0.12)', color:'#B91C1C' }}>
+                  🔥 HOJE{e.time ? ` · ${e.time.slice(0,5)}` : ''}
+                </span>
+              </div>
+              <p className="text-[15px] font-bold truncate" style={{ color:'#1A2B1C' }}>{e.title}</p>
+              {e.child?.name && (
+                <p className="text-[11px] truncate mt-0.5" style={{ color:'rgba(26,43,28,0.50)' }}>{e.child.name}</p>
+              )}
+            </div>
+          </Link>
+        ))}
+
+        {futuras.map(e => {
+          const d = diasAte(e.date!)
+          const label = d === 1 ? 'Amanhã' : `Em ${d} dias`
+          return (
+            <Link key={e.id} href="/escola" className="block min-w-0">
+              <div className="flex items-center gap-3 p-3 rounded-xl transition-all hover:brightness-95"
+                style={{ background:'rgba(245,158,11,0.05)', border:'1px solid rgba(217,119,6,0.30)' }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background:'rgba(245,158,11,0.10)' }}>
+                  <NotebookPen size={13} color="#D97706" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold truncate" style={{ color:'#1A2B1C' }}>{e.title}</p>
+                  <p className="text-[11px] truncate" style={{ color:'rgba(26,43,28,0.50)' }}>
+                    {[e.child?.name, e.time?.slice(0,5)].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                  style={{ background:'rgba(245,158,11,0.10)', color:'#92400E' }}>
+                  {label}
+                </span>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export default function DashboardClient({ userName, children, todayClasses, todayActivities, upcomingActivities, monthActivities, reminders, exams, todayDs, importantAlerts }: Props) {
   const router = useRouter()
   const { canEdit } = useAccess()
   // As listas vêm do Server Component; após uma edição, router.refresh() traz
@@ -728,8 +812,15 @@ export default function DashboardClient({ userName, children, todayClasses, toda
     { n:todayClasses.length,       label:'Aulas hoje',      short:'Aulas',      icon:BookOpen,      icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#3B82F6' },
     { n:todayActivities.length,    label:'Atividades hoje', short:'Atividades', icon:CalendarCheck, icolor:'#2563EB', ibg:'linear-gradient(140deg,#DBEAFE,#BFDBFE)', corner:'#2563EB' },
     { n:upcomingActivities.length, label:'Próximos 7 dias', short:'7 dias',     icon:CalendarRange, icolor:'#B45309', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
+    { n:exams.length,              label:'Provas (7 dias)', short:'Provas',    icon:NotebookPen,   icolor:'#B91C1C', ibg:'linear-gradient(140deg,#FEE2E2,#FECACA)', corner:'#DC2626' },
     { n:reminders.length,          label:'Lembretes',       short:'Lembretes',  icon:StickyNote,    icolor:'#92400E', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
   ]
+
+  // Prova hoje empurra o painel para o topo, acima dos contadores e das aulas:
+  // é a primeira coisa que precisa ser vista naquela manhã. Nos demais dias ele
+  // fica na posição normal, mais abaixo — destaque dinâmico que não cobra nada
+  // nos ~95% dos dias sem prova.
+  const temProvaHoje = exams.some(e => e.date === todayDs)
 
   return (
     <div className="px-4 md:px-9 py-5 md:py-[34px] relative z-10 animate-fade-in max-w-full overflow-x-hidden">
@@ -764,10 +855,19 @@ export default function DashboardClient({ userName, children, todayClasses, toda
         </div>
       </div>
 
-      {/* Stats — 4 cards em uma única linha (mobile e desktop). No mobile o
-          espaço por card fica ~80px, então padding, ícone, número e rótulo
-          encolhem e o rótulo usa a versão curta para não quebrar linha. */}
-      <div className="grid grid-cols-4 gap-[6px] md:gap-[14px] mb-5 md:mb-7">
+      {/* Prova hoje: o painel sobe para cá, acima dos contadores e das aulas. */}
+      {temProvaHoje && (
+        <div className="mb-5 md:mb-7">
+          <ExamsPanel exams={exams} todayDs={todayDs}/>
+        </div>
+      )}
+
+      {/* Stats — 5 cards em uma única linha (mobile e desktop). No mobile o
+          espaço por card fica ~64px, então padding, ícone, número e rótulo
+          encolhem e o rótulo usa a versão curta para não quebrar linha.
+          Uma linha só é inegociável aqui: quebrar em 4+1 deixa um card órfão
+          na segunda linha, que lê como erro de layout. */}
+      <div className="grid grid-cols-5 gap-[5px] md:gap-[14px] mb-5 md:mb-7">
         {stats.map((s,i)=>(
           <div key={i} style={{ ...STAT, padding:'10px 8px' }}
             className="md:p-[22px_20px]"
@@ -838,6 +938,10 @@ export default function DashboardClient({ userName, children, todayClasses, toda
             <SectionH>Mural de Lembretes</SectionH>
             <RemindersPanel initial={reminders} allChildren={children}/>
           </div>
+          {/* Sem prova hoje, o painel fica aqui — perto dos Alertas, que é o
+              vizinho certo: os dois são "coisas chegando". Renderizar nos dois
+              lugares não duplica nada: cada ramo é exclusivo do outro. */}
+          {!temProvaHoje && <ExamsPanel exams={exams} todayDs={todayDs}/>}
           <ImportantAlertsPanel alerts={importantAlerts}/>
         </div>
       </div>

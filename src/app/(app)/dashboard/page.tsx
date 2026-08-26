@@ -127,6 +127,16 @@ export default async function DashboardPage() {
   const todayClasses = todayAll.filter(isAula)
   const todayOthers  = todayAll.filter(a => !isAparte(a))
 
+  // Provas de hoje + dos próximos 7 dias, em ordem de proximidade. Sai das
+  // consultas que já foram feitas — provas estão nelas (o filtro por tipo é
+  // aplicado depois, ao montar as listas gerais), então não há query extra.
+  const isProva = (a: { category: string; school_kind?: string | null }) =>
+    a.category === 'escola' && a.school_kind === 'prova'
+  const exams = [
+    ...todayAll.filter(isProva),
+    ...(upcomingActivities ?? []).filter(isProva),
+  ]
+
   return (
     <DashboardClient
       userName={userName}
@@ -135,6 +145,8 @@ export default async function DashboardPage() {
       todayActivities={todayOthers}
       upcomingActivities={(upcomingActivities ?? []).filter(a => !isAparte(a))}
       monthActivities={(monthActivities ?? []).filter(a => !isAparte(a)) as Parameters<typeof DashboardClient>[0]['monthActivities']}
+      exams={exams as Parameters<typeof DashboardClient>[0]['exams']}
+      todayDs={todayDs}
       reminders={(reminders ?? []) as Parameters<typeof DashboardClient>[0]['reminders']}
       importantAlerts={importantAlerts}
     />
