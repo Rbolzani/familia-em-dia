@@ -816,11 +816,10 @@ export default function DashboardClient({ userName, children, todayClasses, toda
     { n:reminders.length,          label:'Lembretes',       short:'Lembretes',  icon:StickyNote,    icolor:'#92400E', ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', corner:'#C49A6C' },
   ]
 
-  // Prova hoje empurra o painel para o topo, acima dos contadores e das aulas:
-  // é a primeira coisa que precisa ser vista naquela manhã. Nos demais dias ele
-  // fica na posição normal, mais abaixo — destaque dinâmico que não cobra nada
-  // nos ~95% dos dias sem prova.
-  const temProvaHoje = exams.some(e => e.date === todayDs)
+  // O painel tem posição FIXA nos dois layouts (mobile: abaixo dos contadores;
+  // desktop: topo da coluna direita). A urgência é comunicada pelo card
+  // vermelho de hoje, não pela posição — layout que se move sozinho conforme o
+  // conteúdo confunde mais do que destaca.
 
   return (
     <div className="px-4 md:px-9 py-5 md:py-[34px] relative z-10 animate-fade-in max-w-full overflow-x-hidden">
@@ -855,13 +854,6 @@ export default function DashboardClient({ userName, children, todayClasses, toda
         </div>
       </div>
 
-      {/* Prova hoje: o painel sobe para cá, acima dos contadores e das aulas. */}
-      {temProvaHoje && (
-        <div className="mb-5 md:mb-7">
-          <ExamsPanel exams={exams} todayDs={todayDs}/>
-        </div>
-      )}
-
       {/* Stats — 5 cards em uma única linha (mobile e desktop). No mobile o
           espaço por card fica ~64px, então padding, ícone, número e rótulo
           encolhem e o rótulo usa a versão curta para não quebrar linha.
@@ -889,6 +881,17 @@ export default function DashboardClient({ userName, children, todayClasses, toda
           </div>
         ))}
       </div>
+
+      {/* Provas no MOBILE: logo abaixo dos contadores, antes das aulas. Numa
+          coluna só, o usuário decide em dois segundos se continua rolando —
+          aula é rotina, prova é exceção com prazo, então prova vem primeiro.
+          No desktop este bloco some: lá o painel abre a coluna da direita.
+          Renderizado só quando há provas, para o space-y não abrir um vão. */}
+      {exams.length > 0 && (
+        <div className="md:hidden mb-5">
+          <ExamsPanel exams={exams} todayDs={todayDs}/>
+        </div>
+      )}
 
       {/* Two-column layout.
           min-w-0 no grid E nas duas colunas: sem isso o mínimo automático do
@@ -928,8 +931,14 @@ export default function DashboardClient({ userName, children, todayClasses, toda
           )}
         </div>
 
-        {/* Right */}
+        {/* Right — no desktop a ordem é: Provas · Calendário · Lembretes ·
+            Alertas. Provas abre a coluna por ser o único item com prazo. */}
         <div className="space-y-[18px] md:space-y-[22px] min-w-0">
+          {exams.length > 0 && (
+            <div className="hidden md:block">
+              <ExamsPanel exams={exams} todayDs={todayDs}/>
+            </div>
+          )}
           <div>
             <SectionH>Calendário</SectionH>
             <MiniCalendar activitiesByDate={activitiesByDate} canEdit={canEdit} onChanged={onChanged}/>
@@ -938,10 +947,6 @@ export default function DashboardClient({ userName, children, todayClasses, toda
             <SectionH>Mural de Lembretes</SectionH>
             <RemindersPanel initial={reminders} allChildren={children}/>
           </div>
-          {/* Sem prova hoje, o painel fica aqui — perto dos Alertas, que é o
-              vizinho certo: os dois são "coisas chegando". Renderizar nos dois
-              lugares não duplica nada: cada ramo é exclusivo do outro. */}
-          {!temProvaHoje && <ExamsPanel exams={exams} todayDs={todayDs}/>}
           <ImportantAlertsPanel alerts={importantAlerts}/>
         </div>
       </div>
