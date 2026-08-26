@@ -528,26 +528,19 @@ export default function CalendarioClient({ initialActivities, initialChildren }:
           <div className="flex items-center gap-2 flex-wrap">
             {calView === 'atividades' ? (
               <>
-                {([
-                  { key:'child',    label:'Por natureza', icon:'📂' },
-                  { key:'category', label:'Por filho',    icon:'👶' },
-                ] as const).map(v=>(
-                  <button key={v.key}
-                    onClick={()=>{ setViewMode(v.key); setFilterChild(''); setFilterCat(''); setSelectedDay(null) }}
-                    style={{
-                      display:'flex', alignItems:'center', gap:5,
-                      padding:'5px 14px', borderRadius:20, fontSize:12, fontWeight:700,
-                      cursor:'pointer', transition:'all .18s',
-                      border:`1px solid ${viewMode===v.key?'rgba(61,102,65,0.40)':'rgba(61,102,65,0.14)'}`,
-                      background: viewMode===v.key ? '#14463A' : 'rgba(255,255,255,0.70)',
-                      color: viewMode===v.key ? '#fff' : 'rgba(26,43,28,0.50)',
-                      boxShadow: viewMode===v.key
-                        ? '0 2px 8px rgba(44,74,46,0.22),0 -1px 0 rgba(255,255,255,0.12) inset'
-                        : '0 1px 3px rgba(44,74,46,0.06)',
-                    }}>
-                    <span style={{ fontSize:13 }}>{v.icon}</span> {v.label}
-                  </button>
-                ))}
+                {/* O modo define como o calendário COLORE os itens, e o combo
+                    ao lado filtra pela outra dimensão: "Por natureza" pinta por
+                    categoria e filtra por filho; "Por filho" pinta por filho e
+                    filtra por categoria. Trocar de modo zera o filtro anterior,
+                    que deixaria de fazer sentido. */}
+                <select
+                  value={viewMode}
+                  onChange={e=>{ setViewMode(e.target.value as 'child'|'category'); setFilterChild(''); setFilterCat(''); setSelectedDay(null) }}
+                  className="text-xs font-bold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
+                  style={{ backgroundImage:'linear-gradient(160deg,#FFFFFF,#F2EAD8)', color:'#1A2B1C', border:'1px solid rgba(61,102,65,0.18)', boxShadow:'0 1px 4px rgba(44,74,46,0.08),0 -1px 0 rgba(255,255,255,0.80) inset' }}>
+                  <option value="child">📂 Por natureza</option>
+                  <option value="category">👶 Por filho</option>
+                </select>
                 {viewMode === 'child' ? (
                   <select value={filterChild} onChange={e=>setFilterChild(e.target.value)}
                     className="text-xs font-semibold px-2.5 py-1.5 rounded-[11px] outline-none cursor-pointer"
