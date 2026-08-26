@@ -25,10 +25,10 @@ export async function POST() {
   // buildDailySummary. Divergir faz a Meta rejeitar a mensagem inteira.
   const params: string[] = summary?.params ?? [
     'teste de conexão OK!',
+    ...(templateHasExams() ? ['Nenhuma prova nos próximos 7 dias.'] : []),
     ...(templateHasClasses() ? ['Nenhuma aula hoje 🎒'] : []),
     'Nenhuma atividade hoje.',
     'Nenhuma atividade nos próximos 7 dias.',
-    ...(templateHasExams() ? ['Nenhuma prova nos próximos 7 dias.'] : []),
     ...(templateHasReminders() ? ['Nenhum lembrete pendente. 🙌'] : []),
     'Nenhum vencimento nos próximos 15 dias.',
     'Nenhuma dose prevista nos próximos 30 dias.',

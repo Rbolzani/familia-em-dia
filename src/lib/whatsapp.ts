@@ -451,10 +451,10 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   // não tem restrição de contagem: mostra sempre todas as seções.
   const full = [
     `🌿 Bom dia! Resumo da Família — ${dataParam}`,
+    `📝 Provas\n${provasParam}`,
     `🎒 Aulas de hoje\n${aulasParam}`,
     `🔥 Hoje\n${hojeParam}`,
     `📅 Próximos 7 dias\n${proximosParam}`,
-    `📝 Provas\n${provasParam}`,
     `📌 Lembretes\n${lembretesParam}`,
     `📄 Documentos — vencimentos\n${documentosParam}`,
     `💉 Vacinas — lembretes\n${vacinasParam}`,
@@ -462,10 +462,14 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
 
   // A ordem aqui É o contrato do template — cada posição vira um {{n}}.
   // Trocar a ordem sem trocar o template aprovado embaralha as seções.
+  // Provas vem logo depois da data, espelhando o app (onde o painel abre a
+  // tela). Com HAS_EXAMS desligado a sequência resultante é exatamente a do
+  // v3 — por isso trocar a posição não quebra quem ainda está no template
+  // antigo.
   const params = [dataParam]
+  if (templateHasExams()) params.push(provasParam)
   if (templateHasClasses()) params.push(aulasParam)
   params.push(hojeParam, proximosParam)
-  if (templateHasExams()) params.push(provasParam)
   if (templateHasReminders()) params.push(lembretesParam)
   params.push(documentosParam, vacinasParam)
 
