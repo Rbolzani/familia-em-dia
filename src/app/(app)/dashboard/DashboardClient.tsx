@@ -733,21 +733,14 @@ function ExamsPanel({ exams, todayDs, canEdit, onChanged }: {
 }) {
   if (!exams.length) return null
 
-  const hojeCount = exams.filter(e => e.date === todayDs).length
   const diasAte = (d: string) =>
     Math.round((new Date(d + 'T12:00:00').getTime() - new Date(todayDs + 'T12:00:00').getTime()) / 86_400_000)
 
   return (
     <div className="min-w-0">
-      <SectionH>
-        Provas
-        {hojeCount > 0 && (
-          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-            style={{ background:'rgba(220,38,38,0.10)', color:'#B91C1C' }}>
-            {hojeCount === 1 ? 'hoje' : `${hojeCount} hoje`}
-          </span>
-        )}
-      </SectionH>
+      {/* Sem selo de contagem no título: o card já traz "🔥 Hoje", e os dois
+          lado a lado eram a mesma informação duas vezes. */}
+      <SectionH>Provas</SectionH>
 
       {mergeActivities(exams).map(g => {
         const d = diasAte(g[0].date!)
