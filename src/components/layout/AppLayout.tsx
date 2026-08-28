@@ -7,7 +7,7 @@ import {
   CalendarDays, FolderLock, Sparkles, Leaf,
   Palette, Moon, Sun, SlidersHorizontal,
   Users, LogOut, Car, Settings, UserPlus, Bell, X, Clock, Star, UserCog,
-  ChevronRight, Headphones, HelpCircle, FileText, Shield, ExternalLink,
+  ChevronRight, Headphones, HelpCircle, FileText, Shield, ExternalLink, Wallet,
 } from 'lucide-react'
 import { ChildAvatar } from '@/app/(app)/children/ChildrenClient'
 import { createClient } from '@/lib/supabase/client'
@@ -212,6 +212,18 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
   const panelMuted = darkMode ? 'rgba(200,222,201,0.50)' : 'rgba(26,43,28,0.55)'
   const panelBorder= darkMode ? 'rgba(80,130,84,0.22)' : 'rgba(61,102,65,0.22)'
 
+  // Cabeçalho de bloco da sidebar. Extraído porque agora são quatro e o
+  // markup estava duplicado inteiro em cada um.
+  function SectionLabel({ children }: { children: React.ReactNode }) {
+    return (
+      <div style={{ fontSize:10, fontWeight:800, letterSpacing:'0.16em', textTransform:'uppercase',
+        display:'flex', alignItems:'center', gap:8, padding:'0 10px 6px', color:'rgba(231,241,238,0.5)' }}>
+        {children}
+        <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.10)' }} />
+      </div>
+    )
+  }
+
   // ── Desktop NavItem ──────────────────────────────────────────────────
   function NavItem({ href, label, icon: Icon, badge, tourId }: {
     href: string; label: string; icon: React.ElementType; badge?: number; tourId?: string
@@ -327,26 +339,27 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
           {/* Nav — compact, no overflow so all items always visible */}
           <nav style={{ flex:1, minHeight:0, padding:'10px 12px', overflowY:'hidden' }}>
             <div style={{ marginBottom:10 }}>
-              <div style={{ fontSize:10, fontWeight:800, letterSpacing:'0.16em', textTransform:'uppercase',
-                display:'flex', alignItems:'center', gap:8, padding:'0 10px 6px', color:'rgba(231,241,238,0.5)' }}>
-                Principal
-                <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.10)' }} />
-              </div>
+              <SectionLabel>Principal</SectionLabel>
               <NavItem href="/dashboard"  label="Início"    icon={LayoutDashboard} />
               <NavItem href="/calendario" label="Agenda"    icon={CalendarDays} />
               <NavItem href="/logistica"  label="Logística" icon={Car} badge={pendingLogisticsCount} />
             </div>
-            <div>
-              <div style={{ fontSize:10, fontWeight:800, letterSpacing:'0.16em', textTransform:'uppercase',
-                display:'flex', alignItems:'center', gap:8, padding:'0 10px 6px', color:'rgba(231,241,238,0.5)' }}>
-                Módulos
-                <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.10)' }} />
-              </div>
+            <div style={{ marginBottom:10 }}>
+              <SectionLabel>Rotina</SectionLabel>
               <NavItem href="/escola"     label="Escola"     icon={BookOpen} />
               <NavItem href="/saude"      label="Saúde"      icon={HeartPulse} />
               <NavItem href="/atividades" label="Atividades" icon={Trophy} />
-              <NavItem href="/vault"      label="Documentos" icon={FolderLock} />
-              <div style={{ height:1, background:'rgba(255,255,255,0.10)', margin:'5px 8px' }} />
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <SectionLabel>Administrativo</SectionLabel>
+              <NavItem href="/vault"         label="Documentos"   icon={FolderLock} />
+              <NavItem href="/mensalidades"  label="Mensalidades" icon={Wallet} />
+            </div>
+            <div>
+              <SectionLabel>Gerenciar</SectionLabel>
+              {/* "Meus Filhos" existia só no menu do celular — no desktop o
+                  caminho era o painel do rodapé, que ninguém adivinha. */}
+              <NavItem href="/children"      label="Meus Filhos"        icon={Users} tourId="nav-children" />
               <NavItem href="/configuracoes" label="Compartilhar Acesso" icon={UserPlus} tourId="nav-invite" />
             </div>
           </nav>
@@ -621,7 +634,13 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
           <MobileNavItem href="/escola"     icon={BookOpen}        label="Escola"     />
           <MobileNavItem href="/saude"      icon={HeartPulse}      label="Saúde"      />
           <MobileNavItem href="/atividades" icon={Trophy}          label="Atividades" />
-          <MobileNavItem href="/vault"      icon={FolderLock}      label="Documentos" />
+
+          <div style={{ height:1, background:'rgba(91,143,94,0.18)', margin:'6px 16px' }} />
+
+          {/* Administrativo — mesmos blocos do desktop, para o menu não
+              ensinar uma organização e a sidebar outra. */}
+          <MobileNavItem href="/vault"        icon={FolderLock} label="Documentos"   />
+          <MobileNavItem href="/mensalidades" icon={Wallet}     label="Mensalidades" />
 
           <div style={{ height:1, background:'rgba(91,143,94,0.18)', margin:'6px 16px' }} />
 
