@@ -359,7 +359,10 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
               <SectionLabel>Gerenciar</SectionLabel>
               {/* "Meus Filhos" existia só no menu do celular — no desktop o
                   caminho era o painel do rodapé, que ninguém adivinha. */}
-              <NavItem href="/children"      label="Meus Filhos"        icon={Users} tourId="nav-children" />
+              {/* Sem tourId: `nav-children` já marca o painel de Filhos no
+                  rodapé, e dois elementos com o mesmo data-tour fariam o tour
+                  apontar para o primeiro do DOM. */}
+              <NavItem href="/children"      label="Meus Filhos"        icon={Users} />
               <NavItem href="/configuracoes" label="Compartilhar Acesso" icon={UserPlus} tourId="nav-invite" />
             </div>
           </nav>
@@ -369,11 +372,12 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
 
             {/* Filhos — scrollable */}
             <div data-tour="nav-children" style={{ padding:'8px 12px 4px', overflowY:'auto', maxHeight:160 }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 8px 7px' }}>
+              {/* Sem link de gerenciar: o caminho é o item "Meus Filhos" no
+                  bloco Gerenciar. Este painel é vitrine de quem está
+                  cadastrado — dois caminhos para a mesma tela deixavam a
+                  navegação frouxa. */}
+              <div style={{ padding:'0 8px 7px' }}>
                 <span style={{ fontSize:10, fontWeight:800, letterSpacing:'0.15em', textTransform:'uppercase', color:'rgba(231,241,238,0.5)' }}>Filhos</span>
-                <Link href="/children" style={{ fontSize:10, fontWeight:700, color:'rgba(231,241,238,0.7)', letterSpacing:'0.04em', textDecoration:'none' }}>
-                  + Gerenciar
-                </Link>
               </div>
               {liveChildren.length === 0 ? (
                 <Link href="/children">
