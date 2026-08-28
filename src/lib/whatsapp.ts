@@ -4,6 +4,7 @@ import { createClient as createAdminClient, SupabaseClient } from '@supabase/sup
 import { toWhatsAppNumber } from './cpf'
 import { dosesRealmentePendentes, type VacinaItem } from './docTypes'
 import { SCHOOL_KIND_GERAL_FILTER } from './types'
+import { vencimentoDe, formatBRL } from './payments'
 
 const GRAPH_URL = 'https://graph.facebook.com/v25.0'
 
@@ -164,6 +165,16 @@ export const templateHasReminders = () =>
 //   true           → template `resumo_diario_v4`, 8 params, com provas
 export const templateHasExams = () =>
   ['true', '1'].includes((process.env.WHATSAPP_TEMPLATE_HAS_EXAMS ?? '').trim().toLowerCase())
+
+// Mesma trava, para a seção 💰 Mensalidades:
+//   false (padrão) → template `resumo_diario_v4`, 8 params
+//   true           → template `resumo_diario_v5`, 9 params
+// Esta flag também comanda a REORDENAÇÃO das seções (quentes no topo, com
+// Hoje antes de Aulas). Ordem é contrato do template: trocar sem trocar o
+// template entrega as seções nos títulos errados — falha silenciosa, pior
+// que erro. Por isso as duas mudanças andam na mesma chave.
+export const templateHasPayments = () =>
+  ['true', '1'].includes((process.env.WHATSAPP_TEMPLATE_HAS_PAYMENTS ?? '').trim().toLowerCase())
 
 // Resumo diário em seções — cada posição de `params` vira um {{n}} do
 // template Meta; as quebras de linha entre seções ficam no texto fixo do
@@ -356,6 +367,53 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     provasParam = items.join(' | ')
   }
 
+  // ── Mensalidades vencidas ou vencendo hoje ───────────────────────────────
+  // Sem antecedência, por decisão de produto: avisar antes não muda o
+  // comportamento de um PIX. Mas o vencido PERSISTE até ser pago — quem não
+  // abriu o WhatsApp no dia exato não pode perder o aviso para sempre.
+  const competencia = today.slice(0, 7)
+
+  const payQuery = admin
+    .from('payments')
+    .select('id, title, amount, due_day, child:children(name)')
+    .eq('active', true)
+  const { data: rawPayments } = familyIds.length > 0
+    ? await payQuery.in('family_id', familyIds)
+    : await payQuery.eq('user_id', userId)
+
+  const marksQuery = admin
+    .from('payment_marks')
+    .select('payment_id')
+    .eq('competencia', competencia)
+  const { data: rawMarks } = familyIds.length > 0
+    ? await marksQuery.in('family_id', familyIds)
+    : await marksQuery.eq('user_id', userId)
+
+  const jaPagos = new Set((rawMarks ?? []).map(m => m.payment_id as string))
+  const payList = (rawPayments ?? []) as unknown as Array<{
+    id: string; title: string; amount: number | null; due_day: number; child: { name: string } | null
+  }>
+
+  const mensalidadeLinhas = payList
+    .filter(p => !jaPagos.has(p.id))
+    .map(p => ({ p, venc: vencimentoDe(competencia, p.due_day) }))
+    .filter(x => x.venc <= today)
+    .sort((a, b) => a.venc.localeCompare(b.venc))
+    .map(({ p, venc }) => {
+      const dias = Math.round(
+        (new Date(today + 'T12:00:00').getTime() - new Date(venc + 'T12:00:00').getTime()) / 86_400_000)
+      const quando = dias === 0 ? 'vence hoje'
+        : dias === 1 ? 'venceu ontem'
+        : `venceu há ${dias} dias`
+      const quem = p.child?.name ? ` (${p.child.name})` : ''
+      const valor = p.amount !== null ? ` — ${formatBRL(p.amount)}` : ''
+      return `${p.title}${quem}${valor} · ${quando}`
+    })
+
+  const mensalidadesParam = mensalidadeLinhas.length > 0
+    ? mensalidadeLinhas.join(' | ')
+    : 'Nada a pagar hoje ✅'
+
   // ── Lembretes (mural do Dashboard) ───────────────────────────────────────
   // São `activities` com date NULL: pendências sem data marcada. Concluir um
   // lembrete no mural APAGA a linha (RemindersPanel.handleDone), então não há
@@ -452,8 +510,9 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   const full = [
     `🌿 Bom dia! Resumo da Família — ${dataParam}`,
     `📝 Provas\n${provasParam}`,
-    `🎒 Aulas de hoje\n${aulasParam}`,
+    `💰 Mensalidades\n${mensalidadesParam}`,
     `🔥 Hoje\n${hojeParam}`,
+    `🎒 Aulas de hoje\n${aulasParam}`,
     `📅 Próximos 7 dias\n${proximosParam}`,
     `📌 Lembretes\n${lembretesParam}`,
     `📄 Documentos — vencimentos\n${documentosParam}`,
@@ -468,8 +527,18 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   // antigo.
   const params = [dataParam]
   if (templateHasExams()) params.push(provasParam)
-  if (templateHasClasses()) params.push(aulasParam)
-  params.push(hojeParam, proximosParam)
+  if (templateHasPayments()) {
+    // v5 — quentes no topo: Mensalidades logo após Provas, e Hoje antes de
+    // Aulas (aula é rotina que se repete; Hoje tem hora, local e logística).
+    params.push(mensalidadesParam, hojeParam)
+    if (templateHasClasses()) params.push(aulasParam)
+    params.push(proximosParam)
+  } else {
+    // v4 e anteriores — ordem legada, preservada para não embaralhar as
+    // seções de quem ainda está no template antigo.
+    if (templateHasClasses()) params.push(aulasParam)
+    params.push(hojeParam, proximosParam)
+  }
   if (templateHasReminders()) params.push(lembretesParam)
   params.push(documentosParam, vacinasParam)
 

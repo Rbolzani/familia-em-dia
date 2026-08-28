@@ -1,7 +1,7 @@
 // Envia um resumo de teste AGORA para o número salvo do usuário logado.
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { adminClient, buildDailySummary, sendWhatsApp, templateHasClasses, templateHasReminders, templateHasExams } from '@/lib/whatsapp'
+import { adminClient, buildDailySummary, sendWhatsApp, templateHasClasses, templateHasReminders, templateHasExams, templateHasPayments } from '@/lib/whatsapp'
 
 export async function POST() {
   const supabase = await createClient()
@@ -26,9 +26,13 @@ export async function POST() {
   const params: string[] = summary?.params ?? [
     'teste de conexão OK!',
     ...(templateHasExams() ? ['Nenhuma prova nos próximos 7 dias.'] : []),
-    ...(templateHasClasses() ? ['Nenhuma aula hoje 🎒'] : []),
-    'Nenhuma atividade hoje.',
-    'Nenhuma atividade nos próximos 7 dias.',
+    // A mesma inversão de ordem do v5 (ver templateHasPayments em whatsapp.ts).
+    ...(templateHasPayments()
+      ? ['Nada a pagar hoje ✅', 'Nenhuma atividade hoje.',
+         ...(templateHasClasses() ? ['Nenhuma aula hoje 🎒'] : []),
+         'Nenhuma atividade nos próximos 7 dias.']
+      : [...(templateHasClasses() ? ['Nenhuma aula hoje 🎒'] : []),
+         'Nenhuma atividade hoje.', 'Nenhuma atividade nos próximos 7 dias.']),
     ...(templateHasReminders() ? ['Nenhum lembrete pendente. 🙌'] : []),
     'Nenhum vencimento nos próximos 15 dias.',
     'Nenhuma dose prevista nos próximos 30 dias.',
