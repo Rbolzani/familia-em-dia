@@ -123,7 +123,8 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 ## Features Existentes
 
 ### 1. Captura por IA (`/ia`)
-- **Foto/imagem:** envia para `/api/ai-extract`, Claude Haiku extrai atividades, lembretes e documentos
+- **Foto/imagem:** envia para `/api/ai-extract`, Claude Haiku extrai **atividades, lembretes, documentos e mensalidades** (4 classes)
+- ⚠️ **Mensalidade exige `due_day`** — sem o dia do mês o item vira lembrete; o prompt proíbe inventá-lo e `sanitizePayments()` descarta valor fora de 1..31 (violaria o CHECK do banco e derrubaria o lote inteiro)
 - **Texto livre:** mesmo endpoint, entrada manual
 - **Voz (novo):** MediaRecorder → `/api/voice-transcribe` → Whisper → texto no campo → ai-extract
 
@@ -156,6 +157,14 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 - Parceiro pode ter acesso completo, somente leitura ou somente logística
 - Controle via `AccessContext` + Supabase RLS
 - **Parceiro herda o plano do owner** (`get_family_plan`/`getEffectiveSubscription`)
+
+### 6b. Mensalidades (`/mensalidades`)
+- Pagamentos recorrentes (natação, piano, pedagoga). `payments` = a **regra**; `payment_marks` = as **exceções** (competência `YYYY-MM` paga). Ocorrências são **calculadas**, nunca geradas.
+- Cancelar é `active = false` — preserva o histórico do que já foi pago.
+- `vencimentoDe()` resolve mês curto no cálculo (dia 31 em fevereiro → 28/29); a regra guardada continua "todo dia 31".
+- **Alerta só a partir do vencimento** (avisar antes não muda o comportamento de um PIX), mas o **vencido persiste** até ser pago.
+- Superfícies: tela própria · painel de Alertas do dashboard · seção 💰 no resumo do WhatsApp · captura por IA.
+- Liberado em **todos os planos**, inclusive o gratuito (o canal WhatsApp é que é pago).
 
 ### 7. Cofre de Documentos
 - Upload de arquivos (PDF, imagem)
