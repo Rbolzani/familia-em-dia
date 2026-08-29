@@ -6,8 +6,9 @@ import { VAULT_CATEGORIES } from '@/lib/vault'
 import {
   Sparkles, Upload, FileText, Camera, Check, X, Loader2,
   Clock, MapPin, BookOpen, HeartPulse, Trophy, Plus,
-  Bell, FolderLock, AlertCircle, Lock, Repeat,
+  Bell, FolderLock, AlertCircle, Lock, Repeat, Wallet,
 } from 'lucide-react'
+import { formatBRL } from '@/lib/payments'
 import { useAccess } from '@/components/access/AccessContext'
 import { VoiceInputButton } from '@/components/ui/VoiceInputButton'
 import { useTour } from '@/components/tour/TourContext'
@@ -85,6 +86,14 @@ interface ExtDocument {
   title: string; category: DocCategory; description: string | null
   expires_at: string | null; selected: boolean; child_ids: string[]
 }
+// Mensalidade tem UM filho, não uma lista: a natação da Gabi é uma cobrança
+// só. Replicar por filho selecionado, como fazemos com atividades, criaria
+// uma segunda mensalidade que ninguém deve.
+interface ExtPayment {
+  title: string; amount: number | null; due_day: number
+  notes: string | null; child_hint: string | null
+  selected: boolean; child_id: string
+}
 
 export default function IAPage() {
   const access = useAccess()
@@ -107,6 +116,7 @@ export default function IAPage() {
   const [activities, setActivities] = useState<ExtActivity[] | null>(null)
   const [reminders, setReminders]   = useState<ExtReminder[] | null>(null)
   const [documents, setDocuments]   = useState<ExtDocument[] | null>(null)
+  const [payments, setPayments]     = useState<ExtPayment[] | null>(null)
 
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
@@ -119,7 +129,7 @@ export default function IAPage() {
   const [aiLimit, setAiLimit] = useState<number | null>(null)
   const [voiceBlocked, setVoiceBlocked] = useState(false)
 
-  const hasResults = activities !== null || reminders !== null || documents !== null
+  const hasResults = activities !== null || reminders !== null || documents !== null || payments !== null
   const aiBlocked  = aiLimit !== null && aiUsed !== null && aiUsed >= aiLimit
 
   useEffect(() => {
@@ -153,7 +163,7 @@ export default function IAPage() {
     if (!arr.length) { setError('Selecione apenas imagens (PNG, JPG, WEBP, GIF, HEIC).'); return }
     setImages(prev => [...prev, ...arr])
     arr.forEach(f => setPreviews(prev => [...prev, URL.createObjectURL(f)]))
-    setActivities(null); setReminders(null); setDocuments(null); setError('')
+    setActivities(null); setReminders(null); setDocuments(null); setPayments(null); setError('')
   }
 
   function removeImage(idx: number) {
@@ -163,11 +173,15 @@ export default function IAPage() {
 
   async function handleExtract() {
     setLoading(true); setError('')
-    setActivities(null); setReminders(null); setDocuments(null)
+    setActivities(null); setReminders(null); setDocuments(null); setPayments(null)
     try {
       let allActs: ExtActivity[] = []
       let allRems: ExtReminder[] = []
       let allDocs: ExtDocument[] = []
+      let allPays: ExtPayment[] = []
+      // Mensalidade nasce apontando para o primeiro filho selecionado; o
+      // usuário troca no card antes de salvar.
+      const payChild = selectedChildIds[0] ?? ''
 
       if (mode === 'image') {
         if (!images.length) { setError('Adicione pelo menos uma imagem.'); setLoading(false); return }
@@ -184,6 +198,7 @@ export default function IAPage() {
           allActs = [...allActs, ...(data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds }))]
           allRems = [...allRems, ...(data.reminders  ?? []).map((r: any) => ({ ...r, selected: true, child_ids: selectedChildIds }))]
           allDocs = [...allDocs, ...(data.documents  ?? []).map((d: any) => ({ ...d, selected: true, child_ids: selectedChildIds }))]
+          allPays = [...allPays, ...(data.payments   ?? []).map((p: any) => ({ ...p, selected: true, child_id: payChild }))]
         }
       } else {
         if (!text.trim()) { setError('Digite algo para analisar.'); setLoading(false); return }
@@ -199,11 +214,13 @@ export default function IAPage() {
         allActs = (data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds }))
         allRems = (data.reminders  ?? []).map((r: any) => ({ ...r, selected: true, child_ids: selectedChildIds }))
         allDocs = (data.documents  ?? []).map((d: any) => ({ ...d, selected: true, child_ids: selectedChildIds }))
+        allPays = (data.payments   ?? []).map((p: any) => ({ ...p, selected: true, child_id: payChild }))
       }
 
       setActivities(allActs)
       setReminders(allRems)
       setDocuments(allDocs)
+      setPayments(allPays)
       // Atualiza contador local para feedback imediato
       if (aiLimit !== null) setAiUsed(prev => (prev ?? 0) + 1)
     } catch (e: any) {
@@ -271,10 +288,25 @@ export default function IAPage() {
         }
       }
 
+      // 4. Mensalidades — uma linha por item, com um filho só (ou nenhum).
+      const paysToSave = (payments ?? []).filter(p => p.selected).map(p => ({
+        user_id: user.id,
+        child_id: p.child_id || null,
+        title: p.title,
+        amount: p.amount,
+        due_day: p.due_day,
+        notes: p.notes,
+        ai_generated: true,
+      }))
+      if (paysToSave.length) {
+        const { error: payErr } = await supabase.from('payments').insert(paysToSave)
+        if (payErr) throw new Error(`Erro ao salvar mensalidades: ${payErr.message}`)
+      }
+
       setSaved(true)
       setTimeout(() => {
         setSaved(false)
-        setActivities(null); setReminders(null); setDocuments(null)
+        setActivities(null); setReminders(null); setDocuments(null); setPayments(null)
         setImages([]); setPreviews([]); setText('')
       }, 2500)
     } catch (e: any) {
@@ -287,7 +319,8 @@ export default function IAPage() {
   const totalSelected =
     (activities?.filter(a => a.selected).reduce((s, a) => s + a.child_ids.length, 0) ?? 0) +
     (reminders?.filter(r => r.selected).length ?? 0) +
-    (documents?.filter(d => d.selected).length ?? 0)
+    (documents?.filter(d => d.selected).length ?? 0) +
+    (payments?.filter(p => p.selected).length ?? 0)
 
   // Atividade sem data = conceitualmente um lembrete (vai para o mural, não
   // para o calendário) — por isso é exibida junto de Pendências/Lembretes,
@@ -403,7 +436,7 @@ export default function IAPage() {
       {/* Mode tabs */}
       <div className="animate-fade-up p-[6px] flex gap-1.5" style={{ ...CARD, padding: 6 }}>
         {[{ key: 'image', label: 'Foto / Imagem', icon: Camera }, { key: 'text', label: 'Texto livre ou áudio', icon: FileText }].map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => { setMode(key as 'image' | 'text'); setActivities(null); setReminders(null); setDocuments(null); setError('') }}
+          <button key={key} onClick={() => { setMode(key as 'image' | 'text'); setActivities(null); setReminders(null); setDocuments(null); setPayments(null); setError('') }}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[12px] text-sm font-bold transition-all"
             style={mode === key
               ? { background: '#14463A', color: '#fff', boxShadow: '0 4px 12px rgba(20,70,58,0.28)' }
@@ -994,6 +1027,74 @@ export default function IAPage() {
                   })}
                 </div>
               )}
+            </section>
+          )}
+
+          {/* === MENSALIDADES === */}
+          {/* Só aparece quando a IA reconheceu alguma — diferente das outras
+              seções, que mostram "nenhum item identificado". Mensalidade é
+              exceção na captura típica; um bloco vazio fixo seria ruído. */}
+          {payments !== null && payments.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(61,102,65,0.12)' }}>
+                  <Wallet size={13} color="#3D6641" />
+                </div>
+                <h3 className="font-bold text-sm" style={{ color: '#1A2B1C' }}>
+                  Mensalidades ({payments.length})
+                </h3>
+              </div>
+              <div className="space-y-2">
+                {payments.map((p, i) => (
+                  <div key={i} style={{ ...CARD, padding: '12px 14px', borderLeft: '4px solid #3D6641', opacity: p.selected ? 1 : 0.5 }}>
+                    <div className="flex items-start gap-3">
+                      <button onClick={() => setPayments(prev => prev!.map((x, j) => j === i ? { ...x, selected: !x.selected } : x))}
+                        className="mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-none"
+                        style={p.selected ? { background: '#3D6641', borderColor: '#3D6641', color: '#fff' } : { borderColor: 'rgba(61,102,65,0.22)' }}>
+                        {p.selected && <Check size={11} strokeWidth={3} />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={p.title}
+                          onChange={e => setPayments(prev => prev!.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
+                          className="font-bold text-sm w-full bg-transparent outline-none rounded-md px-1.5 py-0.5 -mx-1.5 mb-1"
+                          style={{ color: '#1A2B1C', border: '1px solid transparent' }}
+                          onFocus={e => { e.target.style.border = '1px solid rgba(61,102,65,0.35)'; e.target.style.background = 'rgba(61,102,65,0.05)' }}
+                          onBlur={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
+                        />
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(61,102,65,0.10)', color: '#2C4A2E' }}>
+                            {p.amount !== null ? formatBRL(p.amount) : 'valor não informado'}
+                          </span>
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(196,154,108,0.16)', color: '#8B6B3D' }}>
+                            todo dia {p.due_day}
+                          </span>
+                        </div>
+                        {p.notes && <p className="text-xs italic mt-1" style={{ color: 'rgba(26,43,28,0.50)' }}>{p.notes}</p>}
+                        {children.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                            <span className="text-[10px] font-semibold" style={{ color: 'rgba(26,43,28,0.45)' }}>Filho(a):</span>
+                            {/* Seleção única: uma mensalidade pertence a um filho. */}
+                            {children.map(c => {
+                              const active = p.child_id === c.id
+                              return (
+                                <button key={c.id} type="button"
+                                  onClick={() => setPayments(prev => prev!.map((x, j) => j !== i ? x : { ...x, child_id: active ? '' : c.id }))}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, cursor: 'pointer', fontSize: 11, fontWeight: 700, border: `1.5px solid ${active ? c.avatar_color : 'rgba(61,102,65,0.18)'}`, background: active ? `${c.avatar_color}18` : 'rgba(255,255,255,0.70)', color: active ? c.avatar_color : 'rgba(26,43,28,0.45)', transition: 'all .15s' }}>
+                                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.avatar_color, display: 'inline-block' }} />
+                                  {c.name}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <button onClick={() => setPayments(prev => prev!.map((x, j) => j === i ? { ...x, selected: false } : x))} className="flex-none w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(220,38,38,0.10)', color: '#DC2626' }}><X size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
 

@@ -29,11 +29,11 @@ function spTodayWeekday(): string {
 function buildPrompt(): string {
   const todayISO = spTodayISO()
   const todayWeekday = spTodayWeekday()
-  return `Você é um assistente inteligente que analisa conteúdo enviado por pais e classifica automaticamente em três categorias distintas.
+  return `Você é um assistente inteligente que analisa conteúdo enviado por pais e classifica automaticamente em quatro categorias distintas.
 
 Hoje é: ${todayISO} (${todayWeekday})
 
-Analise o conteúdo e classifique cada item em exatamente uma das três categorias:
+Analise o conteúdo e classifique cada item em exatamente uma das quatro categorias:
 
 **CATEGORIA 1 — activities (Atividades / Compromissos / Agenda)**
 Itens que têm uma data específica em que algo VAI ACONTECER:
@@ -87,6 +87,23 @@ Documentos físicos ou digitais identificados no conteúdo:
 - Boletos, recibos ou comprovantes financeiros
 - Qualquer outro documento formal listado ou visível
 
+**CATEGORIA 4 — payments (Mensalidades / Pagamentos recorrentes)**
+Compromissos financeiros que se REPETEM todo mês num dia fixo:
+- Mensalidade de atividade extracurricular (natação, ginástica, piano, judô)
+- Pagamento recorrente de profissional (pedagoga, psicóloga, fonoaudióloga)
+- Mensalidade escolar, do plano de saúde, do transporte escolar
+Exemplos: "pagar natação todo dia 10, R$ 280" · "mensalidade do piano vence
+dia 5, 250 reais" · "a psicopedagoga custa 1600 por mês, pago dia 15".
+
+**Como distinguir de um lembrete ou de um documento:**
+- Tem valor E dia do mês E se repete → **payment**.
+- "Pagar a natação até sexta" (uma vez só, sem dia fixo mensal) → reminder.
+- Foto de um boleto ou comprovante de PIX já pago → **document** (financeiro),
+  não payment. Payment é a REGRA recorrente, não o comprovante de uma
+  parcela.
+- Se faltar o dia do mês, NÃO invente: vira reminder. O valor pode faltar
+  (use null), mas o dia é obrigatório para ser um payment.
+
 Retorne APENAS um JSON válido neste formato exato (sem markdown, sem explicação):
 {
   "activities": [
@@ -115,6 +132,15 @@ Retorne APENAS um JSON válido neste formato exato (sem markdown, sem explicaç�
       "category": "saude",
       "description": "detalhes do documento ou null",
       "expires_at": "YYYY-MM-DD ou null"
+    }
+  ],
+  "payments": [
+    {
+      "title": "nome curto do que se paga (máx 80 chars), ex.: Natação",
+      "amount": 280.0,
+      "due_day": 10,
+      "notes": "forma de pagamento ou observação, ou null",
+      "child_hint": "nome do filho se mencionado, ou null"
     }
   ]
 }
@@ -154,8 +180,66 @@ Regras para documents:
 - outros: qualquer documento que não se encaixe nas anteriores
 - expires_at: data de validade se visível ou mencionada
 
+Regras para payments:
+- due_day: número inteiro de 1 a 31, o dia do mês em que vence. OBRIGATÓRIO —
+  sem ele o item não é payment, é reminder.
+- amount: número decimal em reais, sem símbolo e sem separador de milhar
+  ("R$ 1.640,00" → 1640.0). Use null se o valor não for mencionado.
+- title: só o nome da atividade ou serviço ("Natação"), sem o verbo pagar e
+  sem o valor — eles já aparecem em outros campos da tela.
+- Nunca crie payment a partir de uma parcela avulsa ou de um comprovante.
+
 Se não houver itens de uma categoria, retorne array vazio [].
 Retorne apenas o JSON, sem texto antes ou depois.`
+}
+
+export interface ExtractedPayment {
+  title: string
+  amount: number | null
+  due_day: number
+  notes: string | null
+  child_hint: string | null
+}
+
+/**
+ * Trava determinística sobre a saída da IA para mensalidades.
+ *
+ * `due_day` é o que separa uma mensalidade de um lembrete, e o prompt já diz
+ * para não inventá-lo — mas prompt é pedido, não garantia. Um `due_day` fora
+ * de 1..31 violaria o CHECK do banco e derrubaria o salvamento inteiro do
+ * lote; aqui o item apenas é descartado. Valores em string ("280,00") também
+ * são normalizados, porque o modelo às vezes devolve o número formatado.
+ */
+function sanitizePayments(raw: unknown): ExtractedPayment[] {
+  if (!Array.isArray(raw)) return []
+  const out: ExtractedPayment[] = []
+  for (const p of raw) {
+    if (!p || typeof p !== 'object') continue
+    const o = p as Record<string, unknown>
+    const title = typeof o.title === 'string' ? o.title.trim().slice(0, 80) : ''
+    if (!title) continue
+
+    const dia = Number(o.due_day)
+    if (!Number.isInteger(dia) || dia < 1 || dia > 31) continue
+
+    let amount: number | null = null
+    if (typeof o.amount === 'number' && Number.isFinite(o.amount)) {
+      amount = o.amount
+    } else if (typeof o.amount === 'string') {
+      const n = Number(o.amount.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'))
+      amount = Number.isFinite(n) ? n : null
+    }
+    if (amount !== null && (amount < 0 || amount > 1_000_000)) amount = null
+
+    out.push({
+      title,
+      amount,
+      due_day: dia,
+      notes: typeof o.notes === 'string' && o.notes.trim() ? o.notes.trim() : null,
+      child_hint: typeof o.child_hint === 'string' && o.child_hint.trim() ? o.child_hint.trim() : null,
+    })
+  }
+  return out
 }
 
 // Horizonte PADRÃO de materialização (recurring: true) — a tabela activities
@@ -330,6 +414,7 @@ export async function POST(req: NextRequest) {
       activities: expandRecurring(activities),
       reminders: parsed.reminders ?? [],
       documents: parsed.documents ?? [],
+      payments: sanitizePayments(parsed.payments),
     })
   } catch (e) {
     console.error('AI extract error:', e)

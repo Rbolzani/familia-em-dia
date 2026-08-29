@@ -5,6 +5,7 @@ import DashboardClient from './DashboardClient'
 import { expiryStatus, daysToExpiry } from '@/lib/vault'
 import type { VacinaItem } from '@/lib/docTypes'
 import { SCHOOL_KINDS_APARTE, type SchoolKind } from '@/lib/types'
+import { vencimentoDe } from '@/lib/payments'
 
 // Alertas do Cofre: documentos já vencidos ou vencendo em até 30 dias.
 //
@@ -14,13 +15,17 @@ import { SCHOOL_KINDS_APARTE, type SchoolKind } from '@/lib/types'
 // uma dose como "próxima dose" da anterior e o painel acusava "vencido há
 // 1590 dias" sobre uma dose que já havia sido tomada.
 export interface ImportantAlert {
-  documentId: string
+  // `documentId` virou `id` porque o painel passou a receber dois tipos de
+  // alerta. `kind` decide o ícone e para onde o card leva.
+  id: string
+  kind: 'documento' | 'mensalidade'
   title: string
-  category: string          // gaveta do cofre, para cor e rótulo
+  category: string          // gaveta do cofre — só para kind='documento'
   childName: string | null
   date: string
   daysLeft: number
   status: 'vencido' | 'a_vencer'
+  amount?: number | null    // só para kind='mensalidade'
 }
 
 export default async function DashboardPage() {
@@ -47,6 +52,8 @@ export default async function DashboardPage() {
     { data: monthActivities },
     { data: reminders },
     { data: expiringDocs },
+    { data: activePayments },
+    { data: paidMarks },
   ] = await Promise.all([
     supabase.from('children').select('*').order('sort_order'),
 
@@ -82,6 +89,15 @@ export default async function DashboardPage() {
       .select('id, title, category, expires_at, child:children(name)')
       .not('expires_at', 'is', null)
       .order('expires_at'),
+
+    // Mensalidades ativas + marcas do mês corrente — também alimentam os
+    // Alertas. A ocorrência do mês é calculada, não existe como linha.
+    supabase.from('payments')
+      .select('id, title, amount, due_day, child:children(name)')
+      .eq('active', true),
+    supabase.from('payment_marks')
+      .select('payment_id')
+      .eq('competencia', todayDs.slice(0, 7)),
   ])
 
   // ── Alertas: documentos vencidos ou a vencer ──────────────────────────────
@@ -93,13 +109,39 @@ export default async function DashboardPage() {
     const st = expiryStatus(doc.expires_at)
     if (st !== 'vencido' && st !== 'a_vencer') continue
     importantAlerts.push({
-      documentId: doc.id,
+      id: doc.id,
+      kind: 'documento',
       title: doc.title,
       category: doc.category,
       childName: (doc.child as unknown as { name: string } | null)?.name ?? null,
       date: doc.expires_at,
       daysLeft: daysToExpiry(doc.expires_at) ?? 0,
       status: st,
+    })
+  }
+
+  // Mensalidades: entram SÓ a partir do vencimento — sem antecedência, porque
+  // avisar antes não muda o comportamento de um PIX. Mas o vencido persiste
+  // até ser pago, senão quem não abriu o app naquele dia perde o aviso.
+  const competencia = todayDs.slice(0, 7)
+  const jaPagos = new Set((paidMarks ?? []).map(m => m.payment_id as string))
+  for (const p of activePayments ?? []) {
+    if (jaPagos.has(p.id)) continue
+    const venc = vencimentoDe(competencia, p.due_day)
+    if (venc > todayDs) continue
+    const atraso = Math.round(
+      (new Date(todayDs + 'T12:00:00').getTime() - new Date(venc + 'T12:00:00').getTime()) / 86_400_000)
+    importantAlerts.push({
+      id: p.id,
+      kind: 'mensalidade',
+      title: p.title,
+      category: '',
+      childName: (p.child as unknown as { name: string } | null)?.name ?? null,
+      date: venc,
+      // Mesma convenção dos documentos: negativo = já venceu, 0 = vence hoje.
+      daysLeft: -atraso,
+      status: atraso > 0 ? 'vencido' : 'a_vencer',
+      amount: p.amount,
     })
   }
 

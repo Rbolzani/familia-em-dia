@@ -7,8 +7,9 @@ import {
   ChevronLeft, ChevronRight,
   CalendarCheck, CalendarRange, Stethoscope,
   StickyNote, Plus, Trash2, Check, Syringe, Pencil, Loader2, AlertTriangle, FileWarning,
-  NotebookPen,
+  NotebookPen, Wallet,
 } from 'lucide-react'
+import { formatBRL } from '@/lib/payments'
 import { useRouter } from 'next/navigation'
 import { ActivityQuickEdit, useActivityDelete } from '@/components/activities/ActivityQuickEdit'
 import { toast } from '@/components/ui/Toast'
@@ -683,8 +684,9 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
           painel exigia 578px numa tela de 412px e o layout estourava. */}
       <div className="space-y-2 min-w-0">
         {alerts.map((a, i) => {
-          const cat = getVaultCategory(a.category)
-          const Icon = cat?.icon ?? FileWarning
+          const ehMensalidade = a.kind === 'mensalidade'
+          const cat = ehMensalidade ? null : getVaultCategory(a.category)
+          const Icon = ehMensalidade ? Wallet : (cat?.icon ?? FileWarning)
           const isVencido = a.status === 'vencido'
           const accent = isVencido ? '#DC2626' : '#D97706'
           const badgeBg = isVencido ? 'rgba(220,38,38,0.10)' : 'rgba(245,158,11,0.10)'
@@ -696,7 +698,9 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
             : a.daysLeft === 1 ? 'Vence amanhã'
             : `Em ${a.daysLeft} dias`
           return (
-            <Link key={`${a.documentId}-${i}`} href={`/vault/${a.category}/${a.documentId}`} className="block min-w-0">
+            <Link key={`${a.id}-${i}`}
+              href={ehMensalidade ? '/mensalidades' : `/vault/${a.category}/${a.id}`}
+              className="block min-w-0">
               <div className="flex items-center gap-3 p-3 rounded-xl transition-all hover:brightness-95"
                 style={{ background: isVencido ? 'rgba(220,38,38,0.04)' : 'rgba(245,158,11,0.05)', border:`1px solid ${accent}30` }}>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -706,7 +710,10 @@ function ImportantAlertsPanel({ alerts }: { alerts: ImportantAlert[] }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-bold truncate" style={{ color:'#1A2B1C' }}>{a.title}</p>
                   <p className="text-[11px] truncate" style={{ color:'rgba(26,43,28,0.50)' }}>
-                    {[a.childName, cat?.label].filter(Boolean).join(' · ')}
+                    {/* Mensalidade mostra o valor no lugar da gaveta do cofre —
+                        é a informação que decide se dá para pagar agora. */}
+                    {[a.childName, ehMensalidade ? formatBRL(a.amount ?? null) : cat?.label]
+                      .filter(Boolean).join(' · ')}
                   </p>
                 </div>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
