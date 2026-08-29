@@ -1,16 +1,42 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const STORAGE_KEY = "fam-cookie-consent";
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const consent = localStorage.getItem(STORAGE_KEY);
     if (!consent) setVisible(true);
   }, []);
+
+  // O banner é `position: fixed` e não ocupa espaço no fluxo, então cobria o
+  // fim de qualquer página mais alta que a tela — no cadastro, o botão "Criar
+  // conta" ficava atrás dele mesmo com a rolagem no fim, e a tela parecia
+  // "travada". Publica a altura real numa variável de CSS; o globals.css a
+  // usa como padding no fim do body e do container do app.
+  //
+  // ResizeObserver e não medida única: o texto quebra em mais linhas em telas
+  // estreitas, e a altura muda com a rotação do aparelho.
+  useEffect(() => {
+    const el = ref.current;
+    const root = document.documentElement;
+    if (!visible || !el) {
+      root.style.removeProperty("--cookie-banner-h");
+      return;
+    }
+    const aplica = () => root.style.setProperty("--cookie-banner-h", `${el.offsetHeight}px`);
+    aplica();
+    const ro = new ResizeObserver(aplica);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.removeProperty("--cookie-banner-h");
+    };
+  }, [visible]);
 
   function accept() {
     localStorage.setItem(STORAGE_KEY, "accepted");
@@ -26,6 +52,7 @@ export default function CookieBanner() {
 
   return (
     <div
+      ref={ref}
       role="dialog"
       aria-label="Consentimento de cookies"
       style={{

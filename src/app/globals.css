@@ -228,6 +228,17 @@ input[type=range]::-webkit-slider-thumb {
   border-radius: 8px;
 }
 
+/* ─── Espaço para o banner de cookies ────────────────────────── *
+ * O banner é position:fixed, logo não ocupa espaço no fluxo, e   *
+ * cobria o fim de páginas mais altas que a tela — no cadastro o  *
+ * botão "Criar conta" ficava atrás dele mesmo rolando até o fim, *
+ * e a tela parecia travada. CookieBanner publica a altura real   *
+ * em --cookie-banner-h enquanto está visível; some junto com ele.*
+ * O padding vai no body E no .main-container porque no mobile o  *
+ * container do app tem altura própria (100svh) e rola por dentro,*
+ * fora do fluxo do body.                                         */
+body { padding-bottom: var(--cookie-banner-h, 0px); }
+
 /* ─── main-container: bounded height on mobile so calendar grid *
  * gets a definite height for flex-1 / grid 1fr to work.       */
 .main-container { min-height: 100vh; }
@@ -245,6 +256,8 @@ input[type=range]::-webkit-slider-thumb {
     min-height: unset;
     overflow-y: auto;
     overflow-x: hidden;
+    /* rola por dentro: o padding do body não alcança aqui */
+    padding-bottom: var(--cookie-banner-h, 0px);
   }
 }
 
