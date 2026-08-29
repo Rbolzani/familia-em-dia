@@ -15,6 +15,9 @@ import {
 
 const emptyForm = { title: '', child_id: '', amount: '', due_day: '10', notes: '' }
 
+/** Escolha explícita de "esta mensalidade não é de um filho específico". */
+const SEM_FILHO = '__sem_filho__'
+
 export default function MensalidadesClient({ initialPayments, initialMarks, children }: {
   initialPayments: Payment[]
   initialMarks: PaymentMark[]
@@ -41,14 +44,17 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
   const totalAberto = emAberto.reduce((s, o) => s + (o.payment.amount ?? 0), 0)
 
   function openNew() {
-    setForm({ ...emptyForm, child_id: children[0]?.id ?? '' })
+    // Sem pré-seleção do primeiro filho: com mais de um, o default silencioso
+    // grava a mensalidade na criança errada sem ninguém perceber. O campo
+    // nasce vazio e obriga a escolha.
+    setForm({ ...emptyForm })
     setModal({ mode: 'new' })
   }
 
   function openEdit(p: Payment) {
     setForm({
       title: p.title,
-      child_id: p.child_id ?? '',
+      child_id: p.child_id ?? SEM_FILHO,
       amount: p.amount !== null ? String(p.amount).replace('.', ',') : '',
       due_day: String(p.due_day),
       notes: p.notes ?? '',
@@ -59,6 +65,12 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
   async function handleSave() {
     const dueDay = Number(form.due_day)
     if (!form.title.trim() || !dueDay) return
+
+    // Só barra quando há filhos cadastrados: sem eles o campo nem aparece.
+    if (children.length > 0 && form.child_id === '') {
+      toast('Escolha de qual filho é a mensalidade.', 'error')
+      return
+    }
     setSaving(true)
 
     // Vírgula é o separador decimal que o usuário brasileiro digita; o banco
@@ -74,7 +86,7 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
 
     const campos = {
       title: form.title.trim(),
-      child_id: form.child_id || null,
+      child_id: form.child_id && form.child_id !== SEM_FILHO ? form.child_id : null,
       amount,
       due_day: Math.min(Math.max(dueDay, 1), 31),
       notes: form.notes.trim() || null,
@@ -293,9 +305,32 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
             <label className="block text-xs font-bold mb-1.5" style={{ color: 'rgba(26,43,28,0.55)' }}>
               O que é
             </label>
+            {/* Sem autoFocus: no celular ele abre o teclado ao montar o modal,
+                e o resto do formulário — inclusive o campo Filho — sai da área
+                visível sem nenhuma pista de que existe. */}
             <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="Ex.: Natação" className="input-field w-full" autoFocus />
+              placeholder="Ex.: Natação" className="input-field w-full" />
           </div>
+
+          {/* Filho vem logo depois do título: é identidade da mensalidade,
+              mais importante que valor e dia. Antes ficava abaixo deles e
+              passava despercebido. */}
+          {children.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold mb-1.5" style={{ color: 'rgba(26,43,28,0.55)' }}>
+                De qual filho?
+              </label>
+              <select value={form.child_id} onChange={e => setForm(f => ({ ...f, child_id: e.target.value }))}
+                className="input-field w-full">
+                <option value="">Selecione…</option>
+                {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {/* Sentinela: "" é o estado "não escolhi ainda", que bloqueia o
+                    salvamento. "Sem filho" precisa ser uma escolha explícita,
+                    não o mesmo valor do campo em branco. */}
+                <option value={SEM_FILHO}>Sem filho específico</option>
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -316,19 +351,6 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
               </select>
             </div>
           </div>
-
-          {children.length > 0 && (
-            <div>
-              <label className="block text-xs font-bold mb-1.5" style={{ color: 'rgba(26,43,28,0.55)' }}>
-                Filho
-              </label>
-              <select value={form.child_id} onChange={e => setForm(f => ({ ...f, child_id: e.target.value }))}
-                className="input-field w-full">
-                <option value="">Sem filho específico</option>
-                {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-          )}
 
           <div>
             <label className="block text-xs font-bold mb-1.5" style={{ color: 'rgba(26,43,28,0.55)' }}>
