@@ -1,0 +1,47 @@
+-- ============================================================
+-- CORREÇÃO DE SEGURANÇA — convites legíveis por qualquer um
+-- Projeto fawsbgxmrbpgcnlhjoao · 2026-08-29
+-- ============================================================
+--
+-- ACHADO
+-- `family_invites` tinha duas policies valendo para {public}, e o papel
+-- `anon` tem SELECT na tabela. Como a chave anônima é pública por
+-- definição (vai no bundle do cliente), qualquer pessoa podia:
+--
+--   GET /rest/v1/family_invites?status=eq.pending&select=token,access_role
+--
+-- e obter o token de todo convite pendente. Com o token, entrar na família
+-- pela RPC accept_invite, com o papel que o convite concedia.
+-- A policy de UPDATE ainda permitia marcar convite alheio como aceito,
+-- invalidando-o (negação de serviço sobre o convite).
+--
+-- POR QUE SÃO ÓRFÃS
+-- O preview do convite usa get_invite_details(token) e o aceite usa
+-- accept_invite(token) — VERIFICADO: as duas são SECURITY DEFINER, logo
+-- não dependem de policy alguma. A única função que lia a tabela direto
+-- (getInviteByToken em lib/family.ts) nunca é chamada: é código morto.
+-- Mesma classe de falha do Bloco 1b e da policy órfã do Storage — no
+-- PostgreSQL policies permissivas somam por OR, então uma policy esquecida
+-- não restringe, LIBERA.
+--
+-- O QUE CONTINUA FUNCIONANDO
+-- A listagem de convites pendentes em /configuracoes é feita pelo owner com
+-- o próprio cliente e está coberta por `invite_creator`
+-- (ALL USING auth.uid() = invited_by); /api/invites/create sempre grava
+-- invited_by = user.id.
+--
+-- POR QUE NÃO TROQUEI POR UMA POLICY "DA FAMÍLIA"
+-- Seria escalonamento de privilégio: um parceiro read_only leria o token de
+-- um convite full_editor pendente e o aceitaria, promovendo a si mesmo.
+-- Convite é assunto de quem convidou.
+
+DROP POLICY IF EXISTS invite_public_read ON public.family_invites;
+DROP POLICY IF EXISTS invite_accept      ON public.family_invites;
+
+-- Rollback, se algum fluxo inesperado quebrar:
+--   CREATE POLICY invite_public_read ON public.family_invites
+--     FOR SELECT USING (status = 'pending' AND expires_at > now());
+--   CREATE POLICY invite_accept ON public.family_invites
+--     FOR UPDATE USING (status = 'pending' AND expires_at > now())
+--     WITH CHECK (status = 'accepted');
+-- Mas prefira corrigir o fluxo: reabrir estas policies reabre o vazamento.

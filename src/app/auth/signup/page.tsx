@@ -30,10 +30,14 @@ export default function SignupPage() {
 
     if (isInvite) {
       // Fluxo de convite: cria usuário já confirmado via admin API e loga em seguida.
+      // O token vai junto: o endpoint só confirma o e-mail automaticamente se
+      // houver um convite pendente com ele. Sem isso a rota seria um criador
+      // público de contas já confirmadas.
+      const inviteToken = redirect!.replace('/convite/', '')
       const res = await fetch('/api/auth/signup-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, familyName: familyName.trim() || 'Minha Família' }),
+        body: JSON.stringify({ email, password, name, familyName: familyName.trim() || 'Minha Família', token: inviteToken }),
       })
       const body = await res.json()
       if (!res.ok) { setError(body.error || 'Erro ao criar conta.'); setLoading(false); return }
