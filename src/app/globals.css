@@ -75,6 +75,24 @@ html {
   max-width: 100%;
 }
 
+/* ⚠️ NÃO devolver `overflow-x: hidden` ao body. Ele congelava a rolagem por
+ * toque no celular, e o modo de falha é traiçoeiro:
+ *
+ *   1. `overflow-x: hidden` obriga o `overflow-y` a computar como `auto`
+ *      (a spec não permite um eixo recortado e o outro visível) — então o
+ *      body virava um CONTAINER DE ROLAGEM.
+ *   2. O conteúdo do body cabe exatamente nele (scrollHeight = clientHeight),
+ *      logo esse container não tem nada para rolar.
+ *   3. Um toque sobre o body encontra esse container inerte. O navegador
+ *      normalmente encadearia a rolagem para a viewport — mas
+ *      `overscroll-behavior: none` bloqueava justamente o encadeamento.
+ *
+ * Resultado: o dedo não movia a página, enquanto window.scrollTo() funcionava
+ * (ele ignora o encadeamento). Foi o que fez a tela de cadastro parecer
+ * travada no celular e passar despercebido no desktop.
+ *
+ * O recorte horizontal continua no `html`, cujo overflow é propagado para a
+ * viewport — mesmo efeito, sem criar um container de rolagem no meio. */
 body {
   background-color: #F8F3EA;
   color: #1A2B1C;
@@ -83,9 +101,10 @@ body {
   line-height: 1.55;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
-  overflow-x: hidden;
+  /* Só no eixo X: em `none` nos dois eixos, o encadeamento vertical morre. */
+  overscroll-behavior-x: none;
   max-width: 100%;
+  padding-bottom: var(--cookie-banner-h, 0px);
 }
 
 button { font-family: inherit; cursor: pointer; }
@@ -234,10 +253,9 @@ input[type=range]::-webkit-slider-thumb {
  * botão "Criar conta" ficava atrás dele mesmo rolando até o fim, *
  * e a tela parecia travada. CookieBanner publica a altura real   *
  * em --cookie-banner-h enquanto está visível; some junto com ele.*
- * O padding vai no body E no .main-container porque no mobile o  *
- * container do app tem altura própria (100svh) e rola por dentro,*
- * fora do fluxo do body.                                         */
-body { padding-bottom: var(--cookie-banner-h, 0px); }
+ * O padding vai no body (declarado no reset, acima) E no          *
+ * .main-container, porque no mobile o container do app tem altura *
+ * própria (100svh) e rola por dentro, fora do fluxo do body.      */
 
 /* ─── main-container: bounded height on mobile so calendar grid *
  * gets a definite height for flex-1 / grid 1fr to work.       */
