@@ -45,7 +45,13 @@ const securityHeaders = [
       // Policy"). Monitoramento em pé e cego.
       // `*.sentry.io` cobre qualquer região (us, de, …) e sobrevive a uma
       // troca de região do projeto, que quebraria o host fixo de novo.
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.anthropic.com https://api.groq.com https://graph.facebook.com https://*.sentry.io",
+      // ⚠️ O apex e o www são ORIGENS DIFERENTES para o navegador, e o apex
+      // responde 308 para o www — inclusive em /api. Uma página servida no
+      // apex faz `fetch('/api/...')`, o 308 leva para outro domínio, e o
+      // `'self'` sozinho barra: o navegador reporta "Failed to fetch", sem
+      // status e sem log no servidor. Os dois domínios ficam explícitos aqui
+      // para que o CSP nunca seja a causa desse sintoma.
+      "connect-src 'self' https://familiaemdia.com.br https://www.familiaemdia.com.br https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.anthropic.com https://api.groq.com https://graph.facebook.com https://*.sentry.io",
       // Frames: nenhum
       "frame-src 'none'",
       // frame-src diz o que ESTA página pode embutir; frame-ancestors diz quem

@@ -138,8 +138,16 @@ export async function ocrDocument(
     // deixar rastro. Silêncio é o pior resultado possível num diagnóstico.
     const msg = e instanceof Error ? e.message : String(e)
     const tamanho = (todos.reduce((s, f) => s + f.size, 0) / 1048576).toFixed(1)
-    console.error('[ocr] excecao:', e)
-    onErro?.(`Falha de conexão ao ler o documento (${msg}) — ${tamanho} MB.`)
+    // A ORIGEM entra na mensagem porque é a diferença estrutural que sobrou
+    // entre desktop e celular. O apex (familiaemdia.com.br) responde 308 para
+    // o www — inclusive em /api. Uma página servida no apex faz fetch
+    // relativo, cai no redirecionamento para OUTRO domínio, e isso vira
+    // requisição entre origens: o `connect-src 'self'` do CSP barra e o
+    // navegador reporta "Failed to fetch". Sem saber a origem, isso é
+    // indistinguível de uma queda de rede.
+    const origem = typeof window !== 'undefined' ? window.location.origin : '?'
+    console.error('[ocr] excecao:', e, { origem })
+    onErro?.(`Falha ao ler (${msg}) — ${tamanho} MB — origem: ${origem}`)
     return null
   }
 }
