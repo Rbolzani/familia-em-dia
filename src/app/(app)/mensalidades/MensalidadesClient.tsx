@@ -7,7 +7,7 @@ import Modal from '@/components/ui/Modal'
 import { toast } from '@/components/ui/Toast'
 import { useAccess } from '@/components/access/AccessContext'
 import EmptyState from '@/components/ui/EmptyState'
-import { Plus, Pencil, Trash2, Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, ChevronLeft, ChevronRight, Loader2, ListChecks, X } from 'lucide-react'
 import {
   Payment, PaymentMark, montarOcorrencias, competenciaAtual, competenciaAnterior,
   competenciaSeguinte, competenciaLabel, formatBRL, diasDeAtraso, hojeDs,
@@ -42,6 +42,7 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
   const ocorrencias = montarOcorrencias(payments, marks, competencia, hoje)
   const emAberto = ocorrencias.filter(o => !o.pago)
   const totalAberto = emAberto.reduce((s, o) => s + (o.payment.amount ?? 0), 0)
+  const visibleIds = ocorrencias.map(o => o.payment.id)
 
   function openNew() {
     // Sem pré-seleção do primeiro filho: com mais de um, o default silencioso
@@ -123,6 +124,69 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
     toast('Mensalidade excluída')
   }
 
+  // ── Seleção múltipla ──────────────────────────────────────────────────────
+  // Mesmo motivo das abas de atividades: uma captura por IA pode criar várias
+  // mensalidades de uma vez, e desfazer uma a uma é inviável.
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deletingBulk, setDeletingBulk] = useState(false)
+  const [confirmBulk, setConfirmBulk] = useState<string[] | null>(null)
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false)
+    setSelected(new Set())
+  }
+
+  function handleDeleteSelected() {
+    // Interseção com o que está na tela: nunca apagar o que não está à vista.
+    const ids = visibleIds.filter(id => selected.has(id))
+    if (ids.length === 0) return
+    setConfirmBulk(ids)
+  }
+
+  async function runBulkDelete() {
+    if (!confirmBulk) return
+    setDeletingBulk(true)
+
+    // Em lotes: um .in() com centenas de UUIDs estoura o limite de tamanho da
+    // URL no PostgREST e a requisição falha inteira.
+    const CHUNK = 100
+    const apagados: string[] = []
+    for (let i = 0; i < confirmBulk.length; i += CHUNK) {
+      const lote = confirmBulk.slice(i, i + CHUNK)
+      const { error } = await supabase.from('payments').delete().in('id', lote)
+      if (error) {
+        // Remove só o que de fato saiu do banco — o estado local não pode
+        // afirmar exclusões que não aconteceram.
+        setPayments(prev => prev.filter(x => !apagados.includes(x.id)))
+        setMarks(prev => prev.filter(m => !apagados.includes(m.payment_id)))
+        setSelected(new Set())
+        setDeletingBulk(false)
+        setConfirmBulk(null)
+        toast(apagados.length > 0
+          ? `${apagados.length} excluída(s), mas o restante falhou. Tente de novo.`
+          : 'Não foi possível excluir. Tente novamente.', 'error')
+        return
+      }
+      apagados.push(...lote)
+    }
+
+    setPayments(prev => prev.filter(x => !apagados.includes(x.id)))
+    setMarks(prev => prev.filter(m => !apagados.includes(m.payment_id)))
+    setDeletingBulk(false)
+    setConfirmBulk(null)
+    exitSelectMode()
+    toast(`${apagados.length} mensalidade${apagados.length !== 1 ? 's' : ''} excluída${apagados.length !== 1 ? 's' : ''}`)
+  }
+
   async function togglePago(paymentId: string, pago: boolean) {
     setMarcando(paymentId)
     if (pago) {
@@ -143,6 +207,8 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
   }
 
   const ehMesAtual = competencia === competenciaAtual()
+  const selectedVisibleCount = visibleIds.filter(id => selected.has(id)).length
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-5 space-y-5" style={{ boxSizing: 'border-box' }}>
@@ -198,6 +264,57 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
         </span>
       </div>
 
+      {/* Linha do "Selecionar", encostado à direita — mesmo lugar e formato
+          das abas de Escola, Saúde e Atividades. */}
+      {canEdit && !selectMode && ocorrencias.length > 0 && (
+        <div className="flex gap-2 items-center animate-fade-up">
+          <button
+            onClick={() => setSelectMode(true)}
+            title="Selecionar várias para excluir"
+            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all hover:brightness-105 active:scale-95"
+            style={{ background: 'rgba(255,255,255,0.70)', color: 'rgba(26,43,28,0.50)', border: '1px solid rgba(61,102,65,0.14)' }}>
+            <ListChecks size={14} /> Selecionar
+          </button>
+        </div>
+      )}
+
+      {/* Barra de seleção múltipla — sticky para o botão excluir seguir o
+          scroll numa lista longa. */}
+      {selectMode && (
+        <div className="sticky top-2 z-20 rounded-2xl p-2.5 flex items-center gap-2 flex-wrap animate-fade-up"
+          style={{ background: 'linear-gradient(140deg,#14463A,#0F3830)', boxShadow: '0 6px 20px rgba(20,70,58,0.30)' }}>
+          <button onClick={exitSelectMode}
+            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:brightness-125 active:scale-95"
+            style={{ background: 'rgba(255,255,255,0.14)', color: '#fff' }} title="Sair da seleção">
+            <X size={15} />
+          </button>
+
+          <span className="text-sm font-bold flex-shrink-0" style={{ color: '#fff' }}>
+            {selectedVisibleCount === 0
+              ? 'Selecione as mensalidades'
+              : `${selectedVisibleCount} selecionada${selectedVisibleCount !== 1 ? 's' : ''}`}
+          </span>
+
+          <button
+            onClick={() => setSelected(allVisibleSelected ? new Set() : new Set(visibleIds))}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:brightness-125 active:scale-95 flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.14)', color: '#fff' }}>
+            {allVisibleSelected ? 'Limpar' : `Selecionar todas (${visibleIds.length})`}
+          </button>
+
+          <button
+            onClick={handleDeleteSelected}
+            disabled={selectedVisibleCount === 0 || deletingBulk}
+            className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 flex-shrink-0"
+            style={selectedVisibleCount === 0 || deletingBulk
+              ? { background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.40)', cursor: 'not-allowed' }
+              : { background: '#F4522D', color: '#fff', boxShadow: '0 3px 12px rgba(244,82,45,0.40)' }}>
+            <Trash2 size={13} />
+            {deletingBulk ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      )}
+
       {/* Lista */}
       {ocorrencias.length === 0 ? (
         <EmptyState
@@ -225,28 +342,45 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
               : `Vence dia ${Number(o.vencimento.slice(8, 10))}`
 
             return (
-              <div key={o.payment.id} className="card p-4 animate-fade-up"
+              <div key={o.payment.id}
+                className={`card p-4 animate-fade-up${selectMode ? ' cursor-pointer' : ''}`}
+                onClick={selectMode ? () => toggleSelect(o.payment.id) : undefined}
                 style={{
                   animationDelay: `${i * 0.04}s`,
                   ...(st === 'vencido' || st === 'vence_hoje'
                     ? { borderLeft: `3px solid ${cor}` } : {}),
-                  ...(o.pago ? { opacity: 0.72 } : {}),
+                  ...(o.pago && !selectMode ? { opacity: 0.72 } : {}),
+                  ...(selectMode && selected.has(o.payment.id)
+                    ? { boxShadow: '0 0 0 2px #14463A', background: 'rgba(20,70,58,0.05)' } : {}),
                 }}>
                 <div className="flex items-start gap-3">
 
-                  {/* Marcar como pago */}
-                  <button
-                    onClick={() => canEdit && togglePago(o.payment.id, o.pago)}
-                    disabled={!canEdit || marcando === o.payment.id}
-                    title={o.pago ? 'Desmarcar pagamento' : 'Marcar como pago'}
-                    className="w-[26px] h-[26px] rounded-lg flex items-center justify-center flex-none mt-0.5 transition-all active:scale-90"
-                    style={o.pago
-                      ? { background: '#3D6641', border: '2px solid #3D6641', color: '#fff' }
-                      : { background: '#fff', border: '2px solid rgba(26,43,28,0.22)', cursor: canEdit ? 'pointer' : 'not-allowed' }}>
-                    {marcando === o.payment.id
-                      ? <Loader2 size={13} className="animate-spin" style={{ color: o.pago ? '#fff' : '#3D6641' }} />
-                      : o.pago && <Check size={14} strokeWidth={3.5} />}
-                  </button>
+                  {/* Em modo seleção a caixa marca o card; fora dele, marca o
+                      pagamento. São dois significados para o mesmo canto do
+                      card, então nunca podem coexistir. */}
+                  {selectMode ? (
+                    <div
+                      className="w-[26px] h-[26px] rounded-lg flex items-center justify-center flex-none mt-0.5"
+                      style={selected.has(o.payment.id)
+                        ? { background: '#14463A', border: '2px solid #14463A', color: '#fff' }
+                        : { background: '#fff', border: '2px solid rgba(26,43,28,0.22)' }}>
+                      {selected.has(o.payment.id) && <Check size={14} strokeWidth={3.5} />}
+                    </div>
+                  ) : (
+                    /* Marcar como pago */
+                    <button
+                      onClick={() => canEdit && togglePago(o.payment.id, o.pago)}
+                      disabled={!canEdit || marcando === o.payment.id}
+                      title={o.pago ? 'Desmarcar pagamento' : 'Marcar como pago'}
+                      className="w-[26px] h-[26px] rounded-lg flex items-center justify-center flex-none mt-0.5 transition-all active:scale-90"
+                      style={o.pago
+                        ? { background: '#3D6641', border: '2px solid #3D6641', color: '#fff' }
+                        : { background: '#fff', border: '2px solid rgba(26,43,28,0.22)', cursor: canEdit ? 'pointer' : 'not-allowed' }}>
+                      {marcando === o.payment.id
+                        ? <Loader2 size={13} className="animate-spin" style={{ color: o.pago ? '#fff' : '#3D6641' }} />
+                        : o.pago && <Check size={14} strokeWidth={3.5} />}
+                    </button>
+                  )}
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -277,7 +411,7 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
                     )}
                   </div>
 
-                  {canEdit && (
+                  {canEdit && !selectMode && (
                     <div className="flex-none flex gap-1">
                       <button onClick={() => openEdit(o.payment)} title="Editar"
                         className="w-8 h-8 rounded-[10px] flex items-center justify-center transition-all hover:brightness-95"
@@ -376,6 +510,51 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Confirmação da exclusão em lote.
+          O aviso não é decorativo: a lista mostra UM mês, mas a mensalidade é
+          uma regra recorrente — apagá-la remove todos os meses, passados e
+          futuros, junto com o histórico do que já foi pago. Quem exclui
+          olhando para "agosto" precisa saber que não está apagando agosto. */}
+      <Modal
+        open={!!confirmBulk}
+        onClose={() => { if (!deletingBulk) setConfirmBulk(null) }}
+        title="Excluir mensalidades"
+        size="sm"
+      >
+        {confirmBulk && (
+          <div className="space-y-4">
+            <p className="text-sm" style={{ color: '#1A2B1C' }}>
+              Excluir <strong>{confirmBulk.length}</strong>{' '}
+              {confirmBulk.length === 1 ? 'mensalidade' : 'mensalidades'}?
+              Esta ação não pode ser desfeita.
+            </p>
+
+            <div className="p-3 rounded-2xl"
+              style={{ background: 'rgba(244,82,45,0.06)', border: '1px solid rgba(244,82,45,0.20)' }}>
+              <span className="text-xs leading-relaxed" style={{ color: 'rgba(26,43,28,0.75)' }}>
+                A mensalidade é uma regra que vale <strong>todos os meses</strong>.
+                Excluir apaga também os <strong>meses anteriores e futuros</strong> e
+                o histórico do que já foi marcado como pago — não só{' '}
+                {competenciaLabel(competencia)}.
+              </span>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-1">
+              <Button variant="ghost" onClick={() => setConfirmBulk(null)} disabled={deletingBulk}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={runBulkDelete}
+                disabled={deletingBulk}
+                style={{ background: 'linear-gradient(140deg,#F4522D,#D93E1C)', boxShadow: '0 4px 14px rgba(244,82,45,0.35)' }}
+              >
+                {deletingBulk ? 'Excluindo...' : `Excluir ${confirmBulk.length}`}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )
