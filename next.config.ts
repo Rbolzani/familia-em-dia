@@ -65,6 +65,22 @@ const securityHeaders = [
       "manifest-src 'self'",
       // Media: microfone para captura de voz
       "media-src 'self' blob:",
+      // ── Duas diretivas que NÃO herdam de default-src ──────────────────────
+      // A maioria das diretivas cai para `default-src 'self'` quando ausente;
+      // `base-uri` e `form-action` não caem — sem declará-las, elas ficam
+      // simplesmente ILIMITADAS. É uma falha silenciosa: o CSP parece completo
+      // porque `default-src 'self'` está lá.
+      //
+      // base-uri: sem isto, um <base href="https://site-falso"> injetado
+      // reescreve TODAS as URLs relativas da página de uma vez — inclusive as
+      // dos scripts. Pesa mais aqui porque o script-src ainda tem
+      // 'unsafe-inline'.
+      "base-uri 'self'",
+      // form-action: impede que um formulário seja submetido para fora — o
+      // destino de quem injeta um form de login clonado. Seguro no nosso caso:
+      // nenhum <form> do projeto tem `action`, e o checkout do Stripe é
+      // navegação via window.location, que esta diretiva não alcança.
+      "form-action 'self'",
     ].join("; "),
   },
 ];

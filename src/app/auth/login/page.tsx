@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { destinoInternoSeguro } from '@/lib/redirectSeguro'
 import { Eye, EyeOff, ArrowRight, Leaf, CalendarDays, HeartPulse, BookOpen } from 'lucide-react'
 
 // Shared token helpers
@@ -35,8 +36,7 @@ export default function LoginPage() {
       if (error) { setError(`Erro: ${error.message}`); setLoading(false); return }
       if (!data.session) { setError('Sessão não criada. Tente novamente.'); setLoading(false); return }
       const params = new URLSearchParams(window.location.search)
-      const redirect = params.get('redirect')
-      const dest = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard'
+      const dest = destinoInternoSeguro(params.get('redirect'))
       window.location.href = dest
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido'

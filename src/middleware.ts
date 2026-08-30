@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { destinoInternoSeguro } from '@/lib/redirectSeguro'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -74,8 +75,7 @@ export async function middleware(request: NextRequest) {
   // chegar ao formulário para definir a nova senha. Sem essa exceção, o gate
   // abaixo redirecionaria para /dashboard antes de ele trocar a senha.
   if (user && isAuthRoute && pathname !== '/auth/reset-password') {
-    const redirect = request.nextUrl.searchParams.get('redirect')
-    const dest = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard'
+    const dest = destinoInternoSeguro(request.nextUrl.searchParams.get('redirect'))
     return NextResponse.redirect(new URL(dest, request.url))
   }
 

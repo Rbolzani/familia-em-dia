@@ -385,6 +385,27 @@ export async function POST(req: NextRequest) {
         max_tokens: 12000,
         // Só ativa thinking quando usamos Sonnet numa grade densa — reforça
         // a conferência célula-a-célula; capturas simples ficam rápidas.
+        //
+        // ⚠️ NÃO DESLIGUE ISTO PARA GANHAR TEMPO. A tentação é real: com
+        // thinking a chamada leva 52–59s contra um maxDuration de 60s, e
+        // medições mostram ~19s de folga ao desativar. Eu cheguei a propor a
+        // troca; está errada.
+        //
+        // O thinking entrou porque, com FOTO de grade real, a extração vinha
+        // incompleta e — pior — com uma contagem DIFERENTE a cada captura.
+        // Instabilidade, não só falta: sem isso não dá para confiar em nenhuma
+        // leitura, porque não há como saber qual das contagens é a certa.
+        //
+        // A medição que sugeria remover usava uma grade SINTÉTICA (renderizada,
+        // nítida, alinhada) — o caso fácil. Ela não fala nada sobre foto torta,
+        // com sombra e contraste ruim, que é exatamente onde a conferência
+        // célula-a-célula vale. Sinal na mesma direção: nessa grade perfeita, o
+        // Haiku sem thinking devolveu 52 itens numa tabela de 50 — inventou duas
+        // aulas no caso mais fácil possível.
+        //
+        // O aperto de tempo é real, mas é problema de PLATAFORMA, não de modelo:
+        // 60s é o teto do plano Hobby da Vercel. O Pro leva para 300s e resolve
+        // sem tocar na qualidade. Ver achado 15 do painel de prontidão.
         ...(isScheduleGrid ? { thinking: { type: 'enabled' as const, budget_tokens: 4000 } } : {}),
         messages: [{
           role: 'user',
