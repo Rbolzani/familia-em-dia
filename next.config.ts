@@ -70,6 +70,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // `sharp` carrega binário nativo (libvips) em tempo de execução. Empacotado
+  // pelo bundler, o require do binário quebra em produção — e quebra no
+  // CARREGAMENTO do módulo, derrubando a rota inteira antes de qualquer
+  // linha rodar. Foi o que aconteceu com /api/documents/ocr: 500 em 1,8s,
+  // rápido demais para ter chegado à IA.
+  serverExternalPackages: ['sharp'],
   // Libera acesso ao dev server pela rede local (celular no mesmo Wi-Fi).
   // Afeta apenas o ambiente de desenvolvimento.
   allowedDevOrigins: ["192.168.0.20"],

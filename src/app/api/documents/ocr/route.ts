@@ -5,7 +5,6 @@ import { getFamilyPlan, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario } f
 import { DOC_TYPES, DOC_TYPE_KEYS, getDocType, metadataFields, type DocType } from '@/lib/docTypes'
 import { normalizeImage } from '@/lib/image'
 import { sniff, SNIFF_BYTES } from '@/lib/fileSniff'
-import sharp from 'sharp'
 
 // O padrão da Vercel é 10s, e o tempo de SUBIDA DO ARQUIVO conta para a
 // duração da função — um PDF grande em 4G passa disso. O mesmo ajuste já
@@ -107,6 +106,11 @@ Cartão Nacional de Saúde são coisas distintas) — não misture os dígitos d
 com os de outro.`
 
 export async function POST(req: NextRequest) {
+  // Marcador de etapa: um 500 nesta rota já nos deixou cegos duas vezes, e a
+  // mensagem genérica não distinguia "a IA falhou" de "o módulo nativo não
+  // carregou". O nome da etapa vai na resposta — não revela nada sensível e
+  // encurta o diagnóstico de horas para um print.
+  let etapa = 'inicio'
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -125,6 +129,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: mensagemLimiteDiario(cota) }, { status: 429 })
     }
 
+    etapa = 'formdata'
     const form = await req.formData()
     // Aceita 'files' (até 2: frente+verso) com fallback a 'file' (compat).
     let files = form.getAll('files').filter(f => f instanceof File) as File[]
@@ -133,6 +138,7 @@ export async function POST(req: NextRequest) {
     files = files.slice(0, 2)
     if (files.length === 0) return NextResponse.json({ error: 'Envie um arquivo' }, { status: 400 })
 
+    etapa = 'preparar-arquivos'
     // As imagens ficam guardadas à parte porque podem precisar ser GIRADAS e
     // reenviadas — ver o bloco de rotação mais abaixo.
     const imagens: { buffer: Buffer; mediaType: string }[] = []
@@ -205,6 +211,7 @@ export async function POST(req: NextRequest) {
       return JSON.parse(jsonStr)
     }
 
+    etapa = 'chamada-ia'
     let parsed = await extrair()
 
     // ── Foto de lado: gira e lê de novo ─────────────────────────────────────
@@ -222,14 +229,22 @@ export async function POST(req: NextRequest) {
     // Uma tentativa apenas: se a segunda leitura ainda pedir rotação, é sinal
     // de que o modelo está inseguro, e girar de novo entraria em laço às
     // custas da sua cota na Anthropic.
+    etapa = 'rotacao'
     const giro = Number(parsed.rotacao)
     if ([90, 180, 270].includes(giro) && imagens.length > 0) {
       try {
+        // Import DINÂMICO, dentro do try, e só quando há o que girar.
+        //
+        // No topo do arquivo, uma falha ao carregar o binário nativo derruba
+        // a rota inteira antes de qualquer linha rodar — 500 imediato, com o
+        // OCR indisponível mesmo para foto em pé, que nem precisa de sharp.
+        // Aqui dentro, o pior caso é a rotação não acontecer.
+        //
+        // A versão é a 0.35.4, explícita no package.json: a que vem junto do
+        // Next é a 0.34.5, com CVEs de parser no libvips — e o insumo aqui é
+        // imagem enviada por usuário, a superfície exata desses CVEs.
+        const sharp = (await import('sharp')).default
         for (const im of imagens) {
-          // `sharp` explícito no package.json e na 0.35.4: a cópia que vinha
-          // junto do Next é a 0.34.5, com CVEs de parser no libvips — e aqui
-          // o insumo é imagem enviada por usuário, exatamente a superfície
-          // que esses CVEs atingem.
           im.buffer = await sharp(im.buffer).rotate(giro).toBuffer()
         }
         console.warn('[ocr] imagem girada', { graus: giro })
@@ -241,6 +256,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    etapa = 'validacao'
     // Valida o tipo e filtra o metadata para só as chaves daquele tipo.
     const tipoBruto = parsed.doc_type as DocType
     const docType: DocType = DOC_TYPE_KEYS.includes(tipoBruto) ? tipoBruto : 'outro'
@@ -313,7 +329,9 @@ export async function POST(req: NextRequest) {
       category: getDocType(docType).category, // gaveta sugerida
     })
   } catch (e) {
-    console.error('OCR error:', e)
-    return NextResponse.json({ error: 'Não foi possível ler o documento. Tente novamente.' }, { status: 500 })
+    console.error('[ocr] falha na etapa', etapa, e)
+    return NextResponse.json(
+      { error: `Não foi possível ler o documento (falha em: ${etapa}). Tente novamente.` },
+      { status: 500 })
   }
 }
