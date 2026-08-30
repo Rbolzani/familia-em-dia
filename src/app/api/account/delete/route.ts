@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { buscarTodas } from '@/lib/paginacao'
 
 export async function POST(request: Request) {
   // 1. Verificar sessão
@@ -45,11 +46,16 @@ export async function POST(request: Request) {
       const soloFamilyIds = myFamilyIds.filter(id => !familiesWithPartners.has(id))
 
       if (soloFamilyIds.length > 0) {
-        const { data: paths } = await admin
+        // Paginado: o PostgREST corta em 1000 linhas sem erro. Acima disso, o
+        // excedente ficaria no bucket depois de a conta ter sido apagada — o
+        // mesmo problema de LGPD que já corrigimos por outro caminho (o
+        // bucket de avatares nunca era limpo).
+        const paths = await buscarTodas<{ storage_path: string }>((de, ate) => admin
           .from('document_files')
           .select('storage_path')
           .in('family_id', soloFamilyIds)
-        storagePathsToDelete = (paths ?? []).map(p => p.storage_path as string)
+          .range(de, ate))
+        storagePathsToDelete = paths.map(p => p.storage_path)
 
         // Fotos dos filhos (LGPD). Este bucket nunca era limpo — as fotos
         // ficavam para sempre, inclusive de contas já apagadas.

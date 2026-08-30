@@ -2,6 +2,7 @@
 // para todos os usuários com o recurso habilitado.
 import { NextRequest, NextResponse } from 'next/server'
 import { adminClient, buildDailySummary, sendWhatsApp, runGraceNotices } from '@/lib/whatsapp'
+import { buscarTodas } from '@/lib/paginacao'
 
 export const maxDuration = 60
 
@@ -39,15 +40,22 @@ export async function GET(req: NextRequest) {
 
   const admin = adminClient()
 
-  const { data: allSettings, error: settingsError } = await admin
-    .from('notification_settings')
-    .select('user_id, whatsapp_number, summary_time')
-    .eq('daily_summary_enabled', true)
-    .not('whatsapp_number', 'is', null)
-
-  if (settingsError) {
+  // Paginado: o PostgREST corta em 1000 linhas SEM ERRO. Esta consulta é
+  // GLOBAL — todos os assinantes, não os de uma família —, então a partir de
+  // mil pessoas com o resumo ligado, quem estivesse além da milésima linha
+  // nunca receberia, e o log diria "concluído" igual. Comprovado no banco:
+  // 1.239 atividades, um select simples devolveu 1.000.
+  let allSettings: { user_id: string; whatsapp_number: string | null; summary_time: string | null }[]
+  try {
+    allSettings = await buscarTodas((de, ate) => admin
+      .from('notification_settings')
+      .select('user_id, whatsapp_number, summary_time')
+      .eq('daily_summary_enabled', true)
+      .not('whatsapp_number', 'is', null)
+      .range(de, ate))
+  } catch (settingsError) {
     console.error('[whatsapp-daily] erro ao buscar notification_settings:', settingsError)
-    return NextResponse.json({ error: 'DB error', detail: settingsError.message }, { status: 500 })
+    return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
   // Só envia para quem escolheu um horário que cai no slot atual (15 min)
