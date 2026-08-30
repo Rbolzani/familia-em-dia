@@ -18,6 +18,8 @@ export interface OcrResult {
   expires_at: string | null   // YYYY-MM-DD
   // Campos específicos do tipo (chave→valor conforme docTypes)
   metadata: Record<string, unknown>
+  /** Graus que o servidor girou a imagem antes de ler (0 = não girou). */
+  rotacao_aplicada: number
 }
 
 // Tipos aceitos para OCR (imagens + PDF).
@@ -145,6 +147,7 @@ export async function ocrDocument(
       issue_date: json.issue_date ?? null,
       expires_at: json.expires_at ?? null,
       metadata: (json.metadata && typeof json.metadata === 'object') ? json.metadata : {},
+      rotacao_aplicada: Number(json.rotacao_aplicada) || 0,
     }
   } catch (e) {
     // A rede falhando (conexão caindo, requisição abortada ao trocar de app

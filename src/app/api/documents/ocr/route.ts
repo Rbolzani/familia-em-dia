@@ -66,6 +66,9 @@ para o texto ficar legível na horizontal:
   90  = o texto está de lado, lendo-se de baixo para cima
   180 = está de cabeça para baixo
   270 = o texto está de lado, lendo-se de cima para baixo
+Se a imagem for um PRINT DE TELA, olhe o DOCUMENTO (o cartao/carteirinha), nao
+a interface do aplicativo em volta: e comum o cabecalho do app estar em pe e o
+cartao estar deitado. Nesse caso informe a rotacao que endireita o CARTAO.
 Se houver PDF e nenhuma imagem, responda 0.
 Quando "rotacao" não for 0, a imagem será girada e enviada de novo — então NÃO
 force a leitura de números que você não consegue ler nesta orientação: prefira
@@ -230,6 +233,7 @@ export async function POST(req: NextRequest) {
     // de que o modelo está inseguro, e girar de novo entraria em laço às
     // custas da sua cota na Anthropic.
     etapa = 'rotacao'
+    let giroAplicado = 0
     const giro = Number(parsed.rotacao)
     if ([90, 180, 270].includes(giro) && imagens.length > 0) {
       try {
@@ -247,6 +251,7 @@ export async function POST(req: NextRequest) {
         for (const im of imagens) {
           im.buffer = await sharp(im.buffer).rotate(giro).toBuffer()
         }
+        giroAplicado = giro
         console.warn('[ocr] imagem girada', { graus: giro })
         parsed = await extrair()
       } catch (e) {
@@ -327,6 +332,10 @@ export async function POST(req: NextRequest) {
       expires_at: parsed.expires_at ?? null,
       metadata,
       category: getDocType(docType).category, // gaveta sugerida
+      // Quanto a imagem foi girada. Vai para a tela: explica ao usuário o que
+      // aconteceu e, enquanto o recurso estabiliza, diz se a rotação sequer
+      // ocorreu — dado que faltava para diagnosticar sem acesso aos logs.
+      rotacao_aplicada: giroAplicado
     })
   } catch (e) {
     console.error('[ocr] falha na etapa', etapa, e)
