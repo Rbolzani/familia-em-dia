@@ -35,7 +35,17 @@ const securityHeaders = [
       // Conexões: Supabase REST/Auth/Realtime + Anthropic + APIs externas
       // api.twilio.com saiu: o Twilio foi abandonado e o número liberado em
       // 10/08/2026. Permissão que não serve a nada é só superfície extra.
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.anthropic.com https://api.groq.com https://graph.facebook.com https://*.ingest.sentry.io",
+      // ⚠️ `*.` no CSP casa por SUFIXO DE DOMÍNIO, e o host do Sentry tem o
+      // segmento da REGIÃO no meio: o DSN aponta para
+      //   o<org>.ingest.us.sentry.io
+      // que termina em `.us.sentry.io` — logo `*.ingest.sentry.io` NÃO casa.
+      // O efeito era silencioso e pior que não ter Sentry: a biblioteca
+      // carregava, capturava os erros e o navegador bloqueava todo envio
+      // ("Refused to connect ... violates the document's Content Security
+      // Policy"). Monitoramento em pé e cego.
+      // `*.sentry.io` cobre qualquer região (us, de, …) e sobrevive a uma
+      // troca de região do projeto, que quebraria o host fixo de novo.
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.anthropic.com https://api.groq.com https://graph.facebook.com https://*.sentry.io",
       // Frames: nenhum
       "frame-src 'none'",
       // frame-src diz o que ESTA página pode embutir; frame-ancestors diz quem
