@@ -89,18 +89,42 @@ export async function POST(req: NextRequest) {
 
     const content: Anthropic.Messages.ContentBlockParam[] = []
     for (const file of files) {
-      const isPdf = file.type === PDF_TYPE
       if (file.size > MAX_FILE_BYTES) {
         return NextResponse.json({ error: 'Arquivo muito grande (máx. 12 MB)' }, { status: 400 })
       }
-      if (isPdf) {
-        const base64 = Buffer.from(await file.arrayBuffer()).toString('base64')
-        content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } })
+
+      const bytes = Buffer.from(await file.arrayBuffer())
+
+      // Detecção de PDF pelo CONTEÚDO (`%PDF` nos primeiros bytes), com o
+      // tipo declarado e a extensão como reforço.
+      //
+      // Antes era só `file.type === 'application/pdf'`. Seletores de arquivo
+      // no Android entregam `file.type` vazio ou 'application/octet-stream'
+      // com frequência — nesse caso o PDF caía em normalizeImage(), que não
+      // trata PDF, devolvia null, e a rota respondia 400. O cliente engolia o
+      // erro e abria o formulário em branco: a leitura parecia simplesmente
+      // não ter acontecido.
+      //
+      // image.ts já fazia esse fallback por extensão para imagens; o PDF
+      // nunca recebeu o mesmo cuidado. Aqui a checagem é pelos bytes, que
+      // nenhum celular tem como reportar errado.
+      const ext = (file.name.split('.').pop() ?? '').toLowerCase()
+      const assinaturaPdf = bytes.length >= 4 && bytes.subarray(0, 4).toString('latin1') === '%PDF'
+      if (assinaturaPdf || file.type === PDF_TYPE || ext === 'pdf') {
+        if (!assinaturaPdf) {
+          return NextResponse.json(
+            { error: 'O arquivo tem extensão .pdf mas o conteúdo não é um PDF válido.' },
+            { status: 400 })
+        }
+        content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: bytes.toString('base64') } })
         continue
       }
-      const bytes = Buffer.from(await file.arrayBuffer())
+
       const normalized = await normalizeImage(bytes, file.type, file.name)
       if (!normalized) {
+        // Sem log, uma rejeição aqui era invisível: 400 do lado do servidor,
+        // silêncio do lado do usuário.
+        console.error('[ocr] formato nao suportado', { name: file.name, type: file.type, size: file.size })
         return NextResponse.json({ error: 'Formato não suportado para OCR (use JPG, PNG, WebP, PDF ou foto da câmera)' }, { status: 400 })
       }
       content.push({ type: 'image', source: { type: 'base64', media_type: normalized.mediaType, data: normalized.buffer.toString('base64') } })
