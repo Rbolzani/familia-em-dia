@@ -218,7 +218,11 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
             const selo = st === 'pago' ? 'Pago'
               : st === 'vence_hoje' ? '🔥 Vence hoje'
               : st === 'vencido' ? (atraso === 1 ? 'Venceu ontem' : `Venceu há ${atraso} dias`)
-              : `Vence dia ${o.payment.due_day}`
+              // Dia vem de `o.vencimento` (já resolvido para o mês), NÃO de
+              // `due_day`. A regra "todo dia 31" exibida cruamente anuncia
+              // "Vence dia 31" em fevereiro — data que não existe. O alerta
+              // sempre disparou no dia certo; era só a etiqueta que mentia.
+              : `Vence dia ${Number(o.vencimento.slice(8, 10))}`
 
             return (
               <div key={o.payment.id} className="card p-4 animate-fade-up"
