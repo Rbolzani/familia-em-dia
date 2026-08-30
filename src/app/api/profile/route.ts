@@ -95,7 +95,10 @@ export async function POST(request: Request) {
     if (error.code === '23505') {
       return NextResponse.json({ error: 'Este CPF já está cadastrado em outra conta.' }, { status: 409 })
     }
-    console.error('[profile] erro ao salvar', error)
+    // Só o código, nunca o erro inteiro: esta rota grava CPF, e uma violação
+    // de unicidade no PostgREST traz o VALOR do campo na mensagem. O Sentry
+    // transforma console.* em breadcrumb — o CPF sairia do país junto.
+    console.error('[profile] erro ao salvar', { code: error.code })
     // A mensagem do PostgREST descreve o schema; fica no log, não na resposta.
     return NextResponse.json({ error: 'Não foi possível salvar seus dados.' }, { status: 500 })
   }

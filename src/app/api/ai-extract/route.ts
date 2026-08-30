@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan, getAiUsageThisMonth, incrementAiUsage, PLAN_LIMITS } from '@/lib/billing'
+import { getFamilyPlan, getAiUsageThisMonth, incrementAiUsage, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario } from '@/lib/billing'
 import { normalizeImage } from '@/lib/image'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
@@ -324,6 +324,14 @@ export async function POST(req: NextRequest) {
           { status: 402 }
         )
       }
+    }
+
+    // Teto diário (achado O3). O limite acima é MENSAL e por plano — no pago
+    // é Infinity, então esta rota ficava sem teto algum, e cada chamada gasta
+    // token na Anthropic.
+    const cota = await consumirChamadaIa(user.id)
+    if (!cota.permitido) {
+      return NextResponse.json({ error: mensagemLimiteDiario(cota) }, { status: 429 })
     }
 
     const formData = await req.formData()

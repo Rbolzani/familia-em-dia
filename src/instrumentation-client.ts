@@ -4,6 +4,7 @@
 // o antigo sentry.client.config.ts está descontinuado. Conteúdo idêntico ao
 // que estava lá; só mudou o lugar de onde é executado.
 import * as Sentry from '@sentry/nextjs'
+import { opcoesComuns } from '@/lib/sentryScrub'
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -21,6 +22,9 @@ Sentry.init({
       blockAllMedia: true,
     }),
   ],
+  // Redige CPF, CNPJ, e-mail e telefone de eventos e breadcrumbs, e mantém
+  // sendDefaultPii desligado. Ver src/lib/sentryScrub.ts.
+  ...opcoesComuns,
 })
 
 // Instrumenta as transições de rota do App Router.

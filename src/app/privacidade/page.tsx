@@ -78,8 +78,14 @@ export default function PrivacidadePage() {
         <Li><strong>Anthropic</strong> e <strong>Groq</strong> — processamento por IA (classificação de
           texto/imagem e transcrição de voz);</Li>
         <Li><strong>Stripe</strong> — processamento de pagamentos e assinaturas;</Li>
-        <Li><strong>Meta (WhatsApp)</strong> e/ou <strong>Twilio</strong> — envio de mensagens/alertas;</Li>
-        <Li><strong>Vercel</strong> — hospedagem da aplicação.</Li>
+        <Li><strong>Meta (WhatsApp)</strong> — envio de mensagens e alertas;</Li>
+        <Li><strong>Vercel</strong> — hospedagem da aplicação;</Li>
+        <Li><strong>Resend</strong> — envio de e-mails da conta (confirmação de cadastro,
+          redefinição de senha) e <strong>ImprovMX</strong> — recebimento dos e-mails de
+          contato e suporte;</Li>
+        <Li><strong>Sentry</strong> — monitoramento de erros da aplicação. Registra falhas
+          técnicas para correção; não recebe conteúdo dos seus documentos, e identificadores
+          pessoais como CPF, e-mail e telefone são removidos automaticamente antes do envio.</Li>
       </ul>
       <P>
         Não vendemos dados pessoais. O compartilhamento com responsáveis convidados ocorre por ação do

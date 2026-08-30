@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan } from '@/lib/billing'
+import { getFamilyPlan, consumirChamadaIa, mensagemLimiteDiario } from '@/lib/billing'
 
 // Mesma razão do OCR: o áudio sobe do celular e o tempo de subida conta para
 // a duração da função. Um áudio de um minuto em 4G passa dos 10s padrão.
@@ -31,6 +31,13 @@ export async function POST(request: NextRequest) {
       { error: 'LIMIT_VOICE', message: 'Entrada por voz disponível nos planos Família e Plus.' },
       { status: 402 }
     )
+  }
+
+  // Teto diário (achado O3). Esta rota não tinha limite NENHUM de volume —
+  // só o gate de plano — e cada transcrição custa por minuto na Groq.
+  const cota = await consumirChamadaIa(user.id)
+  if (!cota.permitido) {
+    return NextResponse.json({ error: mensagemLimiteDiario(cota) }, { status: 429 })
   }
 
   const groq = new OpenAI({

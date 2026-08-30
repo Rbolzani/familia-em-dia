@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
+import { getFamilyPlan, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario } from '@/lib/billing'
 import { DOC_TYPES, DOC_TYPE_KEYS, getDocType, metadataFields, type DocType } from '@/lib/docTypes'
 import { normalizeImage } from '@/lib/image'
 import { sniff, SNIFF_BYTES } from '@/lib/fileSniff'
@@ -88,6 +88,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'LIMIT_OCR', plan }, { status: 402 })
     }
 
+    // Teto diário (achado O3): no plano pago o limite mensal é Infinity, então
+    // não havia teto nenhum e cada chamada custa dinheiro na Anthropic.
+    const cota = await consumirChamadaIa(user.id)
+    if (!cota.permitido) {
+      return NextResponse.json({ error: mensagemLimiteDiario(cota) }, { status: 429 })
+    }
+
     const form = await req.formData()
     // Aceita 'files' (até 2: frente+verso) com fallback a 'file' (compat).
     let files = form.getAll('files').filter(f => f instanceof File) as File[]
@@ -120,11 +127,19 @@ export async function POST(req: NextRequest) {
 
       const normalized = await normalizeImage(bytes, file.type, file.name)
       if (!normalized) {
-        // O log nomeia o que o navegador reportou E o que a assinatura diz:
+        // O log traz o que o navegador reportou E o que a assinatura diz —
         // sem os dois lados, um relato de "não funciona no celular" volta a
         // ser adivinhação.
-        console.error('[ocr] formato nao suportado',
-          { name: file.name, type: file.type || '(vazio)', size: file.size, assinatura: kind ?? '(nao reconhecida)' })
+        //
+        // Mas NÃO o nome do arquivo: "20240321 CNH Rogério.pdf" carrega o
+        // nome da pessoa, e o Sentry transforma console.* em breadcrumb e
+        // manda para os EUA. A extensão responde a mesma pergunta.
+        console.error('[ocr] formato nao suportado', {
+          ext: (file.name.split('.').pop() ?? '').toLowerCase().slice(0, 8),
+          type: file.type || '(vazio)',
+          size: file.size,
+          assinatura: kind ?? '(nao reconhecida)',
+        })
         return NextResponse.json(
           { error: 'Formato não suportado para OCR (use JPG, PNG, WebP, PDF ou foto da câmera)' },
           { status: 400 })

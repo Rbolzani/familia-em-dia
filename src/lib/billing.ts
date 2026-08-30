@@ -194,6 +194,48 @@ export async function getFamilyStorageUsedBytes(): Promise<number | null> {
   return Number(data ?? 0)
 }
 
+/**
+ * Teto DIÁRIO de chamadas de IA por usuário, em todas as rotas que custam
+ * dinheiro (Anthropic e Groq).
+ *
+ * 50 é folgado para uso real — uma família não fotografa 50 documentos por
+ * dia — e corta o caso que importa: script abusivo ou conta comprometida
+ * chamando em laço. O limite mensal por plano (`aiPerMonth`) continua valendo
+ * por cima; no pago ele é Infinity, então este era o único teto ausente.
+ */
+export const AI_CALLS_PER_DAY = 50
+
+export interface CotaDiaria { permitido: boolean; usado: number; limite: number }
+
+/**
+ * Consome uma chamada e diz se ela pode prosseguir. ATÔMICO: incrementa e
+ * devolve o novo valor numa instrução só, então chamadas paralelas não
+ * ultrapassam o teto — problema que `incrementAiUsage` tem por ler e escrever
+ * em duas idas ao banco.
+ *
+ * Falha ao contabilizar PERMITE a chamada: derrubar o recurso do usuário
+ * legítimo por indisponibilidade do contador seria pior que o abuso que ele
+ * evita. O oposto de `getFamilyStorageUsedBytes`, onde falhar aberto liberava
+ * upload ilimitado — aqui o pior caso é uma chamada a mais.
+ */
+export async function consumirChamadaIa(userId: string): Promise<CotaDiaria> {
+  const admin = createAdminClient()
+  const { data, error } = await admin.rpc('consume_ai_call', {
+    p_user_id: userId,
+    p_daily_limit: AI_CALLS_PER_DAY,
+  })
+  if (error) {
+    console.error('[billing] consume_ai_call falhou:', { code: error.code })
+    return { permitido: true, usado: 0, limite: AI_CALLS_PER_DAY }
+  }
+  return data as CotaDiaria
+}
+
+/** Mensagem única do 429, para as três rotas não divergirem. */
+export function mensagemLimiteDiario(c: CotaDiaria): string {
+  return `Você atingiu o limite de ${c.limite} usos de IA por dia. O contador zera amanhã.`
+}
+
 // Incrementa o contador de IA do mês. Reseta se for mês novo.
 export async function incrementAiUsage(userId: string): Promise<void> {
   const admin = createAdminClient()

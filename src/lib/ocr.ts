@@ -86,9 +86,12 @@ export async function ocrDocument(
     // A mensagem nomeia o que o navegador reportou, para o caso não virar
     // adivinhação de novo.
     if (list.length === 0) {
-      const d = todos.map(f => `${f.name || '(sem nome)'} [${f.type || 'tipo vazio'}]`).join(', ')
-      console.warn('[ocr] nenhum arquivo elegivel:', d)
-      onErro?.(`A IA não consegue ler este arquivo (${d}). Preencha os campos manualmente.`)
+      // O usuário vê o nome do arquivo (é o dele, na tela dele); o LOG não —
+      // nome de arquivo carrega nome de pessoa e vira breadcrumb no Sentry.
+      const paraUsuario = todos.map(f => `${f.name || '(sem nome)'} [${f.type || 'tipo vazio'}]`).join(', ')
+      console.warn('[ocr] nenhum arquivo elegivel:',
+        todos.map(f => ({ ext: (f.name.split('.').pop() ?? '').toLowerCase().slice(0, 8), type: f.type || '(vazio)' })))
+      onErro?.(`A IA não consegue ler este arquivo (${paraUsuario}). Preencha os campos manualmente.`)
       return null
     }
 
