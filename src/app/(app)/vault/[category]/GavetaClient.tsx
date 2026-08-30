@@ -9,6 +9,7 @@ import { useAccess } from '@/components/access/AccessContext'
 import { getVaultCategory } from '@/lib/vault'
 import { ocrDocument } from '@/lib/ocr'
 import { ACCEPT_ATTR } from '@/lib/uploadTypes'
+import { materializarArquivos } from '@/lib/fileSniff'
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS } from '@/lib/docTypes'
 import type { DocType } from '@/lib/docTypes'
 import DocFormFields from '@/components/vault/DocFormFields'
@@ -122,7 +123,9 @@ export default function GavetaClient({ category, children, documents: initialDoc
       if (ocrText) form.append('ocr_text', ocrText)
       form.append('doc_type', docType)
       if (Object.keys(metadata).length) form.append('metadata', JSON.stringify(metadata))
-      files.forEach(f => form.append('files', f))
+      // Ver materializarArquivos — mesma razão do OCR.
+      const enviar = await materializarArquivos(files)
+      enviar.forEach(f => form.append('files', f))
 
       const res = await fetch('/api/documents/upload', { method: 'POST', body: form })
       const json = await res.json()

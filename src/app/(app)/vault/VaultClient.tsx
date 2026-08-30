@@ -10,6 +10,7 @@ import type { DocumentCategory } from '@/lib/types'
 import { toast } from '@/components/ui/Toast'
 import { ocrDocument } from '@/lib/ocr'
 import { ACCEPT_ATTR } from '@/lib/uploadTypes'
+import { materializarArquivos } from '@/lib/fileSniff'
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS } from '@/lib/docTypes'
 import type { DocType } from '@/lib/docTypes'
 import DocFormFields from '@/components/vault/DocFormFields'
@@ -176,7 +177,11 @@ export default function VaultClient({ children, documents: initialDocuments, can
       if (uOcrText) form.append('ocr_text', uOcrText)
       form.append('doc_type', uDocType)
       if (Object.keys(metadata).length) form.append('metadata', JSON.stringify(metadata))
-      uFiles.forEach(f => form.append('files', f))
+      // Materializa os bytes antes de enviar: no Android o File do seletor é
+      // uma referência a um provedor de conteúdo, e deixar o fetch ler durante
+      // o envio falha com "Failed to fetch". Ver materializarArquivos.
+      const enviar = await materializarArquivos(uFiles)
+      enviar.forEach(f => form.append('files', f))
       const res = await fetch('/api/documents/upload', { method: 'POST', body: form })
       const json = await res.json()
       if (!res.ok) { toast(json.error ?? 'Falha no upload', 'error'); return }

@@ -4,7 +4,7 @@
 // tipo (metadata) para auto-preenchimento do formulário.
 
 import type { DocType } from './docTypes'
-import { sniffFile, podeSerLido } from './fileSniff'
+import { sniffFile, podeSerLido, materializarArquivos } from './fileSniff'
 
 export interface OcrResult {
   ocr_text: string
@@ -92,8 +92,19 @@ export async function ocrDocument(
       return null
     }
 
+    // Lê os bytes ANTES do fetch — ver materializarArquivos.
+    let materializados: File[]
+    try {
+      materializados = await materializarArquivos(list)
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e)
+      console.error('[ocr] falha ao ler bytes do arquivo:', e)
+      onErro?.(`Não consegui ler o arquivo do seu aparelho (${m}). Tente copiá-lo para o celular antes de anexar, ou tire uma foto do documento.`)
+      return null
+    }
+
     const form = new FormData()
-    list.forEach(f => form.append('files', f))
+    materializados.forEach(f => form.append('files', f))
 
     // Tamanho e tempo entram na mensagem de erro porque "Failed to fetch" não
     // diz nada sozinho: falhar em 0,3s é rejeição imediata (corpo grande

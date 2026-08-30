@@ -61,3 +61,27 @@ export async function sniffFile(file: File): Promise<SniffedKind> {
     return null
   }
 }
+
+/**
+ * Lê os bytes do arquivo AGORA e devolve um File novo, em memória.
+ *
+ * No Android o `File` do seletor não é um arquivo em disco: é uma referência
+ * a um provedor de conteúdo (Downloads, Drive, o app de arquivos do
+ * fabricante). Nome e tamanho vêm preenchidos, mas os bytes são lidos SOB
+ * DEMANDA — e quem os pede é o `fetch`, no meio do envio. Se a leitura falhar
+ * (permissão da URI expirada, provedor que exige rede, arquivo "virtual"),
+ * a requisição morre antes de sair e o navegador reporta "Failed to fetch":
+ * sem status, sem log no servidor, idêntico a queda de conexão.
+ *
+ * No desktop o File aponta para o disco e nada disso acontece — por isso o
+ * mesmo arquivo funcionava num lado e não no outro.
+ *
+ * Materializando antes, a falha de leitura vira um erro nomeado e o corpo do
+ * POST passa a ser um buffer que o fetch envia sem depender do sistema.
+ * Lança se não conseguir ler; quem chama traduz para uma mensagem ao usuário.
+ */
+export async function materializarArquivos(files: File[]): Promise<File[]> {
+  return Promise.all(files.map(async f =>
+    new File([await f.arrayBuffer()], f.name || 'documento',
+             { type: f.type || 'application/octet-stream' })))
+}

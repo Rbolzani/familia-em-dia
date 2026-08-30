@@ -11,6 +11,7 @@ import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS, type DocType,
 import DocFormFields from '@/components/vault/DocFormFields'
 import { applyDoseReminders } from '@/lib/doseReminders'
 import { ACCEPT_ATTR } from '@/lib/uploadTypes'
+import { materializarArquivos } from '@/lib/fileSniff'
 
 function fileIcon(mime: string | null) {
   if (!mime) return <File size={18} />
@@ -261,7 +262,9 @@ export default function DocumentDetailClient({ document: doc, category, children
     setUploadingMore(true)
     try {
       const form = new FormData()
-      newFiles.forEach(f => form.append('files', f))
+      // Ver materializarArquivos — mesma razão do OCR.
+      const enviar = await materializarArquivos(newFiles)
+      enviar.forEach(f => form.append('files', f))
       const res = await fetch(`/api/documents/${doc.id}/files`, { method: 'POST', body: form })
       const json = await res.json()
       if (!res.ok) { toast(json.error ?? 'Erro no upload', 'error'); return }
