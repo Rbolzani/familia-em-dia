@@ -4,6 +4,7 @@
 // tipo (metadata) para auto-preenchimento do formulário.
 
 import type { DocType } from './docTypes'
+import { sniffFile, podeSerLido } from './fileSniff'
 
 export interface OcrResult {
   ocr_text: string
@@ -39,33 +40,22 @@ const OCR_ACCEPTED_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'heic', '
 // para os dois não saírem de sincronia.
 export const OCR_ACCEPT_ATTR = '.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif'
 
-// Formatos que o OCR comprovadamente NÃO lê: documentos de escritório e texto
-// puro. Tudo o mais (foto, PDF, e o que o celular reportar mal) vai para o
-// servidor decidir.
-const NAO_OCRAVEIS = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'txt']
-
 /**
- * O arquivo deve ser ENVIADO para o OCR?
+ * O arquivo deve ser ENVIADO para o OCR? Decidido pelo CONTEÚDO.
  *
- * Antes esta função era uma LISTA DE PERMISSÃO: só passava quem tivesse
- * `file.type` conhecido ou extensão conhecida. Isso a tornava mais restrita
- * que o próprio servidor — que detecta PDF pelos magic bytes e normaliza
- * imagem por extensão. Seletores de arquivo no Android costumam entregar
- * `file.type` vazio, e alguns provedores entregam o nome sem extensão; nesses
- * casos os dois critérios falhavam e o arquivo era descartado AQUI, sem
- * requisição, sem ampulheta e sem aviso. Do lado do usuário parecia que a IA
- * simplesmente não existia no celular.
+ * Esta era a raiz da divergência desktop × celular. A versão anterior olhava
+ * `file.type` e a extensão do nome — os dois vindos do seletor de arquivos do
+ * sistema. No desktop chegam preenchidos; no Android `file.type` vem vazio ou
+ * "application/octet-stream" e alguns provedores entregam o nome sem
+ * extensão. Com os dois vazios o arquivo era descartado AQUI, sem requisição,
+ * sem ampulheta e sem aviso: parecia que a IA não existia no celular.
  *
- * Invertida para LISTA DE BLOQUEIO: barra o que sabidamente não é legível e
- * deixa o resto chegar ao servidor, que tem o conteúdo em mãos para decidir.
- * O custo de errar para mais é uma chamada que volta 400; o de errar para
- * menos era a funcionalidade inteira sumir sem explicação.
+ * Agora lê os primeiros bytes, que são idênticos em qualquer plataforma.
+ * `file.type` só serve de atalho para evitar a leitura quando já é confiável.
  */
-export function isOcrable(file: File): boolean {
+export async function isOcrable(file: File): Promise<boolean> {
   if (OCR_ACCEPTED_TYPES.includes(file.type)) return true
-  const ext = (file.name.split('.').pop() ?? '').toLowerCase()
-  if (OCR_ACCEPTED_EXTS.includes(ext)) return true
-  return !NAO_OCRAVEIS.includes(ext)
+  return podeSerLido(await sniffFile(file))
 }
 
 // Chama /api/documents/ocr com até 2 arquivos (frente+verso). Retorna null em
@@ -82,7 +72,9 @@ export async function ocrDocument(
 ): Promise<OcrResult | null> {
   const todos = Array.isArray(files) ? files : [files]
   try {
-    const list = todos.filter(isOcrable).slice(0, 2)
+    // `isOcrable` virou assíncrono porque lê o cabeçalho do arquivo.
+    const elegiveis = await Promise.all(todos.map(isOcrable))
+    const list = todos.filter((_, i) => elegiveis[i]).slice(0, 2)
 
     // Descarte ANTES da requisição. Era a saída mais silenciosa da função:
     // sem requisição não há espera, então nem a ampulheta chega a aparecer —

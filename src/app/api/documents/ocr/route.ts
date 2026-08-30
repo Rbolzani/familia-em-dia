@@ -4,22 +4,20 @@ import { createClient } from '@/lib/supabase/server'
 import { getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
 import { DOC_TYPES, DOC_TYPE_KEYS, getDocType, metadataFields, type DocType } from '@/lib/docTypes'
 import { normalizeImage } from '@/lib/image'
+import { sniff, SNIFF_BYTES } from '@/lib/fileSniff'
 
-// O padrão da Vercel é 10s, e O TEMPO DE SUBIDA DO ARQUIVO CONTA para a
-// duração da função. No desktop, subir 2 MB por Wi-Fi leva menos de um
-// segundo e sobram 9 para o Haiku responder — funcionava. No celular em
-// 4G/5G a subida sozinha consome vários segundos e o total estoura: a função
-// morre, o cliente recebe erro e o formulário abre em branco.
+// O padrão da Vercel é 10s, e o tempo de SUBIDA DO ARQUIVO conta para a
+// duração da função — um PDF grande em 4G passa disso. O mesmo ajuste já
+// existia em upload, [id]/files e ai-extract; esta rota tinha ficado de fora.
 //
-// Era exatamente por isso que o OCR "funcionava no desktop e não no celular".
-// O mesmo diagnóstico já estava escrito em /api/documents/upload, aplicado a
-// três rotas pesadas — e esta ficou de fora.
+// ⚠️ Isto NÃO era a causa da falha no celular (cheguei a supor que fosse e
+// estava errado: um timeout deixaria a ampulheta girando por 10s, e ela não
+// chegava a aparecer). É correção legítima e independente.
 export const maxDuration = 60
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 const MAX_FILE_BYTES = 12 * 1024 * 1024
-const PDF_TYPE = 'application/pdf'
 
 // Catálogo de tipos derivado do schema (fonte única em lib/docTypes).
 const CATALOG = DOC_TYPE_KEYS.map(t => {
@@ -106,37 +104,30 @@ export async function POST(req: NextRequest) {
 
       const bytes = Buffer.from(await file.arrayBuffer())
 
-      // Detecção de PDF pelo CONTEÚDO (`%PDF` nos primeiros bytes), com o
-      // tipo declarado e a extensão como reforço.
+      // O CONTEÚDO decide o ramo — nunca `file.type`.
       //
-      // Antes era só `file.type === 'application/pdf'`. Seletores de arquivo
-      // no Android entregam `file.type` vazio ou 'application/octet-stream'
-      // com frequência — nesse caso o PDF caía em normalizeImage(), que não
-      // trata PDF, devolvia null, e a rota respondia 400. O cliente engolia o
-      // erro e abria o formulário em branco: a leitura parecia simplesmente
-      // não ter acontecido.
-      //
-      // image.ts já fazia esse fallback por extensão para imagens; o PDF
-      // nunca recebeu o mesmo cuidado. Aqui a checagem é pelos bytes, que
-      // nenhum celular tem como reportar errado.
-      const ext = (file.name.split('.').pop() ?? '').toLowerCase()
-      const assinaturaPdf = bytes.length >= 4 && bytes.subarray(0, 4).toString('latin1') === '%PDF'
-      if (assinaturaPdf || file.type === PDF_TYPE || ext === 'pdf') {
-        if (!assinaturaPdf) {
-          return NextResponse.json(
-            { error: 'O arquivo tem extensão .pdf mas o conteúdo não é um PDF válido.' },
-            { status: 400 })
-        }
+      // Antes era `file.type === 'application/pdf'`. Seletores de arquivo no
+      // Android entregam esse campo vazio ou 'application/octet-stream' com
+      // frequência, e aí o PDF caía no ramo de imagem, que não trata PDF, e a
+      // rota respondia 400. Mesmo arquivo, comportamento oposto entre desktop
+      // e celular — que era exatamente o sintoma relatado.
+      const kind = sniff(new Uint8Array(bytes.subarray(0, SNIFF_BYTES)))
+
+      if (kind === 'pdf') {
         content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: bytes.toString('base64') } })
         continue
       }
 
       const normalized = await normalizeImage(bytes, file.type, file.name)
       if (!normalized) {
-        // Sem log, uma rejeição aqui era invisível: 400 do lado do servidor,
-        // silêncio do lado do usuário.
-        console.error('[ocr] formato nao suportado', { name: file.name, type: file.type, size: file.size })
-        return NextResponse.json({ error: 'Formato não suportado para OCR (use JPG, PNG, WebP, PDF ou foto da câmera)' }, { status: 400 })
+        // O log nomeia o que o navegador reportou E o que a assinatura diz:
+        // sem os dois lados, um relato de "não funciona no celular" volta a
+        // ser adivinhação.
+        console.error('[ocr] formato nao suportado',
+          { name: file.name, type: file.type || '(vazio)', size: file.size, assinatura: kind ?? '(nao reconhecida)' })
+        return NextResponse.json(
+          { error: 'Formato não suportado para OCR (use JPG, PNG, WebP, PDF ou foto da câmera)' },
+          { status: 400 })
       }
       content.push({ type: 'image', source: { type: 'base64', media_type: normalized.mediaType, data: normalized.buffer.toString('base64') } })
     }
