@@ -17,9 +17,32 @@ export const PLAN_LIMITS: Record<PlanId, {
   documentSearch: boolean  // busca full-text dentro dos documentos
   storageLimitBytes: number // 0 = sem upload de arquivos no vault
 }> = {
-  free:    { children: 2,        aiPerMonth: 5,        partners: 0,        ocr: false, documentSearch: false, storageLimitBytes: 0                  },
+  // O gratuito TEM cofre (50 MB ≈ 30 fotos de documento). Era 0, o que
+  // bloqueava qualquer upload — e guardar documento é justamente o hábito que
+  // prende no produto: bloquear quem ainda está decidindo é tiro no pé. O
+  // upgrade passa a acontecer quando o espaço acaba, gatilho melhor que uma
+  // recusa seca na primeira tentativa.
+  //
+  // Ler e baixar NUNCA dependeram de plano (signed-url não checa) — quem usou
+  // o trial não perde nada ao voltar para cá; só para de subir arquivo novo.
+  free:    { children: 2,        aiPerMonth: 5,        partners: 0,        ocr: false, documentSearch: false, storageLimitBytes: 50 * 1024 * 1024   },
   familia: { children: 2,        aiPerMonth: Infinity, partners: 1,        ocr: true,  documentSearch: true,  storageLimitBytes: 500 * 1024 * 1024  },
   plus:    { children: Infinity, aiPerMonth: Infinity, partners: Infinity, ocr: true,  documentSearch: true,  storageLimitBytes: 5 * GB             },
+}
+
+/**
+ * Bytes em texto legível.
+ *
+ * As rotas de upload formatavam a cota com `Math.round(limit / 1024**3)`, que
+ * só funciona para limites em GB. Com o gratuito em 50 MB isso passou a
+ * imprimir "Seu plano permite 0 GB" — mensagem sem sentido justamente para
+ * quem mais precisa entender o limite.
+ */
+export function formatarBytes(bytes: number): string {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(bytes % 1024 ** 3 === 0 ? 0 : 1)} GB`
+  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${bytes} B`
 }
 
 export const PLAN_LABELS: Record<PlanId, string> = {

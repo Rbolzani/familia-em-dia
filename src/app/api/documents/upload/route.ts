@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS } from '@/lib/billing'
+import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS, formatarBytes } from '@/lib/billing'
 import { validarArquivo } from '@/lib/uploadTypes'
 
 // O padrão da Vercel é 10s. O tempo de subida do arquivo pelo usuário conta
@@ -51,12 +51,6 @@ export async function POST(req: NextRequest) {
   if (files.length > 0) {
     const plan = await getFamilyPlan()
     const limit = PLAN_LIMITS[plan].storageLimitBytes
-    if (limit === 0) {
-      return NextResponse.json(
-        { error: 'Seu plano não inclui armazenamento de arquivos no cofre. Faça upgrade para Família ou Plus.' },
-        { status: 402 }
-      )
-    }
     // `getFamilyStorageUsedBytes` devolvia 0 quando a medição falhava, e zero
     // usado significa "cabe tudo" — uma falha momentânea do banco virava
     // permissão de upload ilimitado. Agora falha FECHADO.
@@ -69,8 +63,15 @@ export async function POST(req: NextRequest) {
     }
     const incoming = files.reduce((sum, f) => sum + f.size, 0)
     if (used + incoming > limit) {
+      // Quem terminou o trial acima do limite do gratuito cai aqui: mantém
+      // tudo o que já subiu (nada apaga arquivo por troca de plano) e só para
+      // de subir coisa nova. A mensagem precisa dizer isso, senão a pessoa
+      // acha que vai perder o que guardou.
+      const excedente = used > limit
       return NextResponse.json(
-        { error: `Cota de armazenamento atingida. Seu plano permite ${Math.round(limit / (1024 ** 3))} GB e você está usando ${(used / (1024 ** 3)).toFixed(2)} GB.` },
+        { error: excedente
+            ? `Você está usando ${formatarBytes(used)}, acima dos ${formatarBytes(limit)} do seu plano. Seus documentos continuam guardados e acessíveis, mas para enviar novos é preciso liberar espaço ou fazer upgrade.`
+            : `Espaço insuficiente: você usa ${formatarBytes(used)} de ${formatarBytes(limit)} e este envio tem ${formatarBytes(incoming)}.` },
         { status: 402 }
       )
     }
@@ -85,7 +86,10 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (docErr) return NextResponse.json({ error: docErr.message }, { status: 500 })
+  if (docErr) {
+    console.error('[documents/upload] documento', docErr)
+    return NextResponse.json({ error: 'Não foi possível criar o documento.' }, { status: 500 })
+  }
 
   // Upload files to Storage
   const uploadedFiles = []
@@ -106,7 +110,8 @@ export async function POST(req: NextRequest) {
     if (storageErr) {
       // rollback document
       await supabase.from('documents').delete().eq('id', doc.id)
-      return NextResponse.json({ error: `Falha no upload: ${storageErr.message}` }, { status: 500 })
+      console.error('[documents/upload] storage', storageErr)
+      return NextResponse.json({ error: 'Falha no upload do arquivo.' }, { status: 500 })
     }
 
     const { data: fileRec, error: fileErr } = await supabase
@@ -124,7 +129,8 @@ export async function POST(req: NextRequest) {
 
     if (fileErr) {
       await supabase.from('documents').delete().eq('id', doc.id)
-      return NextResponse.json({ error: fileErr.message }, { status: 500 })
+      console.error('[documents/upload] document_files', fileErr)
+      return NextResponse.json({ error: 'Falha ao registrar o arquivo.' }, { status: 500 })
     }
     uploadedFiles.push(fileRec)
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS } from '@/lib/billing'
+import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS, formatarBytes } from '@/lib/billing'
 import { validarArquivo } from '@/lib/uploadTypes'
 
 // Mesmo motivo do /api/documents/upload: o padrão de 10s da Vercel não cobre
@@ -41,12 +41,6 @@ export async function POST(
   // Verificar cota de storage
   const plan = await getFamilyPlan()
   const limit = PLAN_LIMITS[plan].storageLimitBytes
-  if (limit === 0) {
-    return NextResponse.json(
-      { error: 'Seu plano não inclui armazenamento de arquivos no cofre. Faça upgrade para Família ou Plus.' },
-      { status: 402 }
-    )
-  }
   // Falha ao medir a cota recusa o upload — 0 significaria "cabe tudo".
   const used = await getFamilyStorageUsedBytes()
   if (used === null) {
@@ -57,8 +51,12 @@ export async function POST(
   }
   const incoming = files.reduce((sum, f) => sum + f.size, 0)
   if (used + incoming > limit) {
+    // Ver comentário equivalente em /api/documents/upload.
+    const excedente = used > limit
     return NextResponse.json(
-      { error: `Cota de armazenamento atingida. Seu plano permite ${Math.round(limit / (1024 ** 3))} GB e você está usando ${(used / (1024 ** 3)).toFixed(2)} GB.` },
+      { error: excedente
+          ? `Você está usando ${formatarBytes(used)}, acima dos ${formatarBytes(limit)} do seu plano. Seus documentos continuam guardados e acessíveis, mas para enviar novos é preciso liberar espaço ou fazer upgrade.`
+          : `Espaço insuficiente: você usa ${formatarBytes(used)} de ${formatarBytes(limit)} e este envio tem ${formatarBytes(incoming)}.` },
       { status: 402 }
     )
   }
