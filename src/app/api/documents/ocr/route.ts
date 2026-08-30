@@ -5,6 +5,7 @@ import { getFamilyPlan, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario } f
 import { DOC_TYPES, DOC_TYPE_KEYS, getDocType, metadataFields, type DocType } from '@/lib/docTypes'
 import { normalizeImage } from '@/lib/image'
 import { sniff, SNIFF_BYTES } from '@/lib/fileSniff'
+import sharp from 'sharp'
 
 // O padrão da Vercel é 10s, e o tempo de SUBIDA DO ARQUIVO conta para a
 // duração da função — um PDF grande em 4G passa disso. O mesmo ajuste já
@@ -57,8 +58,23 @@ Se todos os blocos impressos estiverem preenchidos, retorne [].
 NUNCA deduza doses a partir de calendário vacinal, idade ou fabricante — só
 reporte um campo que esteja visivelmente vazio no papel.
 
+ORIENTAÇÃO DA IMAGEM — responda sempre:
+Antes de qualquer coisa, olhe se o TEXTO do documento está em pé. Carteirinhas
+de convênio, CNH e cartões costumam ser fotografados ou printados DEITADOS.
+Informe em "rotacao" quantos graus a imagem precisa girar NO SENTIDO HORÁRIO
+para o texto ficar legível na horizontal:
+  0   = já está em pé
+  90  = o texto está de lado, lendo-se de baixo para cima
+  180 = está de cabeça para baixo
+  270 = o texto está de lado, lendo-se de cima para baixo
+Se houver PDF e nenhuma imagem, responda 0.
+Quando "rotacao" não for 0, a imagem será girada e enviada de novo — então NÃO
+force a leitura de números que você não consegue ler nesta orientação: prefira
+null e acerte na segunda passada.
+
 Formato de saída — retorne APENAS um JSON válido (sem markdown, sem texto fora):
 {
+  "rotacao": 0,
   "doc_type": "<um dos tipos>",
   "ocr_text": "texto transcrito",
   "title": "nome curto e descritivo (ex: 'RG da Gabriela', 'Boleto escola março') ou null",
@@ -117,7 +133,11 @@ export async function POST(req: NextRequest) {
     files = files.slice(0, 2)
     if (files.length === 0) return NextResponse.json({ error: 'Envie um arquivo' }, { status: 400 })
 
-    const content: Anthropic.Messages.ContentBlockParam[] = []
+    // As imagens ficam guardadas à parte porque podem precisar ser GIRADAS e
+    // reenviadas — ver o bloco de rotação mais abaixo.
+    const imagens: { buffer: Buffer; mediaType: string }[] = []
+    const pdfs: Buffer[] = []
+
     for (const file of files) {
       if (file.size > MAX_FILE_BYTES) {
         return NextResponse.json({ error: 'Arquivo muito grande (máx. 12 MB)' }, { status: 400 })
@@ -135,7 +155,7 @@ export async function POST(req: NextRequest) {
       const kind = sniff(new Uint8Array(bytes.subarray(0, SNIFF_BYTES)))
 
       if (kind === 'pdf') {
-        content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: bytes.toString('base64') } })
+        pdfs.push(bytes)
         continue
       }
 
@@ -158,22 +178,72 @@ export async function POST(req: NextRequest) {
           { error: 'Formato não suportado para OCR (use JPG, PNG, WebP, PDF ou foto da câmera)' },
           { status: 400 })
       }
-      content.push({ type: 'image', source: { type: 'base64', media_type: normalized.mediaType, data: normalized.buffer.toString('base64') } })
+      imagens.push({ buffer: normalized.buffer, mediaType: normalized.mediaType })
     }
-    content.push({ type: 'text', text: PROMPT })
 
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content }],
-    })
+    /** Monta o conteúdo da mensagem a partir do estado atual das imagens. */
+    function montarConteudo(): Anthropic.Messages.ContentBlockParam[] {
+      const c: Anthropic.Messages.ContentBlockParam[] = []
+      for (const p of pdfs) {
+        c.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.toString('base64') } })
+      }
+      for (const im of imagens) {
+        c.push({ type: 'image', source: { type: 'base64', media_type: im.mediaType as 'image/jpeg', data: im.buffer.toString('base64') } })
+      }
+      c.push({ type: 'text', text: PROMPT })
+      return c
+    }
 
-    const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
-    const jsonStr = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
-    const parsed = JSON.parse(jsonStr)
+    async function extrair(): Promise<Record<string, unknown>> {
+      const message = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: montarConteudo() }],
+      })
+      const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
+      const jsonStr = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+      return JSON.parse(jsonStr)
+    }
+
+    let parsed = await extrair()
+
+    // ── Foto de lado: gira e lê de novo ─────────────────────────────────────
+    //
+    // Carteirinha de convênio é o caso típico: o app da operadora mostra o
+    // cartão DEITADO, e o print sai com o texto na vertical. Comprovado: o
+    // modelo lia mal e completava o número de carteirinha com dígitos
+    // plausíveis; girando a imagem à mão, acertava tudo.
+    //
+    // Identificar a orientação é bem mais fácil para o modelo do que ler
+    // dígitos de lado, então a primeira chamada já devolve quanto girar. Só
+    // há segunda chamada quando a foto está torta — o caso comum (foto em pé)
+    // continua custando uma chamada só.
+    //
+    // Uma tentativa apenas: se a segunda leitura ainda pedir rotação, é sinal
+    // de que o modelo está inseguro, e girar de novo entraria em laço às
+    // custas da sua cota na Anthropic.
+    const giro = Number(parsed.rotacao)
+    if ([90, 180, 270].includes(giro) && imagens.length > 0) {
+      try {
+        for (const im of imagens) {
+          // `sharp` explícito no package.json e na 0.35.4: a cópia que vinha
+          // junto do Next é a 0.34.5, com CVEs de parser no libvips — e aqui
+          // o insumo é imagem enviada por usuário, exatamente a superfície
+          // que esses CVEs atingem.
+          im.buffer = await sharp(im.buffer).rotate(giro).toBuffer()
+        }
+        console.warn('[ocr] imagem girada', { graus: giro })
+        parsed = await extrair()
+      } catch (e) {
+        // Falhar ao girar não pode derrubar a leitura: fica com o resultado
+        // da primeira passada, que já é melhor que nada.
+        console.error('[ocr] falha ao girar imagem:', e)
+      }
+    }
 
     // Valida o tipo e filtra o metadata para só as chaves daquele tipo.
-    const docType: DocType = DOC_TYPE_KEYS.includes(parsed.doc_type) ? parsed.doc_type : 'outro'
+    const tipoBruto = parsed.doc_type as DocType
+    const docType: DocType = DOC_TYPE_KEYS.includes(tipoBruto) ? tipoBruto : 'outro'
     const allowed = new Set(metadataFields(docType).map(f => f.key))
 
     // ── Ancoragem: todo NÚMERO precisa existir no texto transcrito ──────────
@@ -211,7 +281,10 @@ export async function POST(req: NextRequest) {
       return null
     }
 
-    const rawMeta = (parsed.metadata && typeof parsed.metadata === 'object') ? parsed.metadata : {}
+    const rawMeta: Record<string, unknown> =
+      (parsed.metadata && typeof parsed.metadata === 'object')
+        ? parsed.metadata as Record<string, unknown>
+        : {}
     const metadata: Record<string, unknown> = {}
     for (const k of Object.keys(rawMeta)) {
       if (!allowed.has(k) || rawMeta[k] == null || rawMeta[k] === '') continue
