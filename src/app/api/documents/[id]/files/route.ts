@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS } from '@/lib/billing'
+import { validarArquivo } from '@/lib/uploadTypes'
 
 // Mesmo motivo do /api/documents/upload: o padrão de 10s da Vercel não cobre
 // a subida de um arquivo grande em conexão móvel lenta.
@@ -27,6 +28,16 @@ export async function POST(
   const files = form.getAll('files') as File[]
   if (!files.length) return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 })
 
+  // Mesma validação da rota de criação — este é o segundo caminho de upload,
+  // e um allowlist que cobre só um dos dois não vale nada.
+  const tiposPorArquivo = new Map<File, string>()
+  for (const file of files) {
+    const cabecalho = new Uint8Array(await file.slice(0, 16).arrayBuffer())
+    const v = validarArquivo(file.name, file.size, cabecalho)
+    if (!v.ok) return NextResponse.json({ error: v.motivo }, { status: 415 })
+    tiposPorArquivo.set(file, v.contentType)
+  }
+
   // Verificar cota de storage
   const plan = await getFamilyPlan()
   const limit = PLAN_LIMITS[plan].storageLimitBytes
@@ -36,7 +47,14 @@ export async function POST(
       { status: 402 }
     )
   }
+  // Falha ao medir a cota recusa o upload — 0 significaria "cabe tudo".
   const used = await getFamilyStorageUsedBytes()
+  if (used === null) {
+    return NextResponse.json(
+      { error: 'Não foi possível verificar sua cota de armazenamento. Tente novamente.' },
+      { status: 503 }
+    )
+  }
   const incoming = files.reduce((sum, f) => sum + f.size, 0)
   if (used + incoming > limit) {
     return NextResponse.json(
@@ -52,11 +70,15 @@ export async function POST(
     const storagePath = `${user.id}/${id}/${Date.now()}-${rand}.${ext}`
 
     const bytes = await file.arrayBuffer()
+    const contentType = tiposPorArquivo.get(file) ?? 'application/octet-stream'
     const { error: storageErr } = await supabase.storage
       .from('documents')
-      .upload(storagePath, bytes, { contentType: file.type, upsert: false })
+      .upload(storagePath, bytes, { contentType, upsert: false })
 
-    if (storageErr) return NextResponse.json({ error: storageErr.message }, { status: 500 })
+    if (storageErr) {
+      console.error('[documents/files POST]', storageErr)
+      return NextResponse.json({ error: 'Falha no upload do arquivo.' }, { status: 500 })
+    }
 
     const { data: fileRec } = await supabase
       .from('document_files')
@@ -65,7 +87,7 @@ export async function POST(
         user_id: user.id,
         file_name: file.name,
         file_size: file.size,
-        mime_type: file.type,
+        mime_type: contentType,
         storage_path: storagePath,
       })
       .select()

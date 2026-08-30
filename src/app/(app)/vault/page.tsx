@@ -19,13 +19,16 @@ export default async function VaultPage() {
     getFamilyStorageUsedBytes(),
   ])
 
+  // `storageUsed` vem `null` quando a medição da cota falha. Aqui é só a
+  // barra de uso na tela, então cair para 0 é aceitável — quem PRECISA
+  // recusar nesse caso é a rota de upload, que trata o null como erro.
   return (
     <VaultClient
       children={children ?? []}
       documents={documents ?? []}
       canOcr={PLAN_LIMITS[plan].ocr}
       canSearch={PLAN_LIMITS[plan].documentSearch}
-      storageUsedBytes={storageUsed}
+      storageUsedBytes={storageUsed ?? 0}
       storageLimitBytes={PLAN_LIMITS[plan].storageLimitBytes}
     />
   )

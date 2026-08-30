@@ -125,7 +125,15 @@ export async function getAiUsageThisMonth(userId: string): Promise<number> {
 
 // Soma o total de bytes armazenados no vault da família ativa do usuário logado.
 // Usa o cliente com RLS — a query automaticamente retorna só os arquivos da família.
-export async function getFamilyStorageUsedBytes(): Promise<number> {
+/**
+ * Bytes já usados pela família, ou `null` se a medição falhar.
+ *
+ * ⚠️ O `null` é o ponto. Antes esta função devolvia 0 quando a RPC dava erro —
+ * e zero usado significa "cabe tudo", então uma falha momentânea do banco
+ * virava permissão de upload sem limite. Quem chama PRECISA tratar o `null`
+ * como recusa, não como zero.
+ */
+export async function getFamilyStorageUsedBytes(): Promise<number | null> {
   const supabase = await createClient()
   // Soma no banco (RPC). Antes trazia todas as linhas de document_files e
   // somava aqui — o PostgREST corta a resposta em 1000 linhas por padrão, de
@@ -134,7 +142,7 @@ export async function getFamilyStorageUsedBytes(): Promise<number> {
   const { data, error } = await supabase.rpc('family_storage_used_bytes')
   if (error) {
     console.error('[billing] family_storage_used_bytes falhou:', error)
-    return 0
+    return null
   }
   return Number(data ?? 0)
 }

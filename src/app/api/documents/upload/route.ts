@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS } from '@/lib/billing'
+import { validarArquivo } from '@/lib/uploadTypes'
 
 // O padrão da Vercel é 10s. O tempo de subida do arquivo pelo usuário conta
 // para a duração da função, e um PDF/foto grande em 4G lento passa disso —
@@ -36,6 +37,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Título e categoria são obrigatórios' }, { status: 400 })
   }
 
+  // Tipo, tamanho e assinatura — ANTES de criar o documento, senão uma
+  // rejeição deixaria a linha órfã para o rollback limpar.
+  const tiposPorArquivo = new Map<File, string>()
+  for (const file of files) {
+    const cabecalho = new Uint8Array(await file.slice(0, 16).arrayBuffer())
+    const v = validarArquivo(file.name, file.size, cabecalho)
+    if (!v.ok) return NextResponse.json({ error: v.motivo }, { status: 415 })
+    tiposPorArquivo.set(file, v.contentType)
+  }
+
   // Verificar cota de storage antes de qualquer upload
   if (files.length > 0) {
     const plan = await getFamilyPlan()
@@ -46,7 +57,16 @@ export async function POST(req: NextRequest) {
         { status: 402 }
       )
     }
+    // `getFamilyStorageUsedBytes` devolvia 0 quando a medição falhava, e zero
+    // usado significa "cabe tudo" — uma falha momentânea do banco virava
+    // permissão de upload ilimitado. Agora falha FECHADO.
     const used = await getFamilyStorageUsedBytes()
+    if (used === null) {
+      return NextResponse.json(
+        { error: 'Não foi possível verificar sua cota de armazenamento. Tente novamente.' },
+        { status: 503 }
+      )
+    }
     const incoming = files.reduce((sum, f) => sum + f.size, 0)
     if (used + incoming > limit) {
       return NextResponse.json(
@@ -75,9 +95,13 @@ export async function POST(req: NextRequest) {
     const storagePath = `${user.id}/${doc.id}/${Date.now()}-${rand}.${ext}`
 
     const bytes = await file.arrayBuffer()
+    // `contentType` sai da NOSSA tabela, não de `file.type`. O tipo enviado
+    // pelo cliente foi o que deixou entrar `text/html` no teste O6, e é ele
+    // que o Storage devolve ao servir o arquivo depois.
+    const contentType = tiposPorArquivo.get(file) ?? 'application/octet-stream'
     const { error: storageErr } = await supabase.storage
       .from('documents')
-      .upload(storagePath, bytes, { contentType: file.type, upsert: false })
+      .upload(storagePath, bytes, { contentType, upsert: false })
 
     if (storageErr) {
       // rollback document
@@ -92,7 +116,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         file_name: file.name,
         file_size: file.size,
-        mime_type: file.type,
+        mime_type: contentType,
         storage_path: storagePath,
       })
       .select()

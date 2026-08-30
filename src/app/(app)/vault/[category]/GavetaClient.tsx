@@ -7,7 +7,8 @@ import { toast } from '@/components/ui/Toast'
 import { Child, AppDocument, DocumentCategory } from '@/lib/types'
 import { useAccess } from '@/components/access/AccessContext'
 import { getVaultCategory } from '@/lib/vault'
-import { ocrDocument, OCR_ACCEPT_ATTR } from '@/lib/ocr'
+import { ocrDocument } from '@/lib/ocr'
+import { ACCEPT_ATTR } from '@/lib/uploadTypes'
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS } from '@/lib/docTypes'
 import type { DocType } from '@/lib/docTypes'
 import DocFormFields from '@/components/vault/DocFormFields'
@@ -297,7 +298,7 @@ export default function GavetaClient({ category, children, documents: initialDoc
               </button>
             </div>
 
-            <input ref={fileRef} type="file" multiple accept={OCR_ACCEPT_ATTR}
+            <input ref={fileRef} type="file" multiple accept={ACCEPT_ATTR}
               className="hidden" onChange={e => handleFilesSelected(Array.from(e.target.files ?? []))} />
 
             {/* STEP 1 — Upload */}
