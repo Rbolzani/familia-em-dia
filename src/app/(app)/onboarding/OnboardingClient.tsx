@@ -2,6 +2,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { avatarPath } from '@/lib/avatars'
 import { Plus, Trash2, Camera, ArrowRight, Check, Users, Sparkles, Mic, ImageIcon, Type, X, Loader2, CalendarDays, Bot, Share2, Baby, Handshake } from 'lucide-react'
 
 const supabase = createClient()
@@ -224,13 +225,13 @@ export default function OnboardingClient({ firstName }: { firstName: string }) {
     setChildren(prev => prev.filter(c => c.id !== id))
   }
 
-  async function uploadPhoto(userId: string, childId: string, file: File): Promise<string | null> {
+  /** Devolve o CAMINHO (`<family_id>/<child_id>.<ext>`), não uma URL. */
+  async function uploadPhoto(famId: string, childId: string, file: File): Promise<string | null> {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const path = `${userId}/${childId}_${Date.now()}.${ext}`
+    const path = avatarPath(famId, childId, ext)
     const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
     if (error) return null
-    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-    return publicUrl
+    return path
   }
 
   async function saveChildren() {
@@ -262,15 +263,16 @@ export default function OnboardingClient({ firstName }: { firstName: string }) {
         throw new Error(json.error ?? 'Erro ao salvar filhos.')
       }
 
-      // Upload de fotos para os filhos inseridos
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+      // Upload de fotos para os filhos inseridos. A pasta é a FAMÍLIA, então
+      // o family_id precisa existir — a rota de onboarding acabou de criá-lo.
+      const { data: famId } = await supabase.rpc('auth_family_id')
+      if (famId) {
         for (let i = 0; i < valid.length; i++) {
           const child = valid[i]
           const inserted = json.children?.[i]
           if (child.photoFile && inserted?.id) {
-            const url = await uploadPhoto(user.id, inserted.id, child.photoFile)
-            if (url) await supabase.from('children').update({ avatar_url: url }).eq('id', inserted.id)
+            const path = await uploadPhoto(famId as string, inserted.id, child.photoFile)
+            if (path) await supabase.from('children').update({ avatar_path: path }).eq('id', inserted.id)
           }
         }
       }

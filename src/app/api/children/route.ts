@@ -88,7 +88,7 @@ export async function PATCH(request: Request) {
   const { admin, familyId } = ctx
 
   const body = await request.json()
-  const { id, name, birth_date, school_name, avatar_color, avatar_url } = body
+  const { id, name, birth_date, school_name, avatar_color, avatar_path } = body
 
   // Verificar que o filho pertence à família deste usuário
   const { data: existing } = await admin
@@ -107,7 +107,8 @@ export async function PATCH(request: Request) {
     school_name: school_name?.trim() || null,
     avatar_color,
   }
-  if (avatar_url !== undefined) updates.avatar_url = avatar_url
+  // `undefined` = não mexer na foto; `null` = remover. São coisas diferentes.
+  if (avatar_path !== undefined) updates.avatar_path = avatar_path
 
   const { data, error } = await admin
     .from('children')
@@ -132,7 +133,7 @@ export async function DELETE(request: Request) {
 
   const { data: existing } = await admin
     .from('children')
-    .select('family_id')
+    .select('family_id, avatar_path')
     .eq('id', id)
     .maybeSingle()
 
@@ -142,5 +143,16 @@ export async function DELETE(request: Request) {
 
   const { error } = await admin.from('children').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Apagar a linha sem apagar o arquivo deixava a foto da criança no bucket
+  // sem nada apontando para ela — órfã e invisível. Melhor esforço: a linha
+  // já saiu, não faz sentido devolver erro por causa do arquivo.
+  if (existing.avatar_path) {
+    const { error: stErr } = await admin.storage
+      .from('avatars')
+      .remove([existing.avatar_path as string])
+    if (stErr) console.error('[children DELETE] avatar:', stErr)
+  }
+
   return NextResponse.json({ ok: true })
 }

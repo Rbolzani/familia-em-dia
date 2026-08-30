@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Child } from '@/lib/types'
+import { avatarPath, signChildAvatars } from '@/lib/avatars'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { Plus, Pencil, Trash2, GraduationCap, Cake, Camera, X, AlertCircle, Check, Lock } from 'lucide-react'
@@ -203,7 +204,9 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
 
   async function load() {
     const { data } = await supabase.from('children').select('*').order('sort_order')
-    setChildren(data ?? [])
+    // Reassina no cliente: a query devolve só `avatar_path`, e o <img> precisa
+    // da URL com token. Sem isto a foto some depois de salvar ou excluir.
+    setChildren(await signChildAvatars(supabase, data ?? []))
   }
 
   const atChildLimit = childLimit !== Infinity && children.length >= childLimit
@@ -239,13 +242,22 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
     setPhotoPreview(blobUrl)
   }
 
-  async function uploadPhoto(userId: string, childId: string): Promise<string | null> {
+  /**
+   * Sobe a foto e devolve o CAMINHO — não uma URL.
+   *
+   * O caminho é `<family_id>/<child_id>.<ext>`: a foto pertence à família, não
+   * a quem subiu. Antes era `<user_id>/<child_id>_<timestamp>.<ext>`, o que
+   * fazia a foto sumir quando quem subiu saía da família, e impedia a exclusão
+   * de conta de limpá-la sem destruir dado de quem ficava.
+   *
+   * Sem timestamp no nome: `upsert: true` substitui a foto anterior em vez de
+   * acumular um arquivo órfão por troca de foto.
+   */
+  async function uploadPhoto(famId: string, childId: string): Promise<string | null> {
     if (!photoFile) return null
 
     const ext  = photoFile.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    const path = `${userId}/${childId}_${Date.now()}.${ext}`
-
-    console.log('[uploadPhoto] uploading to path:', path)
+    const path = avatarPath(famId, childId, ext)
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
@@ -253,21 +265,10 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
 
     if (uploadError) {
       console.error('[uploadPhoto] storage error:', uploadError)
-      throw new Error(
-        `Erro no upload da foto: ${uploadError.message}\n\n` +
-        `Execute no Supabase SQL Editor (Storage → Policies → avatars bucket):\n` +
-        `CREATE POLICY "avatars_insert" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);\n` +
-        `CREATE POLICY "avatars_update" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);\n` +
-        `CREATE POLICY "avatars_select" ON storage.objects FOR SELECT TO public USING (bucket_id = 'avatars');`
-      )
+      throw new Error(`Erro no upload da foto: ${uploadError.message}`)
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(path)
-
-    console.log('[uploadPhoto] public URL:', publicUrl)
-    return publicUrl
+    return path
   }
 
   async function handleSave() {
@@ -278,6 +279,8 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
     try {
       const { data: { user }, error: userErr } = await supabase.auth.getUser()
       if (userErr || !user) throw new Error('Sessão expirada. Faça login novamente.')
+      // A pasta da foto é a família — sem ela não há onde gravar.
+      if (photoFile && !familyId) throw new Error('Família não identificada. Recarregue a página.')
 
       const baseFields = {
         name:         form.name.trim(),
@@ -298,30 +301,33 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
 
         // Upload foto e atualizar via API
         if (photoFile) {
-          const url = await uploadPhoto(user.id, json.child.id)
-          if (url) {
+          const path = await uploadPhoto(familyId!, json.child.id)
+          if (path) {
             await fetch('/api/children', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: json.child.id, ...baseFields, avatar_url: url }),
+              body: JSON.stringify({ id: json.child.id, ...baseFields, avatar_path: path }),
             })
           }
         }
 
       } else {
         const child = modal!.child!
-        let avatarUrl: string | null | undefined = undefined
+        let avatarPathNovo: string | null | undefined = undefined
 
         if (photoFile) {
-          avatarUrl = await uploadPhoto(user.id, child.id)
-        } else if (photoPreview === null && child.avatar_url) {
-          avatarUrl = null
+          avatarPathNovo = await uploadPhoto(familyId!, child.id)
+        } else if (photoPreview === null && child.avatar_path) {
+          // Removeu a foto: apaga o arquivo além de limpar a coluna, senão
+          // sobra imagem de criança no bucket sem nada apontando para ela.
+          await supabase.storage.from('avatars').remove([child.avatar_path])
+          avatarPathNovo = null
         }
 
         const res = await fetch('/api/children', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: child.id, ...baseFields, avatar_url: avatarUrl }),
+          body: JSON.stringify({ id: child.id, ...baseFields, avatar_path: avatarPathNovo }),
         })
         const json = await res.json()
         if (!res.ok) throw new Error(`Erro ao salvar filho: ${json.error}`)

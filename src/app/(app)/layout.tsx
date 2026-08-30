@@ -9,6 +9,7 @@ import { TourProvider } from '@/components/tour/TourContext'
 import TrialBanner from '@/components/billing/TrialBanner'
 import GraceBanner from '@/components/billing/GraceBanner'
 import { PLAN_LABELS, getEffectiveSubscription } from '@/lib/billing'
+import { signChildAvatars } from '@/lib/avatars'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -106,10 +107,14 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
   const hasChildren = (sidebarChildren ?? []).length > 0
 
+  // A sidebar mostra o avatar em toda página, então a assinatura acontece aqui
+  // uma vez por render do layout — um round-trip para a lista inteira.
+  const sidebarChildrenComFoto = await signChildAvatars(supabase, sidebarChildren ?? [])
+
   return (
     <TourProvider hasChildren={hasChildren} userId={user?.id ?? ''}>
       <AccessProvider value={access}>
-        <AppLayout sidebarChildren={sidebarChildren ?? []} activeFamilyId={activeFamilyId}>
+        <AppLayout sidebarChildren={sidebarChildrenComFoto} activeFamilyId={activeFamilyId}>
           <RealtimeSync />
           <PartnerBanner />
           {bannerInfo?.type === 'trial' && (

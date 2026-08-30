@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import ChildrenClient from './ChildrenClient'
 import type { FamilyOption } from '@/components/layout/FamilySwitcher'
 import { getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
+import { signChildAvatars } from '@/lib/avatars'
 
 export default async function ChildrenPage() {
   const supabase = await createClient()
@@ -40,9 +41,12 @@ export default async function ChildrenPage() {
 
   const childLimit = PLAN_LIMITS[plan].children
 
+  // O banco guarda o caminho; a URL assinada nasce aqui, a cada render.
+  const childrenComFoto = await signChildAvatars(supabase, children ?? [])
+
   return (
     <ChildrenClient
-      initialChildren={children ?? []}
+      initialChildren={childrenComFoto}
       families={families}
       familyId={familyId}
       familyCurrentName={familyCurrentName}

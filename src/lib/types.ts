@@ -8,7 +8,13 @@ export interface Child {
   birth_date: string | null
   school_name: string | null
   avatar_color: string
-  avatar_url: string | null   // photo uploaded to Supabase Storage
+  /** Caminho no bucket privado `avatars`: `<family_id>/<child_id>.<ext>`. */
+  avatar_path: string | null
+  /**
+   * URL assinada, preenchida no SERVIDOR por `signChildAvatars()` a cada
+   * render. Não existe no banco e expira em 1h — nunca persista este valor.
+   */
+  avatar_url?: string | null
   sort_order?: number
   created_at: string
 }
