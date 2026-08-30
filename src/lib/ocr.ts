@@ -47,14 +47,32 @@ export function isOcrable(file: File): boolean {
 
 // Chama /api/documents/ocr com até 2 arquivos (frente+verso). Retorna null em
 // qualquer falha (auto-preenchimento é conveniência: nunca quebra o upload).
-export async function ocrDocument(files: File | File[]): Promise<OcrResult | null> {
+/**
+ * `onErro` existe porque esta função engolia TODA falha e devolvia null — o
+ * formulário abria em branco e a leitura parecia nunca ter acontecido. Foi o
+ * que escondeu, por semanas, o fato de o OCR não funcionar no celular.
+ * Quem chama passa o toast; o motivo vem do servidor quando existir.
+ */
+export async function ocrDocument(
+  files: File | File[],
+  onErro?: (motivo: string) => void,
+): Promise<OcrResult | null> {
   try {
     const list = (Array.isArray(files) ? files : [files]).filter(isOcrable).slice(0, 2)
+    // Nada legível não é falha: um .docx no cofre não passa pelo OCR e ponto.
     if (list.length === 0) return null
     const form = new FormData()
     list.forEach(f => form.append('files', f))
     const res = await fetch('/api/documents/ocr', { method: 'POST', body: form })
-    if (!res.ok) return null
+    if (!res.ok) {
+      // 504 = a função estourou o tempo (rede lenta subindo arquivo grande).
+      const motivo = res.status === 504 || res.status === 408
+        ? 'A leitura demorou demais. Tente com uma conexão melhor ou um arquivo menor.'
+        : await res.json().then(j => j?.error).catch(() => null)
+          ?? `Falha na leitura (erro ${res.status}).`
+      onErro?.(motivo)
+      return null
+    }
     const json = await res.json()
     if (typeof json?.ocr_text !== 'string') return null
     return {

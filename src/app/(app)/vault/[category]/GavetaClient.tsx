@@ -7,7 +7,7 @@ import { toast } from '@/components/ui/Toast'
 import { Child, AppDocument, DocumentCategory } from '@/lib/types'
 import { useAccess } from '@/components/access/AccessContext'
 import { getVaultCategory } from '@/lib/vault'
-import { ocrDocument, isOcrable } from '@/lib/ocr'
+import { ocrDocument } from '@/lib/ocr'
 import { ACCEPT_ATTR } from '@/lib/uploadTypes'
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS } from '@/lib/docTypes'
 import type { DocType } from '@/lib/docTypes'
@@ -82,15 +82,9 @@ export default function GavetaClient({ category, children, documents: initialDoc
     setFiles(selected)
     if (!canOcr) { setFormStep('form'); return }
     setOcrLoading(true); setOcrApplied(false)
-    const r = await ocrDocument(selected)
+    const r = await ocrDocument(selected, m => toast(m, 'error'))
     setOcrLoading(false)
-    if (!r) {
-      // Ver comentário equivalente em VaultClient: falha muda escondia o erro.
-      if (selected.some(isOcrable)) {
-        toast('Não consegui ler este arquivo. Preencha os campos manualmente.', 'error')
-      }
-      setFormStep('form'); return
-    }
+    if (!r) { setFormStep('form'); return }
     const nt = r.doc_type ?? 'outro'
     setOcrText(r.ocr_text || null)
     setDocType(nt)

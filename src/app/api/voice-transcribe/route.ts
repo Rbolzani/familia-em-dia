@@ -3,6 +3,10 @@ import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { getFamilyPlan } from '@/lib/billing'
 
+// Mesma razão do OCR: o áudio sobe do celular e o tempo de subida conta para
+// a duração da função. Um áudio de um minuto em 4G passa dos 10s padrão.
+export const maxDuration = 60
+
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024
 const ALLOWED_AUDIO_TYPES = [
   'audio/webm', 'audio/webm;codecs=opus',

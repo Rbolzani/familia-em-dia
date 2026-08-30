@@ -5,6 +5,17 @@ import { getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
 import { DOC_TYPES, DOC_TYPE_KEYS, getDocType, metadataFields, type DocType } from '@/lib/docTypes'
 import { normalizeImage } from '@/lib/image'
 
+// O padrão da Vercel é 10s, e O TEMPO DE SUBIDA DO ARQUIVO CONTA para a
+// duração da função. No desktop, subir 2 MB por Wi-Fi leva menos de um
+// segundo e sobram 9 para o Haiku responder — funcionava. No celular em
+// 4G/5G a subida sozinha consome vários segundos e o total estoura: a função
+// morre, o cliente recebe erro e o formulário abre em branco.
+//
+// Era exatamente por isso que o OCR "funcionava no desktop e não no celular".
+// O mesmo diagnóstico já estava escrito em /api/documents/upload, aplicado a
+// três rotas pesadas — e esta ficou de fora.
+export const maxDuration = 60
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 const MAX_FILE_BYTES = 12 * 1024 * 1024

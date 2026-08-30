@@ -8,7 +8,7 @@ import { useAccess } from '@/components/access/AccessContext'
 import { VAULT_CATEGORIES, VAULT_CATEGORY_KEYS, getVaultCategory, expiryStatus, EXPIRY_META, expiryLabel } from '@/lib/vault'
 import type { DocumentCategory } from '@/lib/types'
 import { toast } from '@/components/ui/Toast'
-import { ocrDocument, isOcrable } from '@/lib/ocr'
+import { ocrDocument } from '@/lib/ocr'
 import { ACCEPT_ATTR } from '@/lib/uploadTypes'
 import { getDocType, seedDocValues, splitDocValues, DOC_TYPE_KEYS } from '@/lib/docTypes'
 import type { DocType } from '@/lib/docTypes'
@@ -97,17 +97,11 @@ export default function VaultClient({ children, documents: initialDocuments, can
     setUFiles(selected)
     if (!canOcr) { setFormStep('form'); return }
     setOcrLoading(true); setOcrApplied(false)
-    const r = await ocrDocument(selected)
+    // O motivo vem do servidor: sem ele a falha era muda e o formulário
+    // abria em branco, como se a leitura não existisse.
+    const r = await ocrDocument(selected, m => toast(m, 'error'))
     setOcrLoading(false)
-    if (!r) {
-      // A falha era muda: o formulário abria em branco e a leitura parecia
-      // simplesmente não ter acontecido. Só avisa quando havia algo legível —
-      // um .docx não passa pelo OCR por definição e não é falha.
-      if (selected.some(isOcrable)) {
-        toast('Não consegui ler este arquivo. Preencha os campos manualmente.', 'error')
-      }
-      setFormStep('form'); return
-    }
+    if (!r) { setFormStep('form'); return }
     const nt = r.doc_type ?? 'outro'
     setUOcrText(r.ocr_text || null)
     setUDocType(nt)
