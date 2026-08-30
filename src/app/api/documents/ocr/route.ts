@@ -126,7 +126,10 @@ export async function POST(req: NextRequest) {
     let files = form.getAll('files').filter(f => f instanceof File) as File[]
     const single = form.get('file')
     if (files.length === 0 && single instanceof File) files = [single]
-    files = files.slice(0, 2)
+    // `orientacoes` = o CLIENTE já mandou o mesmo documento girado. Nesse caso
+    // o limite de 2 (frente+verso) não vale: são 3 versões da mesma imagem.
+    const nOrientacoes = Number(form.get('orientacoes')) || 1
+    files = files.slice(0, nOrientacoes > 1 ? nOrientacoes : 2)
     if (files.length === 0) return NextResponse.json({ error: 'Envie um arquivo' }, { status: 400 })
 
     etapa = 'preparar-arquivos'
@@ -178,50 +181,16 @@ export async function POST(req: NextRequest) {
       imagens.push({ buffer: normalized.buffer, mediaType: normalized.mediaType })
     }
 
-    // ── Documento de lado: manda TODAS as orientações de uma vez ────────────
-    //
-    // Carteirinha de convênio é o caso típico: o app da operadora mostra o
-    // cartão DEITADO e o print sai com o texto na vertical. Nessa condição o
-    // modelo lê mal e COMPLETA o número com dígitos plausíveis.
-    //
-    // A versão anterior perguntava ao modelo quanto girar e girava numa
-    // segunda passada. Não funcionou: num cenário sintético ele respondia 90
-    // corretamente, mas no print real respondia 0 e a rotação nunca ocorria —
-    // e não há como prever quando o julgamento dele falha.
-    //
-    // Aqui o julgamento sai do caminho: mandamos as três orientações e ele lê
-    // pela que estiver legível. Uma chamada só, sem decisão intermediária que
-    // possa errar. Verificado contra a API: escolheu a orientação certa e leu
-    // número, validade e operadora corretamente, por ~4.700 tokens de entrada.
-    //
-    // Só para UMA imagem: com frente e verso seriam seis imagens por chamada,
-    // e quem fotografa os dois lados costuma segurar o aparelho direito.
+    // As orientações chegam PRONTAS do navegador (ver lib/imageClient.ts). O
+    // servidor não gira nada: a versão com `sharp` quebrou duas vezes em
+    // produção — primeiro derrubando a rota no carregamento do módulo, depois
+    // falhando dentro do try e caindo em silêncio para uma orientação só, o
+    // que da tela é indistinguível de não haver rotação nenhuma.
     etapa = 'orientacoes'
-    const orientacoes: { graus: number; buffer: Buffer; mediaType: string }[] = []
-    if (imagens.length === 1 && pdfs.length === 0) {
-      try {
-        // Import DINÂMICO: no topo do arquivo, uma falha ao carregar o binário
-        // nativo derrubava a rota inteira antes de qualquer linha rodar — 500
-        // imediato, inclusive para foto em pé, que nem precisa de sharp.
-        // A versão é a 0.35.4, explícita no package.json; a que vem junto do
-        // Next é a 0.34.5, com CVEs de parser no libvips, e o insumo aqui é
-        // imagem enviada por usuário.
-        const sharp = (await import('sharp')).default
-        const base = imagens[0]
-        orientacoes.push({ graus: 0, ...base })
-        for (const g of [90, 270]) {
-          orientacoes.push({ graus: g, mediaType: base.mediaType,
-            buffer: await sharp(base.buffer).rotate(g).toBuffer() })
-        }
-      } catch (e) {
-        // Sem rotação, segue com a original: pior leitura, nunca falha total.
-        console.error('[ocr] falha ao preparar orientacoes:', e)
-        orientacoes.length = 0
-        orientacoes.push({ graus: 0, ...imagens[0] })
-      }
-    } else {
-      for (const im of imagens) orientacoes.push({ graus: 0, ...im })
-    }
+    const multiOrientacao = nOrientacoes > 1 && imagens.length === nOrientacoes
+    const orientacoes = imagens.map((im, i) => ({
+      graus: multiOrientacao ? [0, 90, 270][i] ?? 0 : 0, ...im,
+    }))
 
     /** Monta o conteúdo da mensagem a partir do estado atual das imagens. */
     function montarConteudo(): Anthropic.Messages.ContentBlockParam[] {
@@ -232,7 +201,7 @@ export async function POST(req: NextRequest) {
       for (const o of orientacoes) {
         c.push({ type: 'image', source: { type: 'base64', media_type: o.mediaType as 'image/jpeg', data: o.buffer.toString('base64') } })
       }
-      if (orientacoes.length > 1) {
+      if (multiOrientacao) {
         c.push({ type: 'text', text:
           `As ${orientacoes.length} imagens acima sao O MESMO DOCUMENTO em orientacoes diferentes ` +
           `(${orientacoes.map(o => o.graus + ' graus').join(', ')}). Leia pela que estiver LEGIVEL e ` +
@@ -338,7 +307,11 @@ export async function POST(req: NextRequest) {
       // Quanto a imagem foi girada. Vai para a tela: explica ao usuário o que
       // aconteceu e, enquanto o recurso estabiliza, diz se a rotação sequer
       // ocorreu — dado que faltava para diagnosticar sem acesso aos logs.
-      rotacao_aplicada: giroAplicado
+      rotacao_aplicada: giroAplicado,
+      // Quantas versões da imagem chegaram. 1 = o navegador não conseguiu
+      // girar (HEIC, canvas indisponível) — distingue isso de "girou e o
+      // modelo escolheu a original", que pedem correções diferentes.
+      orientacoes_recebidas: orientacoes.length
     })
   } catch (e) {
     console.error('[ocr] falha na etapa', etapa, e)

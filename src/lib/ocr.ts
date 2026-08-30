@@ -5,6 +5,7 @@
 
 import type { DocType } from './docTypes'
 import { sniffFile, podeSerLido, materializarArquivos } from './fileSniff'
+import { gerarOrientacoes, ORIENTACOES } from './imageClient'
 
 export interface OcrResult {
   ocr_text: string
@@ -18,8 +19,10 @@ export interface OcrResult {
   expires_at: string | null   // YYYY-MM-DD
   // Campos específicos do tipo (chave→valor conforme docTypes)
   metadata: Record<string, unknown>
-  /** Graus que o servidor girou a imagem antes de ler (0 = não girou). */
+  /** Graus da orientação que o modelo usou para ler (0 = a original). */
   rotacao_aplicada: number
+  /** Quantas versões da imagem foram enviadas (1 = sem rotação disponível). */
+  orientacoes_recebidas: number
 }
 
 // Tipos aceitos para OCR (imagens + PDF).
@@ -108,8 +111,30 @@ export async function ocrDocument(
       return null
     }
 
+    // ── Documento deitado: manda as 3 orientações ──────────────────────────
+    //
+    // Carteirinha de convênio é o caso típico — o app da operadora mostra o
+    // cartão deitado e o print sai com o texto na vertical. Nessa condição o
+    // modelo lê mal e completa o número com dígitos plausíveis.
+    //
+    // A rotação acontece AQUI, no navegador, e não no servidor: a versão com
+    // `sharp` quebrou duas vezes em produção (binário nativo empacotado pelo
+    // bundler, depois falha silenciosa dentro do try) — e falha silenciosa é
+    // indistinguível, da tela, de não haver rotação.
+    //
+    // Só para UM arquivo: com frente e verso seriam seis imagens por chamada,
+    // e quem fotografa os dois lados costuma segurar o aparelho direito.
     const form = new FormData()
-    materializados.forEach(f => form.append('files', f))
+    let orientacoesEnviadas = 1
+    if (materializados.length === 1) {
+      const giradas = await gerarOrientacoes(materializados[0])
+      if (giradas) {
+        giradas.forEach(f => form.append('files', f))
+        form.append('orientacoes', String(ORIENTACOES.length))
+        orientacoesEnviadas = ORIENTACOES.length
+      }
+    }
+    if (orientacoesEnviadas === 1) materializados.forEach(f => form.append('files', f))
 
     // Tamanho e tempo entram na mensagem de erro porque "Failed to fetch" não
     // diz nada sozinho: falhar em 0,3s é rejeição imediata (corpo grande
@@ -148,6 +173,7 @@ export async function ocrDocument(
       expires_at: json.expires_at ?? null,
       metadata: (json.metadata && typeof json.metadata === 'object') ? json.metadata : {},
       rotacao_aplicada: Number(json.rotacao_aplicada) || 0,
+      orientacoes_recebidas: Number(json.orientacoes_recebidas) || 1,
     }
   } catch (e) {
     // A rede falhando (conexão caindo, requisição abortada ao trocar de app

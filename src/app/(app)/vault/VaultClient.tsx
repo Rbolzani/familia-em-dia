@@ -74,6 +74,7 @@ export default function VaultClient({ children, documents: initialDocuments, can
   // Quanto o servidor girou a imagem. Mostrado no aviso: explica o que
   // aconteceu e revela se a rotação ocorreu, sem precisar de log.
   const [ocrGiro, setOcrGiro] = useState(0)
+  const [ocrOrients, setOcrOrients] = useState(1)
 
   function resetUploadForm() {
     setUTitle(''); setUCategory(VAULT_CATEGORIES[0].key); setUChildId(''); setUDescription('')
@@ -116,7 +117,7 @@ export default function VaultClient({ children, documents: initialDocuments, can
     }))
     setUTitle(prev => prev.trim() ? prev : (r.title ?? ''))
     setUDescription(prev => prev.trim() ? prev : (r.description ?? ''))
-    setOcrGiro(r.rotacao_aplicada)
+    setOcrGiro(r.rotacao_aplicada); setOcrOrients(r.orientacoes_recebidas)
     setOcrApplied(true)
     setFormStep('form')
   }
@@ -627,7 +628,7 @@ export default function VaultClient({ children, documents: initialDocuments, can
                   <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: 'rgba(61,102,65,0.10)' }}>
                     <Sparkles size={13} color="#3D6641" />
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#2C4A2E' }}>
-                      IA detectou: {getDocType(uDocType).label}{ocrGiro ? ` · imagem girada ${ocrGiro}°` : ''} — confira os campos antes de salvar
+                      IA detectou: {getDocType(uDocType).label}{ocrGiro ? ` · imagem girada ${ocrGiro}°` : (ocrOrients === 1 ? ' · sem rotação' : ' · sem girar')} — confira os campos antes de salvar
                     </span>
                   </div>
                 )}
