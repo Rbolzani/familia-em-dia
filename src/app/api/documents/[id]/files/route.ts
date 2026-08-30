@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS, formatarBytes } from '@/lib/billing'
+import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS, mensagemDeCota } from '@/lib/billing'
 import { validarArquivo } from '@/lib/uploadTypes'
 
 // Mesmo motivo do /api/documents/upload: o padrão de 10s da Vercel não cobre
@@ -51,14 +51,7 @@ export async function POST(
   }
   const incoming = files.reduce((sum, f) => sum + f.size, 0)
   if (used + incoming > limit) {
-    // Ver comentário equivalente em /api/documents/upload.
-    const excedente = used > limit
-    return NextResponse.json(
-      { error: excedente
-          ? `Você está usando ${formatarBytes(used)}, acima dos ${formatarBytes(limit)} do seu plano. Seus documentos continuam guardados e acessíveis, mas para enviar novos é preciso liberar espaço ou fazer upgrade.`
-          : `Espaço insuficiente: você usa ${formatarBytes(used)} de ${formatarBytes(limit)} e este envio tem ${formatarBytes(incoming)}.` },
-      { status: 402 }
-    )
+    return NextResponse.json({ error: mensagemDeCota(limit, used, incoming) }, { status: 402 })
   }
 
   const uploaded = []

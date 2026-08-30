@@ -306,20 +306,48 @@ export default function VaultClient({ children, documents: initialDocuments, can
           e isso precisa estar dito na tela, senão a pessoa só descobre ao
           tentar salvar, e ainda acha que vai perder o que guardou. */}
       {(() => {
-        const excedente = storageUsedBytes > storageLimitBytes
-        const pct = storageLimitBytes > 0 ? (storageUsedBytes / storageLimitBytes) * 100 : 0
+        // Três estados, e cada um pede uma mensagem diferente:
+        //   pago                       → barra normal, verde/âmbar/vermelha
+        //   gratuito COM arquivos      → barra cheia vermelha ("estourado")
+        //   gratuito SEM arquivos      → só o aviso, sem barra (nada a medir)
+        //
+        // O caso do meio é o de quem usou o trial, guardou documentos e voltou
+        // para o gratuito. Antes ele via a mesma caixa de "seu plano não inclui
+        // armazenamento" de quem nunca subiu nada — e podia entender que ia
+        // perder o que tinha. O texto agora afirma o contrário, porque é o que
+        // o código faz: nada apaga arquivo por troca de plano.
+        //
+        // Com limite zero, liberar espaço não muda nada. A saída é assinar, e é
+        // isso que a mensagem diz.
+        const semCota = storageLimitBytes === 0
+        const estourado = storageUsedBytes > storageLimitBytes
+        const pct = storageLimitBytes > 0 ? (storageUsedBytes / storageLimitBytes) * 100 : 100
+
+        if (semCota && storageUsedBytes === 0) {
+          return (
+            <div className="animate-fade-up" style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 12, padding: '10px 14px' }}>
+              <p style={{ fontSize: 12, color: '#991b1b', lineHeight: 1.5 }}>
+                O envio de arquivos ao cofre faz parte dos planos Família e Plus.{' '}
+                <a href="/planos" style={{ fontWeight: 700, textDecoration: 'underline' }}>Ver planos</a>
+              </p>
+            </div>
+          )
+        }
+
         return (
           <div className="animate-fade-up" style={{
-            background: excedente ? 'rgba(220,38,38,0.06)' : 'rgba(61,102,65,0.06)',
-            border: excedente ? '1px solid rgba(220,38,38,0.15)' : undefined,
+            background: estourado ? 'rgba(220,38,38,0.06)' : 'rgba(61,102,65,0.06)',
+            border: estourado ? '1px solid rgba(220,38,38,0.15)' : undefined,
             borderRadius: 12, padding: '10px 14px',
           }}>
             <div className="flex items-center justify-between mb-1.5">
-              <span style={{ fontSize: 12, fontWeight: 600, color: excedente ? '#991b1b' : '#3D6641' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: estourado ? '#991b1b' : '#3D6641' }}>
                 Armazenamento
               </span>
               <span style={{ fontSize: 12, color: 'rgba(26,43,28,0.55)' }}>
-                {formatBytes(storageUsedBytes)} de {formatBytes(storageLimitBytes)}
+                {semCota
+                  ? `${formatBytes(storageUsedBytes)} guardados`
+                  : `${formatBytes(storageUsedBytes)} de ${formatBytes(storageLimitBytes)}`}
               </span>
             </div>
             <div style={{ height: 5, background: 'rgba(61,102,65,0.15)', borderRadius: 99, overflow: 'hidden' }}>
@@ -333,11 +361,13 @@ export default function VaultClient({ children, documents: initialDocuments, can
                     : 'linear-gradient(90deg,#3D6641,#5A8C5E)',
               }} />
             </div>
-            {excedente && (
+            {estourado && (
               <p className="mt-2" style={{ fontSize: 12, color: '#991b1b', lineHeight: 1.5 }}>
-                Seus documentos continuam guardados e acessíveis. Para enviar novos,
-                libere espaço ou{' '}
-                <a href="/planos" style={{ fontWeight: 700, textDecoration: 'underline' }}>faça upgrade</a>.
+                <strong>Seus documentos continuam guardados e acessíveis.</strong>{' '}
+                {semCota
+                  ? <>Para enviar novos arquivos, assine o plano Família ou Plus.</>
+                  : <>Para enviar novos, libere espaço ou faça upgrade.</>}{' '}
+                <a href="/planos" style={{ fontWeight: 700, textDecoration: 'underline' }}>Ver planos</a>
               </p>
             )}
           </div>

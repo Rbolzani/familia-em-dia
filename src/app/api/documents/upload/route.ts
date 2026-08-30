@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS, formatarBytes } from '@/lib/billing'
+import { getFamilyPlan, getFamilyStorageUsedBytes, PLAN_LIMITS, mensagemDeCota } from '@/lib/billing'
 import { validarArquivo } from '@/lib/uploadTypes'
 
 // O padrão da Vercel é 10s. O tempo de subida do arquivo pelo usuário conta
@@ -63,17 +63,7 @@ export async function POST(req: NextRequest) {
     }
     const incoming = files.reduce((sum, f) => sum + f.size, 0)
     if (used + incoming > limit) {
-      // Quem terminou o trial acima do limite do gratuito cai aqui: mantém
-      // tudo o que já subiu (nada apaga arquivo por troca de plano) e só para
-      // de subir coisa nova. A mensagem precisa dizer isso, senão a pessoa
-      // acha que vai perder o que guardou.
-      const excedente = used > limit
-      return NextResponse.json(
-        { error: excedente
-            ? `Você está usando ${formatarBytes(used)}, acima dos ${formatarBytes(limit)} do seu plano. Seus documentos continuam guardados e acessíveis, mas para enviar novos é preciso liberar espaço ou fazer upgrade.`
-            : `Espaço insuficiente: você usa ${formatarBytes(used)} de ${formatarBytes(limit)} e este envio tem ${formatarBytes(incoming)}.` },
-        { status: 402 }
-      )
+      return NextResponse.json({ error: mensagemDeCota(limit, used, incoming) }, { status: 402 })
     }
   }
 

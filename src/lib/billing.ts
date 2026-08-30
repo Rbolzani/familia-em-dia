@@ -17,15 +17,16 @@ export const PLAN_LIMITS: Record<PlanId, {
   documentSearch: boolean  // busca full-text dentro dos documentos
   storageLimitBytes: number // 0 = sem upload de arquivos no vault
 }> = {
-  // O gratuito TEM cofre (50 MB ≈ 30 fotos de documento). Era 0, o que
-  // bloqueava qualquer upload — e guardar documento é justamente o hábito que
-  // prende no produto: bloquear quem ainda está decidindo é tiro no pé. O
-  // upgrade passa a acontecer quando o espaço acaba, gatilho melhor que uma
-  // recusa seca na primeira tentativa.
+  // Gratuito NÃO envia arquivo novo ao cofre — o envio é do plano pago.
   //
-  // Ler e baixar NUNCA dependeram de plano (signed-url não checa) — quem usou
-  // o trial não perde nada ao voltar para cá; só para de subir arquivo novo.
-  free:    { children: 2,        aiPerMonth: 5,        partners: 0,        ocr: false, documentSearch: false, storageLimitBytes: 50 * 1024 * 1024   },
+  // ⚠️ Zero aqui bloqueia o ENVIO, nunca o acesso. Ler e baixar não dependem
+  // de plano em lugar nenhum (signed-url e a tela de detalhe não checam), e
+  // nada apaga arquivo por troca de plano. Quem subiu documentos durante o
+  // trial e voltou para o gratuito continua com tudo — só para de subir.
+  //
+  // Como o limite é zero, "liberar espaço" NÃO resolve para este plano: a
+  // mensagem precisa apontar para a assinatura, não para apagar arquivos.
+  free:    { children: 2,        aiPerMonth: 5,        partners: 0,        ocr: false, documentSearch: false, storageLimitBytes: 0                  },
   familia: { children: 2,        aiPerMonth: Infinity, partners: 1,        ocr: true,  documentSearch: true,  storageLimitBytes: 500 * 1024 * 1024  },
   plus:    { children: Infinity, aiPerMonth: Infinity, partners: Infinity, ocr: true,  documentSearch: true,  storageLimitBytes: 5 * GB             },
 }
@@ -43,6 +44,29 @@ export function formatarBytes(bytes: number): string {
   if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`
   if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`
   return `${bytes} B`
+}
+
+/**
+ * Texto do 402 de cota. Vive aqui porque as DUAS rotas de upload precisam
+ * dizer a mesma coisa — e antes cada uma tinha sua própria versão.
+ *
+ * Os três casos são diferentes de verdade, e a diferença importa:
+ *
+ *  · limite ZERO e nada guardado → nunca teve cofre; convite direto ao plano.
+ *  · limite ZERO com arquivos    → usou o trial e voltou ao gratuito. Precisa
+ *    ouvir, antes de qualquer outra coisa, que NÃO vai perder o que guardou.
+ *    E "libere espaço" seria mentira: com limite zero, apagar não libera nada.
+ *  · limite > 0 estourado        → aí sim liberar espaço resolve.
+ */
+export function mensagemDeCota(limit: number, used: number, incoming: number): string {
+  if (limit === 0) {
+    return used > 0
+      ? `Seus ${formatarBytes(used)} de documentos continuam guardados e acessíveis. Para enviar novos arquivos, assine o plano Família ou Plus.`
+      : 'O envio de arquivos ao cofre faz parte dos planos Família e Plus.'
+  }
+  return used > limit
+    ? `Você está usando ${formatarBytes(used)}, acima dos ${formatarBytes(limit)} do seu plano. Seus documentos continuam guardados e acessíveis, mas para enviar novos é preciso liberar espaço ou fazer upgrade.`
+    : `Espaço insuficiente: você usa ${formatarBytes(used)} de ${formatarBytes(limit)} e este envio tem ${formatarBytes(incoming)}.`
 }
 
 export const PLAN_LABELS: Record<PlanId, string> = {
