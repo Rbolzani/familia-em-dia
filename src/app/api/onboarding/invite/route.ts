@@ -27,7 +27,10 @@ export async function POST() {
     status: 'pending',
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[onboarding/invite]', error)
+    return NextResponse.json({ error: 'Não foi possível gerar o convite.' }, { status: 500 })
+  }
 
   return NextResponse.json({ token })
 }

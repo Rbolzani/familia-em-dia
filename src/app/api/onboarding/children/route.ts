@@ -15,9 +15,43 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json()
-  const children: ChildInput[] = body.children
-  if (!children?.length) return NextResponse.json({ error: 'No children provided' }, { status: 400 })
+  // `request.json()` estoura com corpo inválido, e sem try isso vira 500 de
+  // corpo vazio — mesmo defeito medido em /api/children no teste O5.
+  let body: { children?: unknown }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Requisição inválida.' }, { status: 400 })
+  }
+
+  const bruto = body?.children
+  if (!Array.isArray(bruto) || bruto.length === 0) {
+    return NextResponse.json({ error: 'Nenhum filho informado.' }, { status: 400 })
+  }
+  // Teto de itens: o onboarding cria em laço, uma consulta por filho. Sem
+  // limite, um corpo com milhares de entradas vira milhares de INSERTs.
+  if (bruto.length > 20) {
+    return NextResponse.json({ error: 'Máximo de 20 filhos por vez.' }, { status: 400 })
+  }
+
+  // Mesmos tetos de /api/children. Sem eles, um nome de 2 MB era gravado —
+  // comprovado em produção no teste O5.
+  const children: ChildInput[] = []
+  for (const c of bruto as Record<string, unknown>[]) {
+    const nome = typeof c?.name === 'string' ? c.name.trim() : ''
+    if (!nome || nome.length > 80) {
+      return NextResponse.json({ error: 'Nome inválido ou muito longo.' }, { status: 400 })
+    }
+    const escola = typeof c?.school_name === 'string' ? c.school_name.trim() : ''
+    if (escola.length > 120) {
+      return NextResponse.json({ error: 'Nome da escola muito longo.' }, { status: 400 })
+    }
+    const nasc = typeof c?.birth_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.birth_date)
+      ? c.birth_date : null
+    const cor = typeof c?.avatar_color === 'string' && /^#[0-9a-fA-F]{6}$/.test(c.avatar_color)
+      ? c.avatar_color : '#00C48C'
+    children.push({ name: nome, birth_date: nasc, school_name: escola || null, avatar_color: cor })
+  }
 
   // Admin client bypassa RLS
   const admin = createAdminClient()
@@ -37,7 +71,8 @@ export async function POST(request: Request) {
       .select('id')
       .single()
     if (famErr || !newFamily) {
-      return NextResponse.json({ error: `Família: ${famErr?.message}` }, { status: 500 })
+      console.error('[onboarding/children] familia', famErr)
+      return NextResponse.json({ error: 'Não foi possível criar a família.' }, { status: 500 })
     }
     await admin.from('family_members').insert({
       family_id: newFamily.id,
@@ -83,7 +118,9 @@ export async function POST(request: Request) {
       .select('id')
       .single()
     if (error || !data) {
-      return NextResponse.json({ error: `Filho ${child.name}: ${error?.message}` }, { status: 500 })
+      console.error('[onboarding/children] insert', error)
+      return NextResponse.json(
+        { error: `Não foi possível cadastrar "${child.name}".` }, { status: 500 })
     }
     inserted.push({ id: data.id, index: i })
   }

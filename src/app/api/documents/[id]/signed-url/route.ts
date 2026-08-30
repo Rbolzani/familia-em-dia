@@ -27,6 +27,9 @@ export async function GET(
     .from('documents')
     .createSignedUrl(file.storage_path, 3600)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[signed-url]', error)
+    return NextResponse.json({ error: 'Não foi possível gerar o link do arquivo.' }, { status: 500 })
+  }
   return NextResponse.json({ url: data.signedUrl })
 }

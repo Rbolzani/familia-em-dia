@@ -96,7 +96,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Este CPF já está cadastrado em outra conta.' }, { status: 409 })
     }
     console.error('[profile] erro ao salvar', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    // A mensagem do PostgREST descreve o schema; fica no log, não na resposta.
+    return NextResponse.json({ error: 'Não foi possível salvar seus dados.' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
