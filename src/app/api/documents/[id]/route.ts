@@ -38,14 +38,27 @@ export async function PATCH(
   if ('doc_type' in body) update.doc_type = body.doc_type || null
   if (body.metadata && typeof body.metadata === 'object') update.metadata = body.metadata
 
+  // `maybeSingle` em vez de `single`: quando a RLS esconde a linha, o UPDATE
+  // atinge zero linhas. Com `single` isso virava erro do PostgREST, devolvido
+  // como 500 com a mensagem interna dele repassada ao cliente — status errado
+  // (não é falha do servidor) e vazamento de detalhe de implementação.
+  // Comprovado no teste de IDOR: editar documento de outra família dava 500.
   const { data, error } = await supabase
     .from('documents')
     .update(update)
     .eq('id', id)
     .select('*, child:children(id,name,avatar_color)')
-    .single()
+    .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[documents PATCH]', error)
+    return NextResponse.json({ error: 'Não foi possível salvar o documento.' }, { status: 500 })
+  }
+  // Sem linha = não existe OU não é da sua família. A resposta é a mesma de
+  // propósito: distinguir os dois casos confirmaria a existência do documento
+  // alheio a quem não pode vê-lo.
+  if (!data) return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 })
+
   return NextResponse.json({ document: data })
 }
 
@@ -68,12 +81,25 @@ export async function DELETE(
     await supabase.storage.from('documents').remove(files.map(f => f.storage_path))
   }
 
-  // RLS permite delete apenas a owner/full_editor da mesma família
-  const { error } = await supabase
+  // RLS permite delete apenas a owner/full_editor da mesma família.
+  //
+  // `.select('id')` no DELETE é o que torna o resultado verificável: sem ele,
+  // um delete barrado pela RLS remove ZERO linhas e NÃO gera erro — a rota
+  // respondia `{ok:true}` sem ter apagado nada. Um parceiro read_only veria
+  // "excluído com sucesso" e o item voltaria ao recarregar.
+  const { data: removidos, error } = await supabase
     .from('documents')
     .delete()
     .eq('id', id)
+    .select('id')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[documents DELETE]', error)
+    return NextResponse.json({ error: 'Não foi possível excluir o documento.' }, { status: 500 })
+  }
+  if (!removidos || removidos.length === 0) {
+    return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 })
+  }
+
   return NextResponse.json({ ok: true })
 }
