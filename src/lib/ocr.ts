@@ -94,13 +94,24 @@ export async function ocrDocument(
 
     const form = new FormData()
     list.forEach(f => form.append('files', f))
+
+    // Tamanho e tempo entram na mensagem de erro porque "Failed to fetch" não
+    // diz nada sozinho: falhar em 0,3s é rejeição imediata (corpo grande
+    // demais barrado no caminho); falhar em 30s é conexão caindo no meio da
+    // subida. Sem esses dois números, o diagnóstico vira adivinhação.
+    const mb = (list.reduce((s, f) => s + f.size, 0) / 1048576).toFixed(1)
+    const t0 = Date.now()
+    const seg = () => ((Date.now() - t0) / 1000).toFixed(1)
+
     const res = await fetch('/api/documents/ocr', { method: 'POST', body: form })
     if (!res.ok) {
-      // 504 = a função estourou o tempo (rede lenta subindo arquivo grande).
+      // 504/408 = estourou o tempo; 413 = corpo recusado por tamanho.
+      const doServidor = await res.json().then(j => j?.error).catch(() => null)
       const motivo = res.status === 504 || res.status === 408
-        ? 'A leitura demorou demais. Tente com uma conexão melhor ou um arquivo menor.'
-        : await res.json().then(j => j?.error).catch(() => null)
-          ?? `Falha na leitura (erro ${res.status}).`
+        ? `A leitura demorou demais (${seg()}s, ${mb} MB). Tente com uma conexão melhor ou um arquivo menor.`
+        : res.status === 413
+          ? `Arquivo grande demais para envio (${mb} MB).`
+          : doServidor ?? `Falha na leitura (erro ${res.status}, ${seg()}s, ${mb} MB).`
       onErro?.(motivo)
       return null
     }
@@ -126,8 +137,9 @@ export async function ocrDocument(
     // no celular, função encerrada no meio) chegava aqui e era engolida sem
     // deixar rastro. Silêncio é o pior resultado possível num diagnóstico.
     const msg = e instanceof Error ? e.message : String(e)
+    const tamanho = (todos.reduce((s, f) => s + f.size, 0) / 1048576).toFixed(1)
     console.error('[ocr] excecao:', e)
-    onErro?.(`Falha de conexão ao ler o documento (${msg}).`)
+    onErro?.(`Falha de conexão ao ler o documento (${msg}) — ${tamanho} MB.`)
     return null
   }
 }
