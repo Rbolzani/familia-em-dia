@@ -57,26 +57,14 @@ Se todos os blocos impressos estiverem preenchidos, retorne [].
 NUNCA deduza doses a partir de calendário vacinal, idade ou fabricante — só
 reporte um campo que esteja visivelmente vazio no papel.
 
-ORIENTAÇÃO DA IMAGEM — responda sempre:
-Antes de qualquer coisa, olhe se o TEXTO do documento está em pé. Carteirinhas
-de convênio, CNH e cartões costumam ser fotografados ou printados DEITADOS.
-Informe em "rotacao" quantos graus a imagem precisa girar NO SENTIDO HORÁRIO
-para o texto ficar legível na horizontal:
-  0   = já está em pé
-  90  = o texto está de lado, lendo-se de baixo para cima
-  180 = está de cabeça para baixo
-  270 = o texto está de lado, lendo-se de cima para baixo
-Se a imagem for um PRINT DE TELA, olhe o DOCUMENTO (o cartao/carteirinha), nao
-a interface do aplicativo em volta: e comum o cabecalho do app estar em pe e o
-cartao estar deitado. Nesse caso informe a rotacao que endireita o CARTAO.
-Se houver PDF e nenhuma imagem, responda 0.
-Quando "rotacao" não for 0, a imagem será girada e enviada de novo — então NÃO
-force a leitura de números que você não consegue ler nesta orientação: prefira
-null e acerte na segunda passada.
+DOCUMENTO DE LADO:
+Se a imagem estiver girada e voce nao conseguir ler algo com certeza, devolva
+null naquele campo. Quando vierem varias orientacoes do mesmo documento, use a
+que estiver legivel e informe qual em "orientacao_legivel".
 
 Formato de saída — retorne APENAS um JSON válido (sem markdown, sem texto fora):
 {
-  "rotacao": 0,
+  "orientacao_legivel": 1,
   "doc_type": "<um dos tipos>",
   "ocr_text": "texto transcrito",
   "title": "nome curto e descritivo (ex: 'RG da Gabriela', 'Boleto escola março') ou null",
@@ -190,14 +178,66 @@ export async function POST(req: NextRequest) {
       imagens.push({ buffer: normalized.buffer, mediaType: normalized.mediaType })
     }
 
+    // ── Documento de lado: manda TODAS as orientações de uma vez ────────────
+    //
+    // Carteirinha de convênio é o caso típico: o app da operadora mostra o
+    // cartão DEITADO e o print sai com o texto na vertical. Nessa condição o
+    // modelo lê mal e COMPLETA o número com dígitos plausíveis.
+    //
+    // A versão anterior perguntava ao modelo quanto girar e girava numa
+    // segunda passada. Não funcionou: num cenário sintético ele respondia 90
+    // corretamente, mas no print real respondia 0 e a rotação nunca ocorria —
+    // e não há como prever quando o julgamento dele falha.
+    //
+    // Aqui o julgamento sai do caminho: mandamos as três orientações e ele lê
+    // pela que estiver legível. Uma chamada só, sem decisão intermediária que
+    // possa errar. Verificado contra a API: escolheu a orientação certa e leu
+    // número, validade e operadora corretamente, por ~4.700 tokens de entrada.
+    //
+    // Só para UMA imagem: com frente e verso seriam seis imagens por chamada,
+    // e quem fotografa os dois lados costuma segurar o aparelho direito.
+    etapa = 'orientacoes'
+    const orientacoes: { graus: number; buffer: Buffer; mediaType: string }[] = []
+    if (imagens.length === 1 && pdfs.length === 0) {
+      try {
+        // Import DINÂMICO: no topo do arquivo, uma falha ao carregar o binário
+        // nativo derrubava a rota inteira antes de qualquer linha rodar — 500
+        // imediato, inclusive para foto em pé, que nem precisa de sharp.
+        // A versão é a 0.35.4, explícita no package.json; a que vem junto do
+        // Next é a 0.34.5, com CVEs de parser no libvips, e o insumo aqui é
+        // imagem enviada por usuário.
+        const sharp = (await import('sharp')).default
+        const base = imagens[0]
+        orientacoes.push({ graus: 0, ...base })
+        for (const g of [90, 270]) {
+          orientacoes.push({ graus: g, mediaType: base.mediaType,
+            buffer: await sharp(base.buffer).rotate(g).toBuffer() })
+        }
+      } catch (e) {
+        // Sem rotação, segue com a original: pior leitura, nunca falha total.
+        console.error('[ocr] falha ao preparar orientacoes:', e)
+        orientacoes.length = 0
+        orientacoes.push({ graus: 0, ...imagens[0] })
+      }
+    } else {
+      for (const im of imagens) orientacoes.push({ graus: 0, ...im })
+    }
+
     /** Monta o conteúdo da mensagem a partir do estado atual das imagens. */
     function montarConteudo(): Anthropic.Messages.ContentBlockParam[] {
       const c: Anthropic.Messages.ContentBlockParam[] = []
       for (const p of pdfs) {
         c.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: p.toString('base64') } })
       }
-      for (const im of imagens) {
-        c.push({ type: 'image', source: { type: 'base64', media_type: im.mediaType as 'image/jpeg', data: im.buffer.toString('base64') } })
+      for (const o of orientacoes) {
+        c.push({ type: 'image', source: { type: 'base64', media_type: o.mediaType as 'image/jpeg', data: o.buffer.toString('base64') } })
+      }
+      if (orientacoes.length > 1) {
+        c.push({ type: 'text', text:
+          `As ${orientacoes.length} imagens acima sao O MESMO DOCUMENTO em orientacoes diferentes ` +
+          `(${orientacoes.map(o => o.graus + ' graus').join(', ')}). Leia pela que estiver LEGIVEL e ` +
+          `ignore as outras — NAO as trate como documentos distintos nem some informacao de mais de uma. ` +
+          `Informe em "orientacao_legivel" o numero (1 a ${orientacoes.length}) da que voce usou.` })
       }
       c.push({ type: 'text', text: PROMPT })
       return c
@@ -215,51 +255,14 @@ export async function POST(req: NextRequest) {
     }
 
     etapa = 'chamada-ia'
-    let parsed = await extrair()
+    const parsed = await extrair()
 
-    // ── Foto de lado: gira e lê de novo ─────────────────────────────────────
-    //
-    // Carteirinha de convênio é o caso típico: o app da operadora mostra o
-    // cartão DEITADO, e o print sai com o texto na vertical. Comprovado: o
-    // modelo lia mal e completava o número de carteirinha com dígitos
-    // plausíveis; girando a imagem à mão, acertava tudo.
-    //
-    // Identificar a orientação é bem mais fácil para o modelo do que ler
-    // dígitos de lado, então a primeira chamada já devolve quanto girar. Só
-    // há segunda chamada quando a foto está torta — o caso comum (foto em pé)
-    // continua custando uma chamada só.
-    //
-    // Uma tentativa apenas: se a segunda leitura ainda pedir rotação, é sinal
-    // de que o modelo está inseguro, e girar de novo entraria em laço às
-    // custas da sua cota na Anthropic.
-    etapa = 'rotacao'
-    let giroAplicado = 0
-    const giro = Number(parsed.rotacao)
-    if ([90, 180, 270].includes(giro) && imagens.length > 0) {
-      try {
-        // Import DINÂMICO, dentro do try, e só quando há o que girar.
-        //
-        // No topo do arquivo, uma falha ao carregar o binário nativo derruba
-        // a rota inteira antes de qualquer linha rodar — 500 imediato, com o
-        // OCR indisponível mesmo para foto em pé, que nem precisa de sharp.
-        // Aqui dentro, o pior caso é a rotação não acontecer.
-        //
-        // A versão é a 0.35.4, explícita no package.json: a que vem junto do
-        // Next é a 0.34.5, com CVEs de parser no libvips — e o insumo aqui é
-        // imagem enviada por usuário, a superfície exata desses CVEs.
-        const sharp = (await import('sharp')).default
-        for (const im of imagens) {
-          im.buffer = await sharp(im.buffer).rotate(giro).toBuffer()
-        }
-        giroAplicado = giro
-        console.warn('[ocr] imagem girada', { graus: giro })
-        parsed = await extrair()
-      } catch (e) {
-        // Falhar ao girar não pode derrubar a leitura: fica com o resultado
-        // da primeira passada, que já é melhor que nada.
-        console.error('[ocr] falha ao girar imagem:', e)
-      }
-    }
+    // Qual orientação o modelo disse ter usado — vira o aviso na tela e, se um
+    // dia isto voltar a falhar, diz de imediato se a escolha foi a errada.
+    const escolhida = Number(parsed.orientacao_legivel)
+    const giroAplicado = (escolhida >= 1 && escolhida <= orientacoes.length)
+      ? orientacoes[escolhida - 1].graus : 0
+    if (giroAplicado) console.warn('[ocr] leitura pela orientacao girada', { graus: giroAplicado })
 
     etapa = 'validacao'
     // Valida o tipo e filtra o metadata para só as chaves daquele tipo.
