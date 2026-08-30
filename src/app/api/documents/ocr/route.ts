@@ -74,7 +74,21 @@ Regras:
 - Datas SEMPRE no formato YYYY-MM-DD; se não houver, null.
 - Não invente dados: campo ausente = null (ou ausente em metadata).
 - "metadata" deve conter apenas as chaves do tipo classificado.
-- Retorne apenas o JSON.`
+- Retorne apenas o JSON.
+
+REGRA CRÍTICA — números vêm do papel, nunca da memória:
+Todo NÚMERO que você colocar em um campo (nº de documento, nº de carteirinha,
+CPF, registro ANS, CRM) tem que aparecer LITERALMENTE no "ocr_text" que você
+transcreveu. Copie dígito por dígito do que está escrito.
+Se a imagem estiver girada, borrada, cortada ou com baixa resolução e você não
+conseguir ler o número inteiro com certeza, devolva null — NÃO complete com
+dígitos plausíveis, não deduza pelo formato típico, não use um número parecido
+de outra parte do documento.
+Um campo vazio é útil (a pessoa preenche); um número errado é pior que nada,
+porque parece certo e vai ser salvo sem conferência.
+Documentos costumam ter VÁRIOS números diferentes (ex.: nº da carteirinha e
+Cartão Nacional de Saúde são coisas distintas) — não misture os dígitos de um
+com os de outro.`
 
 export async function POST(req: NextRequest) {
   try {
@@ -161,10 +175,56 @@ export async function POST(req: NextRequest) {
     // Valida o tipo e filtra o metadata para só as chaves daquele tipo.
     const docType: DocType = DOC_TYPE_KEYS.includes(parsed.doc_type) ? parsed.doc_type : 'outro'
     const allowed = new Set(metadataFields(docType).map(f => f.key))
+
+    // ── Ancoragem: todo NÚMERO precisa existir no texto transcrito ──────────
+    //
+    // Caso real que motivou isto: foto de carteirinha de convênio girada 90°.
+    // O cartão trazia "989 571 965638 011" e o CNS "898005183567028"; o campo
+    // "Nº da carteirinha" foi preenchido com "6886569669280011" — 16 dígitos,
+    // que não estão em lugar nenhum do cartão. Com o texto na vertical o
+    // modelo lê mal e COMPLETA o que não conseguiu ler, porque número de
+    // carteirinha é um padrão que ele conhece.
+    //
+    // O prompt já mandava não inventar. Pedido não é garantia — mesma lição
+    // do sanitizePayments nas mensalidades. Aqui existe uma âncora barata: o
+    // próprio `ocr_text` que o modelo acabou de transcrever. Se os dígitos do
+    // campo não aparecem lá, o valor não veio do documento.
+    //
+    // Compara só DÍGITOS porque a transcrição preserva a formatação do papel
+    // ("989 571 965638 011") e o campo costuma vir limpo.
+    //
+    // Fica em null em vez de errado: campo vazio o usuário preenche; campo
+    // com número plausível e falso ele confere por cima e salva.
+    const digitos = (s: string) => s.replace(/\D/g, '')
+    const textoDigitos = digitos(typeof parsed.ocr_text === 'string' ? parsed.ocr_text : '')
+    const descartados: string[] = []
+
+    /** Mantém o valor só se os dígitos dele estiverem na transcrição. */
+    function ancorado(campo: string, v: unknown): unknown {
+      if (typeof v !== 'string') return v
+      const d = digitos(v)
+      // Menos de 5 dígitos não é identificador (é dose, série, andar…), e
+      // exigir âncora aí geraria falso positivo.
+      if (d.length < 5) return v
+      if (textoDigitos.includes(d)) return v
+      descartados.push(campo)
+      return null
+    }
+
     const rawMeta = (parsed.metadata && typeof parsed.metadata === 'object') ? parsed.metadata : {}
     const metadata: Record<string, unknown> = {}
     for (const k of Object.keys(rawMeta)) {
-      if (allowed.has(k) && rawMeta[k] != null && rawMeta[k] !== '') metadata[k] = rawMeta[k]
+      if (!allowed.has(k) || rawMeta[k] == null || rawMeta[k] === '') continue
+      const v = ancorado(`metadata.${k}`, rawMeta[k])
+      if (v != null && v !== '') metadata[k] = v
+    }
+
+    const docNumber = ancorado('doc_number', parsed.doc_number ?? null)
+
+    if (descartados.length > 0) {
+      // Sem log, uma alucinação some sem deixar rastro — e é justamente o que
+      // precisamos medir para saber se o prompt está bom.
+      console.warn('[ocr] campos descartados por nao constarem no texto:', descartados)
     }
 
     return NextResponse.json({
@@ -172,7 +232,7 @@ export async function POST(req: NextRequest) {
       ocr_text: typeof parsed.ocr_text === 'string' ? parsed.ocr_text.slice(0, 12000) : '',
       title: parsed.title ?? null,
       description: parsed.description ?? null,
-      doc_number: parsed.doc_number ?? null,
+      doc_number: docNumber,
       issuer: parsed.issuer ?? null,
       issue_date: parsed.issue_date ?? null,
       expires_at: parsed.expires_at ?? null,
