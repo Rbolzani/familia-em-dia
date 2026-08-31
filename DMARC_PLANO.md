@@ -35,16 +35,22 @@ Registro.br → o domínio → **DNS / modo avançado**. É um registro **TXT** 
 Substituir o valor atual por:
 
 ```
-v=DMARC1; p=none; rua=mailto:dpo@familiaemdia.com.br; ruf=mailto:dpo@familiaemdia.com.br; fo=1; adkim=r; aspf=r
+v=DMARC1; p=none; rua=mailto:dpo@familiaemdia.com.br; adkim=r; aspf=r
 ```
 
 O que cada parte faz:
 
 - `p=none` — **continua sem enforcement de propósito**. Não mude ainda.
-- `rua=` — relatórios agregados diários. É o que passa a existir.
-- `ruf=; fo=1` — relatórios forenses de falha. Nem todo provedor envia.
+- `rua=` — relatórios agregados diários. É o que passa a existir, e é o ponto inteiro
+  deste passo.
 - `adkim=r; aspf=r` — alinhamento relaxado, que é o correto aqui: o Resend envia com
   return-path no subdomínio `send.`, e alinhamento estrito reprovaria envio legítimo.
+
+> **Sobre `ruf` (relatórios forenses):** deixado de fora de propósito. Quase nenhum
+> provedor grande envia, e os que enviam mandam **cópia da mensagem que falhou** —
+> que pode conter dado pessoal de terceiros, caindo numa caixa que não foi pensada
+> para isso. O `rua` sozinho responde a pergunta que importa: quem está enviando em
+> nome do domínio, e o que passa ou não.
 
 > ⚠️ **Sobre o volume.** Os relatórios chegam como anexo XML, um por provedor por dia
 > (Google, Microsoft, Yahoo…). Como `dpo@` é encaminhado pelo ImprovMX para o seu
