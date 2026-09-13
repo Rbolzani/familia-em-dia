@@ -146,16 +146,38 @@ Retorne APENAS um JSON válido neste formato exato (sem markdown, sem explicaç�
 }
 
 Regras para reminders:
-- category: exatamente "escola", "saude" ou "extracurricular" — escolha a que melhor descreve a natureza da pendência
-- escola: coisas relacionadas à escola, material, reuniões sem data
+- category: exatamente "escola", "saude" ou "extracurricular" — mesma regra das
+  activities, inclusive o desempate: "escola" só com vínculo escolar explícito,
+  e "extracurricular" como padrão na dúvida
+- escola: material pedido pela escola, reuniões sem data, pendências da escola
 - saude: renovar plano de saúde, agendar consulta, buscar receita
-- extracurricular: inscrições, renovações de atividades
+- extracurricular: inscrições, renovações, e qualquer pendência que não seja
+  escolar nem de saúde (comprar presente, confirmar presença numa festa)
 
 Regras para activities:
 - category: exatamente "escola", "saude" ou "extracurricular"
-- escola: provas, trabalhos, eventos escolares, reuniões de pais, tarefas com data
-- saude: consultas, vacinas, exames, retornos médicos
-- extracurricular: esportes, cursos, hobbies, competições
+
+- **escola** — SOMENTE o que tem vínculo com a escola: prova, trabalho, lição,
+  reunião de pais, evento promovido pela escola, entrega de material pedido pela
+  escola, passeio organizado pela escola.
+  ⚠️ Se a ESCOLA não estiver envolvida, NÃO é "escola" — mesmo que envolva uma
+  criança, mesmo que envolva outras crianças, mesmo que aconteça em dia de
+  semana. Festa de aniversário de coleguinha NÃO é escola. Aniversário de
+  criança NÃO é escola. Idade de criança ("8 anos") não indica escola.
+
+- **saude** — consulta, exame, vacina, retorno, terapia, dentista.
+
+- **extracurricular** — é a categoria PADRÃO e aparece para a pessoa apenas como
+  "Atividades". Cobre duas coisas:
+  (a) atividades regulares: esportes, cursos, música, hobbies, competições;
+  (b) TUDO o que não for escola nem saúde: festa de aniversário, passeio, viagem,
+      visita, evento de família, casamento, combinado de fim de semana, troca de
+      guarda ("fim de semana com a mamãe"), compromisso pessoal.
+
+- ⚠️ REGRA DE DESEMPATE: na dúvida entre as três, use "extracurricular".
+  NUNCA escolha "escola" por eliminação — "escola" precisa de vínculo escolar
+  explícito no conteúdo. Colocar um compromisso pessoal na agenda escolar
+  atrapalha mais do que deixá-lo na aba genérica.
 - date: calcule datas relativas a partir de hoje se necessário; null se incerta
 - recurring: true SOMENTE se o conteúdo expressar recorrência explícita
   ("toda terça", "às segundas", "semanalmente") ou for uma grade de horário
