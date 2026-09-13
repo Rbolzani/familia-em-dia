@@ -60,7 +60,12 @@ function fmtDateBR(dateStr: string): string {
 const ACT_CONFIG = {
   escola:          { label: 'Escola',          icolor: '#2563EB', ibg: 'linear-gradient(140deg,#DBEAFE,#BFDBFE)', icon: BookOpen   },
   saude:           { label: 'Saúde',           icolor: '#065F46', ibg: 'linear-gradient(140deg,#D1FAE5,#A7F3D0)', icon: HeartPulse },
-  extracurricular: { label: 'Extracurricular', icolor: '#92400E', ibg: 'linear-gradient(140deg,#FEF3C7,#FDE68A)', icon: Trophy     },
+  // "Atividades", não "Extracurricular": este é o balde padrão, e agora recebe
+  // também festa, passeio e combinado de família. Chamar de "extracurricular"
+  // faria a pessoa achar que escolheu errado ao ver um aniversário ali. O valor
+  // gravado no banco continua 'extracurricular'; muda só o rótulo, que é como o
+  // menu lateral já chama a aba.
+  extracurricular: { label: 'Atividades',      icolor: '#92400E', ibg: 'linear-gradient(140deg,#FEF3C7,#FDE68A)', icon: Trophy     },
 }
 
 // ── Document categories ───────────────────────────────────────────────────────
@@ -77,6 +82,16 @@ interface ExtActivity {
   title: string; category: ActCategory; date: string | null; time: string | null
   description: string | null; location: string | null; selected: boolean; child_ids: string[]
   recurring?: boolean; groupId?: string
+  // Subcategoria da aba Escola, POR ITEM. Antes existia só um valor para o lote
+  // inteiro: bastava um item destoar para a pessoa ter que salvar, ir na aba e
+  // corrigir à mão. A IA não classifica isto (não está no schema dela), então o
+  // padrão vem de `recurring` — grade de horário é 'aula', o resto 'atividade'.
+  school_kind?: SchoolKind
+}
+/** Padrão de subcategoria para um item recém-classificado como escola. */
+function kindPadrao(a: { category: string; recurring?: boolean }): SchoolKind | undefined {
+  if (a.category !== 'escola') return undefined
+  return a.recurring ? 'aula' : 'atividade'
 }
 interface ExtReminder {
   title: string; category: string; description: string | null; child_hint: string | null
@@ -93,6 +108,50 @@ interface ExtPayment {
   title: string; amount: number | null; due_day: number
   notes: string | null; child_hint: string | null
   selected: boolean; child_id: string
+}
+
+/**
+ * Categoria (e subcategoria, quando escola) editáveis dentro do card.
+ *
+ * Antes a categoria era um selo só de leitura: se a IA errasse — e ela erra,
+ * porque a taxonomia tem três valores e a vida da família tem mais — o único
+ * caminho era salvar errado e corrigir depois, na aba. A subcategoria era pior
+ * ainda: um valor único para o lote inteiro.
+ *
+ * `<select>` nativo de propósito: abre a roda do sistema no celular, que é onde
+ * a captura acontece, e não custa espaço numa tela já apertada.
+ */
+function SeletorCategoria({ category, schoolKind, onCategory, onKind }: {
+  category: ActCategory
+  schoolKind?: SchoolKind
+  onCategory: (c: ActCategory) => void
+  onKind: (k: SchoolKind) => void
+}) {
+  const cat = ACT_CONFIG[category] ?? ACT_CONFIG.escola
+  const estilo = {
+    backgroundImage: cat.ibg, color: cat.icolor, border: 'none',
+    fontSize: 10, fontWeight: 700, borderRadius: 99,
+    padding: '3px 6px', cursor: 'pointer', outline: 'none',
+    appearance: 'none' as const, WebkitAppearance: 'none' as const,
+  }
+  return (
+    <>
+      <select value={category} onChange={e => onCategory(e.target.value as ActCategory)}
+        onClick={e => e.stopPropagation()} style={estilo} aria-label="Categoria">
+        {(Object.keys(ACT_CONFIG) as ActCategory[]).map(k =>
+          <option key={k} value={k} style={{ color: '#1A2B1C', background: '#fff' }}>{ACT_CONFIG[k].label}</option>)}
+      </select>
+      {category === 'escola' && (
+        <select value={schoolKind ?? 'atividade'} onChange={e => onKind(e.target.value as SchoolKind)}
+          onClick={e => e.stopPropagation()}
+          style={{ ...estilo, backgroundImage: 'none', background: 'rgba(37,99,235,0.10)' }}
+          aria-label="Subcategoria da escola">
+          {SCHOOL_KINDS.map(k =>
+            <option key={k} value={k} style={{ color: '#1A2B1C', background: '#fff' }}>{SCHOOL_KIND_EMOJI[k]} {SCHOOL_KIND_LABELS[k]}</option>)}
+        </select>
+      )}
+    </>
+  )
 }
 
 export default function IAPage() {
@@ -195,7 +254,7 @@ export default function IAPage() {
             throw new Error(`Limite de ${data.limit} capturas por mês atingido. Faça upgrade para continuar.`)
           }
           if (!res.ok) throw new Error(data.error || 'Erro ao processar imagem')
-          allActs = [...allActs, ...(data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds }))]
+          allActs = [...allActs, ...(data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds, school_kind: kindPadrao(a) }))]
           allRems = [...allRems, ...(data.reminders  ?? []).map((r: any) => ({ ...r, selected: true, child_ids: selectedChildIds }))]
           allDocs = [...allDocs, ...(data.documents  ?? []).map((d: any) => ({ ...d, selected: true, child_ids: selectedChildIds }))]
           allPays = [...allPays, ...(data.payments   ?? []).map((p: any) => ({ ...p, selected: true, child_id: payChild }))]
@@ -211,7 +270,7 @@ export default function IAPage() {
           throw new Error(`Limite de ${data.limit} capturas por mês atingido. Faça upgrade para continuar.`)
         }
         if (!res.ok) throw new Error(data.error || 'Erro desconhecido')
-        allActs = (data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds }))
+        allActs = (data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds, school_kind: kindPadrao(a) }))
         allRems = (data.reminders  ?? []).map((r: any) => ({ ...r, selected: true, child_ids: selectedChildIds }))
         allDocs = (data.documents  ?? []).map((d: any) => ({ ...d, selected: true, child_ids: selectedChildIds }))
         allPays = (data.payments   ?? []).map((p: any) => ({ ...p, selected: true, child_id: payChild }))
@@ -243,7 +302,10 @@ export default function IAPage() {
           user_id: user.id, child_id, category: a.category,
           title: a.title, description: a.description, date: a.date ?? null,
           time: a.time, location: a.location, ai_generated: true, alert_days: 3,
-          ...(a.category === 'escola' ? { school_kind: schoolKind } : {}),
+          // Por item, com o seletor do lote como reserva. Nunca grava
+          // school_kind fora de 'escola' — o CHECK do banco aceitaria, mas a
+          // coluna perderia o sentido e a aba filtraria errado.
+          ...(a.category === 'escola' ? { school_kind: a.school_kind ?? schoolKind } : {}),
         })))
       if (actsToSave.length) {
         const { error: actErr } = await supabase.from('activities').insert(actsToSave)
@@ -659,7 +721,7 @@ export default function IAPage() {
               {activities.some(a => a.category === 'escola') && (
                 <div className="mb-3 p-3 rounded-[13px]" style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.18)' }}>
                   <label className="block text-[11px] font-bold uppercase tracking-[0.08em] mb-2" style={{ color: 'rgba(26,43,28,0.55)' }}>
-                    O que você capturou de escola?
+                    O que você capturou de escola? <span style={{ textTransform: 'none', fontWeight: 600, opacity: 0.7 }}>— aplica a todos</span>
                   </label>
                   {/* Três opções não cabem lado a lado no mobile — flex-wrap com
                       base mínima deixa a terceira descer em vez de espremer. */}
@@ -667,7 +729,13 @@ export default function IAPage() {
                     {SCHOOL_KINDS.map(k => {
                       const active = schoolKind === k
                       return (
-                        <button key={k} type="button" onClick={() => setSchoolKind(k)}
+                        <button key={k} type="button" onClick={() => {
+                          // Atalho de lote: uma grade de horário inteira vira
+                          // 'aula' num clique. Cada card continua podendo
+                          // divergir depois, no seletor próprio.
+                          setSchoolKind(k)
+                          setActivities(prev => prev!.map(x => x.category === 'escola' ? { ...x, school_kind: k } : x))
+                        }}
                           className="flex-1 py-2 px-3 rounded-[11px] text-xs font-bold transition-all"
                           style={{
                             minWidth: 120,
@@ -720,7 +788,12 @@ export default function IAPage() {
                                 onBlur={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
                               />
                               <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundImage: cat.ibg, color: cat.icolor }}>{cat.label}</span>
+                                <SeletorCategoria
+                                  category={a.category}
+                                  schoolKind={a.school_kind}
+                                  onCategory={c => setActivities(prev => prev!.map((x, j) => j === i ? { ...x, category: c, school_kind: c === 'escola' ? (x.school_kind ?? 'atividade') : undefined } : x))}
+                                  onKind={k => setActivities(prev => prev!.map((x, j) => j === i ? { ...x, school_kind: k } : x))}
+                                />
                               </div>
                               <div className="flex gap-2 flex-wrap items-center">
                                 <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(26,43,28,0.50)' }}>
@@ -800,7 +873,14 @@ export default function IAPage() {
                               onBlur={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
                             />
                             <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundImage: cat.ibg, color: cat.icolor }}>{cat.label}</span>
+                              {/* Card de grupo: a troca vale para TODAS as ocorrências
+                                  da grade, senão a pessoa teria que repetir dezenas de vezes. */}
+                              <SeletorCategoria
+                                category={a0.category}
+                                schoolKind={a0.school_kind}
+                                onCategory={c => setActivities(prev => prev!.map((x, j) => indices.includes(j) ? { ...x, category: c, school_kind: c === 'escola' ? (x.school_kind ?? 'aula') : undefined } : x))}
+                                onKind={k => setActivities(prev => prev!.map((x, j) => indices.includes(j) ? { ...x, school_kind: k } : x))}
+                              />
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: 'rgba(61,102,65,0.10)', color: '#3D6641' }}>
                                 <Repeat size={10} /> Toda {dates[0] ? weekdayLabel(dates[0]) : ''}
                               </span>
@@ -892,7 +972,12 @@ export default function IAPage() {
                               onBlur={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
                             />
                             <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundImage: cat.ibg, color: cat.icolor }}>{cat.label}</span>
+                              <SeletorCategoria
+                                category={a.category}
+                                schoolKind={a.school_kind}
+                                onCategory={c => setActivities(prev => prev!.map((x, j) => j === i ? { ...x, category: c, school_kind: c === 'escola' ? (x.school_kind ?? 'atividade') : undefined } : x))}
+                                onKind={k => setActivities(prev => prev!.map((x, j) => j === i ? { ...x, school_kind: k } : x))}
+                              />
                               <span className="text-[10px] font-semibold" style={{ color: 'rgba(146,64,14,0.75)' }}>sem data · vai para o mural</span>
                             </div>
                             <div className="flex gap-2 flex-wrap items-center">
