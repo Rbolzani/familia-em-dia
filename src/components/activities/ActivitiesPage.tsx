@@ -8,6 +8,7 @@ import { DeadlineBadge } from '@/components/ui/Badge'
 import { Plus, Trash2, Pencil, Filter, Clock, MapPin, Sparkles, ListChecks, Check, X } from 'lucide-react'
 import Link from 'next/link'
 import { mergeActivities } from '@/lib/merge-activities'
+import { buscarTodas } from '@/lib/paginacao'
 import { useAccess } from '@/components/access/AccessContext'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -109,14 +110,18 @@ export default function ActivitiesPage({ category, title, emoji, color, initialA
   const bg = catBg[category]
 
   const load = useCallback(async () => {
-    const [{ data: acts }, { data: kids }] = await Promise.all([
-      supabase.from('activities')
+    // Paginado — mesmo motivo do Server Component desta tela. Se só lá fosse
+    // corrigido, a lista nasceria completa e MINGUARIA no primeiro refresh do
+    // realtime: pior que o defeito original, porque some depois de aparecer.
+    const [acts, { data: kids }] = await Promise.all([
+      buscarTodas<Activity>((de, ate) => supabase.from('activities')
         .select('*, child:children(name, avatar_color)')
         .eq('category', category)
-        .order('date').order('time', { nullsFirst: false }),
+        .order('date').order('time', { nullsFirst: false })
+        .range(de, ate)),
       supabase.from('children').select('*').order('sort_order'),
     ])
-    setActivities(acts ?? [])
+    setActivities(acts)
     setChildren(kids ?? [])
     setLoading(false)
   }, [category])

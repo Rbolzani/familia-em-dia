@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import ActivitiesPage from '@/components/activities/ActivitiesPage'
 import { nameFromEmail } from '@/lib/name-from-email'
 import { getActiveFamily } from '@/lib/access'
+import { buscarTodas } from '@/lib/paginacao'
+import type { Activity } from '@/lib/types'
 
 export default async function AtividadesPage() {
   const supabase = await createClient()
@@ -11,8 +13,14 @@ export default async function AtividadesPage() {
 
   const { familyId, isOwner } = await getActiveFamily(supabase)
 
-  const [{ data: activities }, { data: children }, { data: rawMembers }, { data: suggestions }] = await Promise.all([
-    supabase.from('activities').select('*, child:children(name, avatar_color)').eq('category', 'extracurricular').order('date').order('time', { nullsFirst: false }),
+  // Paginado pelo mesmo motivo de /escola: sem recorte de data, o historico
+  // inteiro da categoria passa do teto de 1000 do PostgREST em silencio.
+  const [activities, { data: children }, { data: rawMembers }, { data: suggestions }] = await Promise.all([
+    buscarTodas<Activity>((de, ate) => supabase.from('activities')
+      .select('*, child:children(name, avatar_color)')
+      .eq('category', 'extracurricular')
+      .order('date').order('time', { nullsFirst: false })
+      .range(de, ate)),
     supabase.from('children').select('*').order('sort_order'),
     familyId ? supabase.from('family_members').select('user_id, display_name, role').eq('family_id', familyId) : Promise.resolve({ data: [] }),
     familyId ? supabase.from('logistics_suggestions').select('*').eq('family_id', familyId).eq('status', 'pending') : Promise.resolve({ data: [] }),
@@ -37,7 +45,7 @@ export default async function AtividadesPage() {
   return (
     <ActivitiesPage
       category="extracurricular" title="Atividades Extracurriculares" emoji="⭐" color="#7c3aed"
-      initialActivities={activities ?? []} initialChildren={children ?? []}
+      initialActivities={activities} initialChildren={children ?? []}
       familyMembers={familyMembers} currentUserId={user.id}
       familyId={familyId} isOwner={isOwner} initialSuggestions={suggestions ?? []}
     />
