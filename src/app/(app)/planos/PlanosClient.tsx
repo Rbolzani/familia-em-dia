@@ -230,9 +230,14 @@ export default function PlanosClient({
                 </p>
               )}
               {!isTrialing && currentPeriodEnd && (
+                // "Cancelando" + "Acesso até <data>" estava correto, mas deixava
+                // no ar a pergunta que o próprio Rogério fez ao testar: "então
+                // eu continuo sendo cobrado até lá?". Não continua — o período
+                // já foi pago e não haverá nova cobrança. Dizer isso explicita
+                // o que o selo só insinuava.
                 <p className="text-xs mt-1" style={{ color: 'rgba(26,43,28,0.50)' }}>
                   {cancelAtPeriodEnd
-                    ? `Acesso até ${fmtDate(currentPeriodEnd)}`
+                    ? <><strong style={{ color: '#2C4A2E' }}>Sem novas cobranças.</strong> Seu acesso continua até {fmtDate(currentPeriodEnd)}.</>
                     : `Renova em ${fmtDate(currentPeriodEnd)}`}
                 </p>
               )}
@@ -478,7 +483,9 @@ export default function PlanosClient({
       <Modal open={cancelModalOpen} onClose={() => { if (loading !== 'cancel') setCancelModalOpen(false) }} title="Cancelar assinatura" size="sm">
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'rgba(26,43,28,0.65)', lineHeight: 1.5 }}>
-            Você mantém o acesso completo até <strong>{fmtDate(currentPeriodEnd)}</strong>. Pode reativar quando quiser.
+            <strong>Nenhuma nova cobrança será feita.</strong> Você mantém o acesso completo
+            até <strong>{fmtDate(currentPeriodEnd)}</strong>, que já está pago — e pode reativar
+            a qualquer momento antes disso, sem precisar assinar de novo.
           </p>
 
           <div>
