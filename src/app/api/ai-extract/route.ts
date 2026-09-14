@@ -105,6 +105,18 @@ Compromissos financeiros que se REPETEM todo mês num dia fixo:
 Exemplos: "pagar natação todo dia 10, R$ 280" · "mensalidade do piano vence
 dia 5, 250 reais" · "a psicopedagoga custa 1600 por mês, pago dia 15".
 
+⚠️ **DIA DA SEMANA ≠ DIA DO MÊS. Esta é a distinção que mais importa aqui.**
+O nome da profissão NÃO decide nada. "Psicopedagoga", "natação" e "piano"
+aparecem nos dois lados — o que decide é o que a frase diz:
+- **dia da SEMANA + horário** = quando o compromisso ACONTECE → é **activity**
+  recorrente, categoria "extracurricular" (ou "saude", se for terapia/consulta).
+  Ex.: "psicopedagoga todas as segundas às 17h" ⇒ ACTIVITY. Não há dinheiro
+  nenhum na frase.
+- **dia do MÊS + valor** = quando a conta é PAGA → é **payment**.
+  Ex.: "psicopedagoga, R$ 1.600, pago dia 15" ⇒ PAYMENT.
+Sem valor E sem dia do mês, **nunca** é payment. Na dúvida, prefira activity:
+um compromisso na agenda errada a pessoa move; um item que some, ela perde.
+
 **Como distinguir de um lembrete ou de um documento:**
 - Tem valor E dia do mês E se repete → **payment**.
 - "Pagar a natação até sexta" (uma vez só, sem dia fixo mensal) → reminder.
@@ -258,8 +270,9 @@ export interface ExtractedPayment {
  * lote; aqui o item apenas é descartado. Valores em string ("280,00") também
  * são normalizados, porque o modelo às vezes devolve o número formatado.
  */
-function sanitizePayments(raw: unknown): ExtractedPayment[] {
-  if (!Array.isArray(raw)) return []
+function sanitizePayments(raw: unknown): { pagamentos: ExtractedPayment[]; descartados: string[] } {
+  const descartados: string[] = []
+  if (!Array.isArray(raw)) return { pagamentos: [], descartados }
   const out: ExtractedPayment[] = []
   for (const p of raw) {
     if (!p || typeof p !== 'object') continue
@@ -268,7 +281,15 @@ function sanitizePayments(raw: unknown): ExtractedPayment[] {
     if (!title) continue
 
     const dia = Number(o.due_day)
-    if (!Number.isInteger(dia) || dia < 1 || dia > 31) continue
+    if (!Number.isInteger(dia) || dia < 1 || dia > 31) {
+      // Descartado aqui, o item SOME — e some calado, que é o pior desfecho:
+      // a pessoa digitou algo, a análise "funcionou", e não apareceu nada.
+      // Foi exatamente o que aconteceu com "psicopedagoga todas as segundas
+      // às 17h": a IA chamou de mensalidade (pelo nome da profissão), sem dia
+      // do mês, e o item evaporou. Guardamos para virar lembrete.
+      descartados.push(title)
+      continue
+    }
 
     let amount: number | null = null
     if (typeof o.amount === 'number' && Number.isFinite(o.amount)) {
@@ -287,7 +308,7 @@ function sanitizePayments(raw: unknown): ExtractedPayment[] {
       child_hint: typeof o.child_hint === 'string' && o.child_hint.trim() ? o.child_hint.trim() : null,
     })
   }
-  return out
+  return { pagamentos: out, descartados }
 }
 
 // Horizonte PADRÃO de materialização (recurring: true) — a tabela activities
@@ -574,11 +595,27 @@ export async function POST(req: NextRequest) {
     // em algumas frases. Aqui não erra.
     activities = corrigirDatasPassadas(activities, spTodayISO(), normalized ? null : (text ?? null))
 
+    // Mensalidade sem dia do mês não vira mensalidade — mas também não pode
+    // sumir. Volta como lembrete, para a pessoa decidir o que fazer com ela.
+    const { pagamentos, descartados } = sanitizePayments(parsed.payments)
+    const lembretes = [...(parsed.reminders ?? [])]
+    for (const titulo of descartados) {
+      lembretes.push({
+        title: titulo,
+        category: 'extracurricular',
+        description: 'A IA entendeu como mensalidade, mas não encontrou o dia do vencimento. Confira se é um compromisso da agenda ou uma cobrança.',
+        child_hint: null,
+      })
+    }
+    if (descartados.length > 0) {
+      console.warn('[ai-extract] pagamentos sem dia do mês viraram lembrete:', descartados.join(', '))
+    }
+
     return NextResponse.json({
       activities: expandRecurring(activities),
-      reminders: parsed.reminders ?? [],
+      reminders: lembretes,
       documents: parsed.documents ?? [],
-      payments: sanitizePayments(parsed.payments),
+      payments: pagamentos,
     })
   } catch (e) {
     console.error('AI extract error:', e)
