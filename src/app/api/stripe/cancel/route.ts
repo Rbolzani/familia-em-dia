@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
+import { janelaArrependimento, reembolsarEEncerrar } from '@/lib/stripe-arrependimento'
 
 // Cancela (ou reativa) a assinatura vigente do usuário direto via API do Stripe.
 // Não depende do portal externo — controle total dentro do app.
@@ -54,6 +55,31 @@ export async function POST(request: Request) {
 
     if (liveSubs.length === 0) {
       return NextResponse.json({ error: 'Nenhuma assinatura ativa' }, { status: 404 })
+    }
+
+    // ── Direito de arrependimento (CDC art. 49) ──────────────────────────
+    // Dentro de 7 dias da cobrança, cancelar NÃO é "encerrar no fim do
+    // período": é desfazer a compra. Dinheiro de volta, acesso encerrado na
+    // hora. Fora da janela, segue o comportamento normal.
+    if (!reactivate) {
+      const janela = await janelaArrependimento(customerId)
+      if (janela.dentro) {
+        const { reembolsado } = await reembolsarEEncerrar(janela, liveSubs)
+        // Registra o motivo mesmo no arrependimento — é a informação mais
+        // valiosa que existe sobre quem desiste nos primeiros dias.
+        if (feedback || comment) {
+          await Promise.all(liveSubs.map(s => stripe.subscriptions.update(s.id, {
+            cancellation_details: {
+              ...(feedback ? { feedback } : {}),
+              ...(comment ? { comment } : {}),
+            },
+          }).catch(e => console.error('[stripe-cancel] motivo não gravado:', e))))
+        }
+        await reconcileUserFromStripe(user.id)
+        console.warn('[stripe-cancel] arrependimento: R$ %s devolvidos a %s',
+          (reembolsado / 100).toFixed(2), user.id)
+        return NextResponse.json({ ok: true, reembolsado })
+      }
     }
 
     // Monta o payload — inclui o motivo do cancelamento quando aplicável.

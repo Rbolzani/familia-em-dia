@@ -1,6 +1,8 @@
 import { getEffectiveSubscription, getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
 import { stripe } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
+import { janelaArrependimento } from '@/lib/stripe-arrependimento'
+import { createAdminClient } from '@/lib/supabase/server'
 import PlanosClient from './PlanosClient'
 
 export interface PlanPrices {
@@ -39,8 +41,29 @@ export default async function PlanosPage() {
     })(),
   ])
 
+  // Janela de arrependimento (7 dias) — só o owner tem cobrança própria, e só
+  // faz sentido consultar o Stripe se houver plano pago para desfazer.
+  let arrependimentoAte: string | null = null
+  if (eff.isOwner && eff.ownerId && plan !== 'free') {
+    try {
+      const admin = createAdminClient()
+      const { data } = await admin.from('subscriptions')
+        .select('stripe_customer_id').eq('user_id', eff.ownerId).maybeSingle()
+      const cus = data?.stripe_customer_id as string | null | undefined
+      if (cus) {
+        const j = await janelaArrependimento(cus)
+        if (j.dentro) arrependimentoAte = j.prazo
+      }
+    } catch (e) {
+      // Não é motivo para derrubar a tela de planos: sem o aviso, o
+      // cancelamento ainda reembolsa — a rota reavalia a janela por conta.
+      console.error('[planos] janela de arrependimento indisponível:', e)
+    }
+  }
+
   return (
     <PlanosClient
+      arrependimentoAte={arrependimentoAte}
       currentPlan={plan}
       status={eff.status}
       trialEndsAt={eff.trialEndsAt}

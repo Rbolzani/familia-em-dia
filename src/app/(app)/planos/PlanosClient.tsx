@@ -28,6 +28,8 @@ interface Props {
   trialEndsAt: string | null
   currentPeriodEnd: string | null
   cancelAtPeriodEnd: boolean
+  /** Fim da janela de arrependimento (7 dias), ou null se fora dela. */
+  arrependimentoAte?: string | null
   billingInterval: string | null
   isOwner: boolean
   ownerName?: string | null
@@ -89,6 +91,7 @@ function fmtPrice(n: number) {
 export default function PlanosClient({
   currentPlan, status, trialEndsAt, currentPeriodEnd,
   cancelAtPeriodEnd, billingInterval, isOwner, ownerName, childLimit, aiLimit, prices,
+  arrependimentoAte = null,
 }: Props) {
   // Toggle abre no intervalo do plano atual do usuário; sem plano pago (grátis/
   // cancelado) cai no padrão mensal.
@@ -483,9 +486,20 @@ export default function PlanosClient({
       <Modal open={cancelModalOpen} onClose={() => { if (loading !== 'cancel') setCancelModalOpen(false) }} title="Cancelar assinatura" size="sm">
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'rgba(26,43,28,0.65)', lineHeight: 1.5 }}>
-            <strong>Nenhuma nova cobrança será feita.</strong> Você mantém o acesso completo
-            até <strong>{fmtDate(currentPeriodEnd)}</strong>, que já está pago — e pode reativar
-            a qualquer momento antes disso, sem precisar assinar de novo.
+            {arrependimentoAte ? (
+              <>
+                <strong style={{ color: '#2C4A2E' }}>Você está no prazo de arrependimento.</strong>{' '}
+                Cancelando agora, o valor pago é <strong>devolvido integralmente</strong> e a
+                assinatura se encerra na hora — o estorno aparece na fatura do cartão em alguns
+                dias, conforme o banco. O prazo vai até <strong>{fmtDate(arrependimentoAte)}</strong>.
+              </>
+            ) : (
+              <>
+                <strong>Nenhuma nova cobrança será feita.</strong> Você mantém o acesso completo
+                até <strong>{fmtDate(currentPeriodEnd)}</strong>, que já está pago — e pode reativar
+                a qualquer momento antes disso, sem precisar assinar de novo.
+              </>
+            )}
           </p>
 
           <div>
