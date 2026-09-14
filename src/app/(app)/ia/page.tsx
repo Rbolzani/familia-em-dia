@@ -8,6 +8,7 @@ import {
   Clock, MapPin, BookOpen, HeartPulse, Trophy, Plus,
   Bell, FolderLock, AlertCircle, Lock, Repeat, Wallet,
 } from 'lucide-react'
+import Link from 'next/link'
 import { formatBRL } from '@/lib/payments'
 import { useAccess } from '@/components/access/AccessContext'
 import { VoiceInputButton } from '@/components/ui/VoiceInputButton'
@@ -162,6 +163,10 @@ export default function IAPage() {
   const pasteZoneRef = useRef<HTMLDivElement>(null)
 
   const [children, setChildren]     = useState<Child[]>([])
+  // Distingue "ainda carregando" de "realmente nao tem filho". Sem isso,
+  // `children` nasce [] e o aviso de "cadastre um filho" apareceria piscando
+  // para TODO usuario ate a consulta voltar, com o botao travado junto.
+  const [filhosCarregados, setFilhosCarregados] = useState(false)
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([])
   const [mode, setMode]             = useState<'image' | 'text'>('image')
   const [images, setImages]         = useState<File[]>([])
@@ -190,11 +195,15 @@ export default function IAPage() {
 
   const hasResults = activities !== null || reminders !== null || documents !== null || payments !== null
   const aiBlocked  = aiLimit !== null && aiUsed !== null && aiUsed >= aiLimit
+  // Nada pode ser salvo sem ao menos um filho: todo item extraido e
+  // atribuido a um. Trava a captura ANTES de consumir a cota de IA.
+  const semFilhos  = filhosCarregados && children.length === 0
 
   useEffect(() => {
     supabase.from('children').select('*').order('sort_order').then(({ data }) => {
       setChildren(data ?? [])
       if (data?.[0]) setSelectedChildIds([data[0].id])
+      setFilhosCarregados(true)
     })
     fetch('/api/billing/status').then(r => r.json()).then(d => {
       if (d.ai) { setAiUsed(d.ai.used); setAiLimit(d.ai.limit) }
@@ -231,6 +240,12 @@ export default function IAPage() {
   }
 
   async function handleExtract() {
+    // Rede de seguranca: o botao ja fica travado, mas se por qualquer caminho
+    // a chamada acontecer sem filho, ela nao pode consumir cota de IA.
+    if (semFilhos) {
+      setError('Cadastre um filho antes de capturar — é por filho que a agenda se organiza.')
+      return
+    }
     setLoading(true); setError('')
     setActivities(null); setReminders(null); setDocuments(null); setPayments(null)
     try {
@@ -647,6 +662,48 @@ export default function IAPage() {
         </div>
       )}
 
+      {/* Sem filho cadastrado, a captura é um beco sem saída — e um beco CARO.
+          Tudo o que a IA extrai é atribuído a um filho: sem nenhum, os itens
+          nascem com `child_ids` vazio, o contador de selecionados soma zero e
+          o botão Salvar (que só existe com total > 0) simplesmente não é
+          renderizado. A pessoa via a análise pronta e nenhuma forma de gravar,
+          sem explicação — e já tinha gasto uma das 5 capturas do mês.
+          O aviso vem ANTES do botão, e o botão fica travado: a cota só é
+          consumida quando há para onde salvar. */}
+      {semFilhos && !aiBlocked && (
+        <div className="rounded-2xl p-4 animate-fade-up" style={{
+          background: 'linear-gradient(135deg,rgba(196,154,108,0.12),rgba(61,102,65,0.08))',
+          border: '1px solid rgba(196,154,108,0.35)',
+        }}>
+          <div className="flex items-start gap-3">
+            <div style={{
+              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+              background: 'linear-gradient(140deg,#3D6641,#2C4A2E)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Plus size={16} color="white" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#1A2B1C', margin: '0 0 4px' }}>
+                Cadastre um filho antes de capturar
+              </p>
+              <p style={{ fontSize: 13, color: 'rgba(26,43,28,0.65)', margin: '0 0 10px', lineHeight: 1.45 }}>
+                Tudo o que a IA identifica é organizado por filho. Sem nenhum cadastrado,
+                não haveria onde guardar — e a captura contaria na sua cota do mês.
+              </p>
+              <Link href="/children"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '8px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700,
+                  background: '#3D6641', color: '#fff', textDecoration: 'none',
+                }}>
+                <Plus size={14} /> Cadastrar filho
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Upgrade prompt quando IA bloqueada */}
       {aiBlocked && (
         <div className="rounded-2xl p-4 animate-fade-up" style={{
@@ -680,14 +737,16 @@ export default function IAPage() {
 
       {/* Extract button */}
       <button onClick={handleExtract}
-        disabled={loading || aiBlocked || (mode === 'image' ? images.length === 0 : !text.trim())}
+        disabled={loading || aiBlocked || semFilhos || !filhosCarregados || (mode === 'image' ? images.length === 0 : !text.trim())}
         className="w-full flex items-center justify-center gap-2.5 py-4 rounded-[16px] text-base font-bold transition-all hover:brightness-105 active:scale-95 disabled:opacity-50"
         style={{ background: 'linear-gradient(140deg,#FF8A6E,#FF6B5C)', color: '#fff', boxShadow: '0 6px 20px rgba(255,107,92,0.30)' }}>
         {loading
           ? <><Loader2 size={18} className="animate-spin" /> Analisando{images.length > 1 ? ` ${images.length} imagens` : ''}...</>
           : aiBlocked
             ? <><Lock size={18} /> Limite mensal atingido</>
-            : <><Sparkles size={18} /> Analisar e classificar com IA</>}
+            : semFilhos
+              ? <><Lock size={18} /> Cadastre um filho primeiro</>
+              : <><Sparkles size={18} /> Analisar e classificar com IA</>}
       </button>
 
       {/* Results */}
