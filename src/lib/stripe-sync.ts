@@ -4,6 +4,42 @@ import type Stripe from 'stripe'
 
 const GRACE_DAYS = 5
 
+/**
+ * Zera a cota MENSAL de IA quando o plano cai de pago para grátis.
+ *
+ * POR QUE
+ * O contador `ai_uses_this_month` não distingue em que plano cada uso
+ * aconteceu. Quem usou 18 capturas pagando (limite Infinity) e depois voltou
+ * ao gratuito era recebido com **"18 / 5 — limite atingido"**: as capturas
+ * que ele PAGOU eram cobradas retroativamente contra a franquia grátis.
+ * Fora o número incoerente, a punição chega no pior momento — logo após
+ * cancelar, ou depois de um pagamento que falhou.
+ *
+ * ⚠️ SÓ NA TRANSIÇÃO. Zerar sempre que o estado for grátis daria IA
+ * ilimitada ao plano gratuito: `syncSubscriptionToDb` roda a cada webhook e a
+ * cada abertura de /planos, e cada passagem zeraria a conta de novo. Por isso
+ * lemos o plano atual antes e só agimos quando ele era pago.
+ *
+ * O teto DIÁRIO (`ai_calls_today`) não é tocado — ele existe contra abuso, e
+ * abuso não muda de natureza quando alguém cancela.
+ */
+async function zerarCotaSeCaiuParaGratis(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  planoNovo: string,
+): Promise<{ ai_uses_this_month: number; ai_uses_reset_at: string } | undefined> {
+  if (planoNovo !== 'free') return undefined
+  const { data } = await admin
+    .from('subscriptions')
+    .select('plan')
+    .eq('user_id', userId)
+    .maybeSingle()
+  const planoAtual = data?.plan as string | undefined
+  if (planoAtual !== 'familia' && planoAtual !== 'plus') return undefined
+  console.warn('[stripe-sync] %s → free: cota mensal de IA zerada', planoAtual)
+  return { ai_uses_this_month: 0, ai_uses_reset_at: new Date().toISOString() }
+}
+
 // Quando o owner perde o plano pago e ainda tem parceiro(s) conectado(s),
 // inicia um período de graça de 5 dias antes de o parceiro ser desconectado
 // (a remoção em si é feita pelo cron expire-trials, fase 2).
@@ -97,17 +133,21 @@ export async function syncSubscriptionToDb(
     graceField = { partner_grace_until: null }
   }
 
+  const planoNovo = isEnded ? 'free' : (mapped?.plan ?? 'free')
+  const cotaZerada = await zerarCotaSeCaiuParaGratis(admin, userId, planoNovo)
+
   await admin.from('subscriptions').upsert({
     user_id: userId,
     stripe_customer_id: customerId,
     stripe_subscription_id: sub.id,
-    plan: isEnded ? 'free' : (mapped?.plan ?? 'free'),
+    plan: planoNovo,
     status: isEnded ? 'free' : sub.status,
     billing_interval: isEnded ? null : (mapped?.interval ?? null),
     trial_ends_at: toISO(sub.trial_end),
     current_period_end: toISO(getPeriodEnd(sub)),
     cancel_at_period_end: sub.cancel_at_period_end ?? false,
     ...graceField,
+    ...cotaZerada,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
 }
@@ -151,6 +191,7 @@ export async function reconcileUserFromStripe(userId: string): Promise<boolean> 
       // Sem nenhuma assinatura no Stripe → garante estado free.
       // Se houver parceiro conectado, inicia o grace de 5 dias.
       const grace = await computePartnerGraceUntil(admin, userId)
+      const cotaZerada = await zerarCotaSeCaiuParaGratis(admin, userId, 'free')
       await admin.from('subscriptions').upsert({
         user_id: userId,
         plan: 'free',
@@ -160,6 +201,7 @@ export async function reconcileUserFromStripe(userId: string): Promise<boolean> 
         current_period_end: null,
         stripe_subscription_id: null,
         ...(grace ? { partner_grace_until: grace } : {}),
+        ...cotaZerada,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
       return true
