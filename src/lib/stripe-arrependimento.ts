@@ -42,14 +42,48 @@ const VAZIA: JanelaArrependimento = {
   dentro: false, prazo: null, valorCentavos: 0, invoiceId: null, paymentIntentId: null,
 }
 
-/** Avalia se o cliente ainda está na janela de 7 dias da última cobrança real. */
-export async function janelaArrependimento(customerId: string): Promise<JanelaArrependimento> {
+/**
+ * A qual assinatura a fatura pertence.
+ *
+ * ⚠️ `invoice.subscription` também deixou de existir na API 2026-05-27.dahlia.
+ * O vínculo agora fica em `parent.subscription_details.subscription`.
+ */
+function subscriptionDaFatura(inv: Stripe.Invoice): string | null {
+  const parent = (inv as unknown as {
+    parent?: { subscription_details?: { subscription?: string | { id: string } } }
+  }).parent
+  const s = parent?.subscription_details?.subscription
+  if (typeof s === 'string') return s
+  return s?.id ?? null
+}
+
+/**
+ * Avalia se ainda estamos na janela de 7 dias da última cobrança real
+ * **das assinaturas informadas**.
+ *
+ * ⚠️ `subscriptionIds` não é opcional por preguiça de tipo: sem ele o cálculo
+ * erra feio. Um cliente que trocou de plano tem faturas de assinaturas
+ * ANTIGAS, já canceladas, e a mais recente delas pode não ter nada a ver com
+ * o que está sendo cancelado agora. Foi o que apareceu no teste real: a
+ * assinatura viva era a anual de R$ 382,80, mas a última fatura elegível era
+ * de R$ 59,90 — de um plano mensal encerrado. Sem o filtro, o reembolso sairia
+ * com o valor errado, de uma cobrança que já não existia.
+ */
+export async function janelaArrependimento(
+  customerId: string,
+  subscriptionIds: string[],
+): Promise<JanelaArrependimento> {
+  if (subscriptionIds.length === 0) return VAZIA
+  const doCliente = new Set(subscriptionIds)
   const lista = await stripe.invoices.list({ customer: customerId, status: 'paid', limit: 20 })
 
-  const elegiveis = lista.data.filter(inv =>
-    inv.amount_paid > 0 &&
-    typeof inv.billing_reason === 'string' &&
-    MOTIVOS_QUE_ABREM_JANELA.includes(inv.billing_reason))
+  const elegiveis = lista.data.filter(inv => {
+    if (inv.amount_paid <= 0) return false
+    if (typeof inv.billing_reason !== 'string') return false
+    if (!MOTIVOS_QUE_ABREM_JANELA.includes(inv.billing_reason)) return false
+    const sub = subscriptionDaFatura(inv)
+    return sub !== null && doCliente.has(sub)
+  })
 
   if (elegiveis.length === 0) return VAZIA
 

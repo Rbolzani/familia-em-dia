@@ -51,7 +51,13 @@ export default async function PlanosPage() {
         .select('stripe_customer_id').eq('user_id', eff.ownerId).maybeSingle()
       const cus = data?.stripe_customer_id as string | null | undefined
       if (cus) {
-        const j = await janelaArrependimento(cus)
+        // Só as assinaturas vigentes: a janela tem que se referir ao que a
+        // pessoa cancelaria agora, não a um plano antigo já encerrado.
+        const vivas = await stripe.subscriptions.list({ customer: cus, status: 'all', limit: 20 })
+        const ids = vivas.data
+          .filter(s => s.status === 'active' || s.status === 'trialing')
+          .map(s => s.id)
+        const j = await janelaArrependimento(cus, ids)
         if (j.dentro) arrependimentoAte = j.prazo
       }
     } catch (e) {

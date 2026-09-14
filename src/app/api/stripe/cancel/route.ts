@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     // período": é desfazer a compra. Dinheiro de volta, acesso encerrado na
     // hora. Fora da janela, segue o comportamento normal.
     if (!reactivate) {
-      const janela = await janelaArrependimento(customerId)
+      const janela = await janelaArrependimento(customerId, liveSubs.map(s => s.id))
       if (janela.dentro) {
         const { reembolsado } = await reembolsarEEncerrar(janela, liveSubs)
         // Registra o motivo mesmo no arrependimento — é a informação mais
