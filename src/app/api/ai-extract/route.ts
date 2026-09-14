@@ -335,6 +335,90 @@ function stripFabricatedRecurrence(acts: ExtractedActivity[]): ExtractedActivity
 
 // Cada ocorrência gerada de um mesmo item recorrente leva o mesmo groupId,
 // para a tela de revisão poder agrupá-las (uma matéria = um card, não 12).
+/** Ano escrito na fonte ("12/03/2027", "março de 2027"). */
+const ANO_EXPLICITO_RE = /\b20\d{2}\b/
+
+/**
+ * Empurra para a próxima ocorrência uma atividade cuja data caiu no passado.
+ *
+ * POR QUE EM CÓDIGO, E NÃO NO PROMPT
+ * A regra existe no prompt e funciona — na maior parte das vezes. Medido com
+ * a frase que o Rogério usou ("Viagem com a Gabi no dia 11 às 7h", em 14/09):
+ * três execuções devolveram 11/10, 11/10 e **11/09**. Uma em três no passado.
+ * Uma medição anterior com outra frase deu 4 de 4 e me fez declarar resolvido
+ * cedo demais — a instrução muda a probabilidade, não garante o resultado.
+ *
+ * Mesma lição do OCR inventando número de carteirinha: pedido não é garantia,
+ * e onde existe uma checagem barata e determinística, ela tem que existir.
+ *
+ * O estrago é silencioso: a atividade é gravada, aparece no calendário, mas
+ * some da aba (que esconde o passado). Parece que a captura não salvou nada.
+ *
+ * REGRAS — espelham as do prompt, de propósito:
+ *  · recorrente     → avança de 7 em 7 dias, preservando o dia da SEMANA
+ *  · mês corrente   → mesmo dia do mês seguinte (a pessoa disse só "dia 11")
+ *  · mês anterior   → mesma data do ano seguinte (a pessoa disse dia e mês)
+ *  · ano escrito na fonte → não mexe, ali ela foi explícita
+ */
+export function corrigirDatasPassadas(
+  activities: ExtractedActivity[],
+  hojeISO: string,
+  textoOriginal: string | null,
+): ExtractedActivity[] {
+  // Na entrada por imagem não há fonte para inspecionar; a trava vale assim
+  // mesmo, porque atividade é compromisso FUTURO por definição.
+  if (textoOriginal && ANO_EXPLICITO_RE.test(textoOriginal)) return activities
+
+  const [hy, hm, hd] = hojeISO.split('-').map(Number)
+  const corrigidas: string[] = []
+
+  const saida = activities.map(a => {
+    if (!a.date || a.date >= hojeISO) return a
+    const [y, m, d] = a.date.split('-').map(Number)
+    let nova: string
+
+    const dt = new Date(Date.UTC(y, m - 1, d))
+    const hojeDt = new Date(Date.UTC(hy, hm - 1, hd))
+    const diasAtras = (hojeDt.getTime() - dt.getTime()) / 86_400_000
+
+    if (a.recurring) {
+      // Semana a semana: avançar um mês moveria o dia da SEMANA e quebraria
+      // a grade de horário.
+      while (dt < hojeDt) dt.setUTCDate(dt.getUTCDate() + 7)
+      nova = dt.toISOString().slice(0, 10)
+    } else if (diasAtras <= 45) {
+      // Passado recente → a pessoa disse só o dia ("dia 11"). Avança de mês em
+      // mês preservando o dia, encurtando em mês curto (31 → 28/30).
+      //
+      // A distância decide, não a igualdade de mês: em 1º de fevereiro, uma
+      // data de 31 de janeiro está a UM dia de distância mas em outro mês —
+      // comparar o mês jogaria isso para o ano seguinte.
+      let ay = y, am = m
+      do {
+        am += 1
+        if (am > 12) { am = 1; ay += 1 }
+        const ultimo = new Date(Date.UTC(ay, am, 0)).getUTCDate()
+        nova = `${ay}-${String(am).padStart(2, '0')}-${String(Math.min(d, ultimo)).padStart(2, '0')}`
+      } while (nova < hojeISO)
+    } else {
+      // Passado distante → a pessoa disse dia E mês; vale para o próximo ano
+      // em que essa data ainda não passou.
+      let ay = y
+      do { ay += 1; nova = `${ay}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` }
+      while (nova < hojeISO)
+    }
+
+    corrigidas.push(`${a.date}→${nova}`)
+    return { ...a, date: nova }
+  })
+
+  if (corrigidas.length > 0) {
+    // Sem log, não dá para saber se o prompt está melhorando ou piorando.
+    console.warn('[ai-extract] datas no passado corrigidas:', corrigidas.join(', '))
+  }
+  return saida
+}
+
 function expandRecurring(activities: ExtractedActivity[]): ExtractedActivity[] {
   const result: ExtractedActivity[] = []
   activities.forEach((act, idx) => {
@@ -486,6 +570,9 @@ export async function POST(req: NextRequest) {
     if (!normalized && !RECURRENCE_RE.test(text ?? '')) {
       activities = stripFabricatedRecurrence(activities)
     }
+    // Trava determinística: a regra de data existe no prompt, mas erra ~1 em 3
+    // em algumas frases. Aqui não erra.
+    activities = corrigirDatasPassadas(activities, spTodayISO(), normalized ? null : (text ?? null))
 
     return NextResponse.json({
       activities: expandRecurring(activities),
