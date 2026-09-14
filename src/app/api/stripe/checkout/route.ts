@@ -126,7 +126,11 @@ export async function POST(request: Request) {
         metadata: { user_id: user.id, plan },
       },
       allow_promotion_codes: true,
-      success_url: `${baseUrl}/configuracoes?billing=success`,
+      // Passa por /api/stripe/return: ele reconcilia o plano com o Stripe
+      // (protege contra webhook atrasado) e entrega o Início. Antes vinha
+      // direto para /configuracoes — que reconcilia, mas deixava a pessoa em
+      // "Compartilhar acesso" logo após assinar.
+      success_url: `${baseUrl}/api/stripe/return`,
       cancel_url: `${baseUrl}/planos?billing=cancelado`,
     })
 
