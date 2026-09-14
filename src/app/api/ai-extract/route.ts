@@ -105,17 +105,43 @@ Compromissos financeiros que se REPETEM todo mês num dia fixo:
 Exemplos: "pagar natação todo dia 10, R$ 280" · "mensalidade do piano vence
 dia 5, 250 reais" · "a psicopedagoga custa 1600 por mês, pago dia 15".
 
-⚠️ **DIA DA SEMANA ≠ DIA DO MÊS. Esta é a distinção que mais importa aqui.**
-O nome da profissão NÃO decide nada. "Psicopedagoga", "natação" e "piano"
-aparecem nos dois lados — o que decide é o que a frase diz:
-- **dia da SEMANA + horário** = quando o compromisso ACONTECE → é **activity**
-  recorrente, categoria "extracurricular" (ou "saude", se for terapia/consulta).
-  Ex.: "psicopedagoga todas as segundas às 17h" ⇒ ACTIVITY. Não há dinheiro
-  nenhum na frase.
-- **dia do MÊS + valor** = quando a conta é PAGA → é **payment**.
-  Ex.: "psicopedagoga, R$ 1.600, pago dia 15" ⇒ PAYMENT.
-Sem valor E sem dia do mês, **nunca** é payment. Na dúvida, prefira activity:
-um compromisso na agenda errada a pessoa move; um item que some, ela perde.
+⚠️ **PARA SER payment, PRECISA DAS TRÊS COISAS AO MESMO TEMPO:**
+1. **um VALOR em dinheiro** — "R$ 280", "250 reais", "1.600 por mês.
+   Sem valor explícito, NÃO é payment. Nunca.
+2. **uma palavra de PAGAMENTO** — pagar, pago, pagamento, transferir,
+   transferência, PIX, mensalidade, cobrança, boleto, vence, custa.
+   Sem nenhuma delas, NÃO é payment. Nunca.
+3. **um DIA DO MÊS** em que a cobrança cai — "todo dia 10", "vence dia 5".
+
+Faltando QUALQUER uma das três, o item **não é payment**.
+
+⚠️ **Valor sozinho NÃO basta.** Preço mencionado de passagem continua sendo
+compromisso, não cobrança:
+- "psicopedagoga todas as segundas às 17h, **R$ 400 a sessão**" ⇒ **activity**
+  (saude, recorrente). Tem valor, mas não diz que alguém PAGA em algum DIA DO
+  MÊS — é o preço da sessão, informação solta. O compromisso é o que importa.
+- "natação terças e quintas, **mensalidade R$ 280 no dia 10**" ⇒ aí sim tem
+  as três: valor, "mensalidade", dia 10.
+Se a frase descreve QUANDO ALGO ACONTECE e o dinheiro aparece só como preço,
+é **activity**. O valor entra na descrição, não cria uma cobrança.
+
+⚠️ **O nome da profissão ou da atividade NÃO decide nada.** "Psicopedagoga",
+"fonoaudióloga", "natação" e "piano" aparecem dos dois lados. O que decide é
+se a frase fala de DINHEIRO e de PAGAR:
+- "psicopedagoga todas as segundas às 17h" ⇒ **activity** recorrente.
+  Não há valor nem verbo de pagamento — é quando o compromisso ACONTECE.
+- "psicopedagoga, R$ 1.600, pago todo dia 15" ⇒ **payment**.
+  Tem valor, tem "pago", tem dia do mês.
+
+⚠️ **RECORRÊNCIA NÃO MUDA A CATEGORIA.** "Toda segunda" apenas liga
+"recurring": true — a escolha entre escola / saude / extracurricular segue
+EXATAMENTE os mesmos critérios de um compromisso de data única:
+- terapia, consulta, acompanhamento profissional de saúde (psicopedagoga,
+  fonoaudióloga, psicóloga, fisioterapeuta) → **saude**
+- algo ligado à escola → **escola**
+- esporte, curso, música, hobby e todo o resto → **extracurricular**
+Na dúvida entre activity e payment, escolha **activity**: um compromisso na
+agenda errada a pessoa move; um item que some, ela perde.
 
 **Como distinguir de um lembrete ou de um documento:**
 - Tem valor E dia do mês E se repete → **payment**.
@@ -299,6 +325,18 @@ function sanitizePayments(raw: unknown): { pagamentos: ExtractedPayment[]; desca
       amount = Number.isFinite(n) ? n : null
     }
     if (amount !== null && (amount < 0 || amount > 1_000_000)) amount = null
+
+    // Mensalidade SEM VALOR não é mensalidade — regra do produto, e a trava
+    // fica aqui porque o prompt sozinho não garante.
+    //
+    // Sem o valor, o item é quase sempre um compromisso recorrente que a IA
+    // leu como cobrança pelo nome da profissão ("psicopedagoga toda segunda").
+    // Mandar para lembrete devolve a decisão à pessoa; deixar passar criaria
+    // uma cobrança fantasma de R$ 0 no módulo de dinheiro.
+    if (amount === null || amount <= 0) {
+      descartados.push(title)
+      continue
+    }
 
     out.push({
       title,
@@ -603,7 +641,7 @@ export async function POST(req: NextRequest) {
       lembretes.push({
         title: titulo,
         category: 'extracurricular',
-        description: 'A IA entendeu como mensalidade, mas não encontrou o dia do vencimento. Confira se é um compromisso da agenda ou uma cobrança.',
+        description: 'A IA entendeu como mensalidade, mas faltou o valor ou o dia do vencimento. Se for uma cobrança, cadastre em Mensalidades; se for um compromisso, mova para a agenda.',
         child_hint: null,
       })
     }
