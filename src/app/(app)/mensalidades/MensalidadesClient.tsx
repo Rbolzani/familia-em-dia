@@ -327,10 +327,22 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
         <div className="space-y-3">
           {ocorrencias.map((o, i) => {
             const st = o.status
+            // ⚠️ SEMPRE hex de 6 dígitos. O selo monta fundo e borda anexando
+            // alfa em hex (`${cor}14`), e isso só é CSS válido em cima de hex.
+            // Com `rgba(...)` o resultado vira "rgba(26,43,28,0.35)14", que o
+            // navegador DESCARTA — e aí vem o efeito colateral traiçoeiro: como
+            // o React reaproveita o mesmo nó do DOM entre renders, descartar a
+            // declaração deixa valer a ANTERIOR. Na prática, navegar de agosto
+            // (onde a mensalidade estava vencida ou paga) para setembro mantinha
+            // o selo vermelho ou verde, enquanto o texto já dizia "Vence dia 25".
+            // Cor de status errada num módulo de dinheiro é pior que feio.
             const cor = st === 'vencido' ? '#DC2626'
               : st === 'vence_hoje' ? '#D97706'
               : st === 'pago' ? '#3D6641'
-              : 'rgba(26,43,28,0.35)'
+              : '#1A2B1C'
+            // O texto do "a vencer" continua discreto como antes; o que muda é
+            // que fundo e borda passam a de fato existir.
+            const corTexto = st === 'a_vencer' ? 'rgba(26,43,28,0.45)' : cor
             const atraso = st === 'vencido' ? diasDeAtraso(o.vencimento, hoje) : 0
             const selo = st === 'pago' ? 'Pago'
               : st === 'vence_hoje' ? '🔥 Vence hoje'
@@ -401,7 +413,7 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
                         {formatBRL(o.payment.amount)}
                       </span>
                       <span className="text-[11px] font-bold px-2 py-[3px] rounded-full flex-none"
-                        style={{ background: `${cor}14`, color: cor, border: `1px solid ${cor}33` }}>
+                        style={{ background: `${cor}14`, color: corTexto, border: `1px solid ${cor}33` }}>
                         {selo}
                       </span>
                     </div>
