@@ -33,6 +33,16 @@ function buildPrompt(): string {
 
 Hoje é: ${todayISO} (${todayWeekday})
 
+⚠️ REGRA DE DATA — vale para TODA data que você gerar, e vem antes de tudo:
+**nenhuma data pode ser anterior a ${todayISO}**, a menos que o ano esteja
+escrito no conteúdo. Ninguém agenda compromisso para o passado.
+- "dia 12" (só o dia): se o 12 já passou neste mês, é o **dia 12 do MÊS QUE
+  VEM**. Se ainda não chegou, é deste mês. Se é hoje, é hoje.
+- "12 de março" (dia e mês): se já passou neste ano, é **do ANO QUE VEM**.
+- data completa com ano: respeite como está, mesmo no passado.
+Ao terminar, releia cada "date": achou alguma menor que ${todayISO} sem ano
+escrito no conteúdo? Então está errada — avance para a próxima ocorrência.
+
 Analise o conteúdo e classifique cada item em exatamente uma das quatro categorias:
 
 **CATEGORIA 1 — activities (Atividades / Compromissos / Agenda)**
@@ -179,6 +189,22 @@ Regras para activities:
   explícito no conteúdo. Colocar um compromisso pessoal na agenda escolar
   atrapalha mais do que deixá-lo na aba genérica.
 - date: calcule datas relativas a partir de hoje se necessário; null se incerta
+
+- ⚠️ **A DATA NUNCA PODE CAIR NO PASSADO.** Ninguém agenda uma prova para
+  ontem. Quando o conteúdo não traz o ano (e quase nunca traz), escolha
+  sempre a **PRÓXIMA** ocorrência daquela data:
+  · **Só o dia do mês** ("dia 12", "no dia 5") — se esse dia ainda não chegou
+    neste mês, use este mês; se **já passou**, use o **MÊS SEGUINTE**.
+    Exemplo: hoje é ${todayISO}; "dia 12" ⇒ dia 12 do mês que vem, porque o 12
+    deste mês ficou para trás. "dia 20" ⇒ dia 20 deste mês.
+    Se o dia for exatamente hoje, é hoje.
+  · **Dia e mês, sem ano** ("12 de março", "05/03") — se essa data ainda vem
+    neste ano, use este ano; se já passou, use o **ANO SEGUINTE**.
+  · **Data completa com ano** — respeite exatamente o que está escrito, mesmo
+    que seja passado (a pessoa foi explícita).
+  Antes de responder, confira cada "date" que você gerou: se for anterior a
+  ${todayISO} sem que o ano estivesse escrito no conteúdo, você errou — avance
+  para a próxima ocorrência.
 - recurring: true SOMENTE se o conteúdo expressar recorrência explícita
   ("toda terça", "às segundas", "semanalmente") ou for uma grade de horário
   escolar. Rotina implícita ou hábito não é recorrência — se o conteúdo não
