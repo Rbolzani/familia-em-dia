@@ -179,7 +179,8 @@ export async function reativarAssinatura(sub: Stripe.Subscription): Promise<void
 export async function reembolsarEEncerrar(
   janela: JanelaArrependimento,
   subs: Stripe.Subscription[],
-): Promise<{ reembolsado: number }> {
+  customerId: string,
+): Promise<{ reembolsado: number; creditoZerado: number }> {
   if (!janela.paymentIntentId) {
     throw new Error('Cobrança sem payment_intent — reembolso precisa ser feito no painel do Stripe')
   }
@@ -203,5 +204,38 @@ export async function reembolsarEEncerrar(
     await stripe.subscriptions.cancel(s.id)
   }
 
-  return { reembolsado: janela.valorCentavos }
+  const creditoZerado = await zerarCreditoDoCliente(customerId)
+  return { reembolsado: janela.valorCentavos, creditoZerado }
+}
+
+/**
+ * Zera o crédito do cliente depois do estorno — senão o dinheiro volta DUAS
+ * vezes, em formas diferentes.
+ *
+ * O caso: assina o anual (R$ 382,80 no cartão), troca para o mensal dentro dos
+ * 7 dias e o Stripe converte o tempo não usado em **crédito** (~R$ 342,90) em
+ * vez de devolver ao cartão — comportamento normal de proração. Se logo em
+ * seguida a pessoa cancelar, a janela ainda aponta para a cobrança original de
+ * R$ 382,80, e o estorno sai integral. Resultado: R$ 382,80 de volta no cartão
+ * **e** R$ 342,90 ainda parados na conta, que ela não pagou.
+ *
+ * Zerar aqui deixa a conta exata: ela recebe de volta o que pagou, uma vez só.
+ *
+ * Só mexe em saldo CREDOR (negativo no Stripe). Saldo devedor fica intocado —
+ * perdoar dívida por causa de um estorno seria outro presente involuntário.
+ */
+async function zerarCreditoDoCliente(customerId: string): Promise<number> {
+  const cus = await stripe.customers.retrieve(customerId)
+  if ('deleted' in cus) return 0
+  const saldo = cus.balance ?? 0
+  if (saldo >= 0) return 0
+
+  await stripe.customers.createBalanceTransaction(customerId, {
+    // Positivo anula o crédito (que no Stripe é negativo).
+    amount: -saldo,
+    currency: cus.currency ?? 'brl',
+    description: 'Crédito de proração anulado — valor devolvido ao cartão (arrependimento)',
+  })
+  console.warn('[arrependimento] crédito de R$ %s zerado após estorno', (-saldo / 100).toFixed(2))
+  return -saldo
 }

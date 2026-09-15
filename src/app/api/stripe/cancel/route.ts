@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     if (!reactivate) {
       const janela = await janelaArrependimento(customerId, liveSubs.map(s => s.id))
       if (janela.dentro) {
-        const { reembolsado } = await reembolsarEEncerrar(janela, liveSubs)
+        const { reembolsado, creditoZerado } = await reembolsarEEncerrar(janela, liveSubs, customerId)
         // Registra o motivo mesmo no arrependimento — é a informação mais
         // valiosa que existe sobre quem desiste nos primeiros dias.
         if (feedback || comment) {
@@ -76,9 +76,10 @@ export async function POST(request: Request) {
           }).catch(e => console.error('[stripe-cancel] motivo não gravado:', e))))
         }
         await reconcileUserFromStripe(user.id)
-        console.warn('[stripe-cancel] arrependimento: R$ %s devolvidos a %s',
-          (reembolsado / 100).toFixed(2), user.id)
-        return NextResponse.json({ ok: true, reembolsado })
+        console.warn('[stripe-cancel] arrependimento: R$ %s devolvidos a %s%s',
+          (reembolsado / 100).toFixed(2), user.id,
+          creditoZerado ? ` (crédito de R$ ${(creditoZerado / 100).toFixed(2)} anulado)` : '')
+        return NextResponse.json({ ok: true, reembolsado, creditoZerado })
       }
     }
 
