@@ -70,6 +70,7 @@ export default async function PlanosPage() {
   return (
     <PlanosClient
       arrependimentoAte={arrependimentoAte}
+      assinouNoTeste={eff.assinouNoTeste}
       currentPlan={plan}
       status={eff.status}
       trialEndsAt={eff.trialEndsAt}

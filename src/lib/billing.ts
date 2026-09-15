@@ -93,6 +93,14 @@ export interface EffectiveSubscription {
   cancelAtPeriodEnd: boolean
   billingInterval: string | null
   partnerGraceUntil: string | null
+  /**
+   * Em teste E já com assinatura no Stripe — ou seja, a pessoa assinou durante
+   * o período de testes e o cartão está guardado. Sem isto, os dois estados de
+   * "trialing" eram indistinguíveis na tela: quem acabara de pagar via a mesma
+   * mensagem de quem nunca tinha assinado, e concluía (com razão) que a
+   * assinatura não havia funcionado.
+   */
+  assinouNoTeste: boolean
 }
 
 // Resolve a assinatura "efetiva" do usuário: a do OWNER da família ativa.
@@ -107,6 +115,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
   const empty: EffectiveSubscription = {
     isOwner: true, ownerId: null, ownerName: null,
     plan: 'free', status: 'free', trialEndsAt: null,
+    assinouNoTeste: false,
     currentPeriodEnd: null, cancelAtPeriodEnd: false,
     billingInterval: null, partnerGraceUntil: null,
   }
@@ -130,7 +139,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
   // Assinatura do owner (fonte de verdade do plano para toda a família)
   const { data: sub } = await admin
     .from('subscriptions')
-    .select('plan, status, trial_ends_at, current_period_end, cancel_at_period_end, billing_interval, partner_grace_until')
+    .select('plan, status, trial_ends_at, current_period_end, cancel_at_period_end, billing_interval, partner_grace_until, stripe_subscription_id')
     .eq('user_id', ownerId)
     .maybeSingle()
 
@@ -145,6 +154,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
     cancelAtPeriodEnd: sub?.cancel_at_period_end ?? false,
     billingInterval: sub?.billing_interval ?? null,
     partnerGraceUntil: sub?.partner_grace_until ?? null,
+    assinouNoTeste: sub?.status === 'trialing' && !!sub?.stripe_subscription_id,
   }
 }
 

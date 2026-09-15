@@ -86,6 +86,12 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           planLabel: PLAN_LABELS[eff.plan as keyof typeof PLAN_LABELS] ?? eff.plan,
           hasPartner,
           isPartner: !eff.isOwner,
+          assinou: eff.assinouNoTeste,
+          // Fuso de São Paulo: o trial_ends_at fica em UTC, e sem converter a
+          // data exibida adianta um dia para quem está no Brasil.
+          cobrancaEm: new Date(eff.trialEndsAt).toLocaleDateString('pt-BR', {
+            day: '2-digit', month: 'long', timeZone: 'America/Sao_Paulo',
+          }),
         }
       }
 
@@ -118,7 +124,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           <RealtimeSync />
           <PartnerBanner />
           {bannerInfo?.type === 'trial' && (
-            <TrialBanner daysLeft={bannerInfo.daysLeft} planLabel={bannerInfo.planLabel} hasPartner={bannerInfo.hasPartner} isPartner={bannerInfo.isPartner} />
+            <TrialBanner daysLeft={bannerInfo.daysLeft} planLabel={bannerInfo.planLabel} hasPartner={bannerInfo.hasPartner} isPartner={bannerInfo.isPartner} assinou={bannerInfo.assinou} cobrancaEm={bannerInfo.cobrancaEm} />
           )}
           {bannerInfo?.type === 'owner_grace' && (
             <GraceBanner type="owner_grace" daysLeft={bannerInfo.daysLeft} />

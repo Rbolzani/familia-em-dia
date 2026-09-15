@@ -30,6 +30,8 @@ interface Props {
   cancelAtPeriodEnd: boolean
   /** Fim da janela de arrependimento (7 dias), ou null se fora dela. */
   arrependimentoAte?: string | null
+  /** Assinou durante o teste: cartão guardado, cobrança agendada. */
+  assinouNoTeste?: boolean
   billingInterval: string | null
   isOwner: boolean
   ownerName?: string | null
@@ -84,6 +86,11 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
+function fmtDateShort(iso: string | null) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+
 function fmtPrice(n: number) {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
 }
@@ -91,7 +98,7 @@ function fmtPrice(n: number) {
 export default function PlanosClient({
   currentPlan, status, trialEndsAt, currentPeriodEnd,
   cancelAtPeriodEnd, billingInterval, isOwner, ownerName, childLimit, aiLimit, prices,
-  arrependimentoAte = null,
+  arrependimentoAte = null, assinouNoTeste = false,
 }: Props) {
   // Toggle abre no intervalo do plano atual do usuário; sem plano pago (grátis/
   // cancelado) cai no padrão mensal.
@@ -224,12 +231,19 @@ export default function PlanosClient({
                       : 'rgba(61,102,65,0.10)',
                   color: isTrialing ? '#92400E' : cancelAtPeriodEnd ? '#DC2626' : '#2C4A2E',
                 }}>
-                  {isTrialing ? 'Em teste' : cancelAtPeriodEnd ? 'Cancelando' : 'Ativo'}
+                  {isTrialing ? (assinouNoTeste ? 'Assinado' : 'Em teste') : cancelAtPeriodEnd ? 'Cancelando' : 'Ativo'}
                 </span>
               </div>
               {isTrialing && trialEndsAt && (
                 <p className="text-xs mt-1" style={{ color: 'rgba(26,43,28,0.50)' }}>
-                  Teste gratuito até {fmtDate(trialEndsAt)}
+                  {assinouNoTeste ? (
+                    <>
+                      <strong style={{ color: '#2C4A2E' }}>Assinatura confirmada.</strong>{' '}
+                      Grátis até {fmtDate(trialEndsAt)} — a cobrança começa nessa data.
+                    </>
+                  ) : (
+                    <>Teste gratuito até {fmtDate(trialEndsAt)}</>
+                  )}
                 </p>
               )}
               {!isTrialing && currentPeriodEnd && (
@@ -416,7 +430,7 @@ export default function PlanosClient({
                   <div className="flex items-center justify-center gap-2 py-3 rounded-[13px] text-sm font-bold"
                     style={{ background: 'rgba(61,102,65,0.08)', color: '#3D6641' }}>
                     <Check size={15} strokeWidth={2.5} />
-                    {isTrialing ? 'Em teste agora' : 'Plano atual'}
+                    {isTrialing ? (assinouNoTeste ? 'Assinado · cobra em ' + fmtDateShort(trialEndsAt) : 'Em teste agora') : 'Plano atual'}
                   </div>
                 ) : (
                   <button onClick={() => handleCheckout(plan.id)}
