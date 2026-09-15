@@ -145,7 +145,11 @@ export async function syncSubscriptionToDb(
     billing_interval: isEnded ? null : (mapped?.interval ?? null),
     trial_ends_at: toISO(sub.trial_end),
     current_period_end: toISO(getPeriodEnd(sub)),
-    cancel_at_period_end: sub.cancel_at_period_end ?? false,
+    // `cancel_at` cobre o caso do schedule: quando a assinatura e governada
+    // por um `subscription_schedule`, o Stripe agenda o fim em `cancel_at` e
+    // deixa `cancel_at_period_end` em FALSE. Ler so o segundo faria a tela
+    // dizer "Ativo · renova em 2027" para quem acabou de cancelar.
+    cancel_at_period_end: (sub.cancel_at_period_end ?? false) || !!sub.cancel_at,
     ...graceField,
     ...cotaZerada,
     updated_at: new Date().toISOString(),
@@ -159,7 +163,12 @@ export async function syncSubscriptionToDb(
 function pickCurrentSubscription(subs: Stripe.Subscription[]): Stripe.Subscription | null {
   if (subs.length === 0) return null
   const live = subs.filter(s => s.status === 'active' || s.status === 'trialing')
-  const notCancelling = live.find(s => !s.cancel_at_period_end)
+  // Mesmo cuidado do upsert: com schedule, o fim agendado vem em `cancel_at`
+  // e não em `cancel_at_period_end`. Ignorar isso faria uma assinatura já
+  // cancelada ser escolhida como "a não cancelante", e o app a trataria como
+  // renovação normal.
+  const cancelando = (s: Stripe.Subscription) => !!s.cancel_at_period_end || !!s.cancel_at
+  const notCancelling = live.find(s => !cancelando(s))
   if (notCancelling) return notCancelling
   if (live.length > 0) return live.sort((a, b) => b.created - a.created)[0]
   return subs.sort((a, b) => b.created - a.created)[0]

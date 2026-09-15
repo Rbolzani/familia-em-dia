@@ -123,6 +123,52 @@ async function resolvePaymentIntent(invoiceId: string | null | undefined): Promi
   return null
 }
 
+/** O schedule que governa a assinatura, se houver. */
+function scheduleDa(sub: Stripe.Subscription): string | null {
+  const s = (sub as unknown as { schedule?: string | { id: string } }).schedule
+  if (typeof s === 'string') return s
+  return s?.id ?? null
+}
+
+/**
+ * Agenda o fim da assinatura, por onde o Stripe permitir.
+ *
+ * ⚠️ POR QUE NÃO BASTA `subscriptions.update({ cancel_at_period_end })`
+ * Quando a assinatura está sob um `subscription_schedule`, o Stripe RECUSA
+ * qualquer alteração de cancelamento feita direto nela:
+ *
+ *   "The subscription is managed by the subscription schedule sub_sched_...,
+ *    and updating any cancelation behavior directly is not allowed."
+ *
+ * Não é hipótese: apareceu no teste do H1. Encerrar o teste pelo painel do
+ * Stripe ("End trial") cria um schedule, e a partir dali TODO cancelamento
+ * pelo app falhava com 500 — o botão não fazia nada, sem nenhum sinal de
+ * que o Stripe tinha recusado.
+ *
+ * Com schedule, o equivalente é soltar o schedule no fim do período
+ * (`end_behavior: 'cancel'` via release não serve — precisamos cancelar).
+ */
+export async function agendarFimDaAssinatura(sub: Stripe.Subscription): Promise<void> {
+  const sched = scheduleDa(sub)
+  if (!sched) {
+    await stripe.subscriptions.update(sub.id, { cancel_at_period_end: true })
+    return
+  }
+  // O schedule manda: dizer a ele para encerrar (em vez de renovar) no fim da
+  // fase corrente é o que o Stripe aceita aqui.
+  await stripe.subscriptionSchedules.update(sched, { end_behavior: 'cancel' })
+}
+
+/** Desfaz o agendamento de fim, pelo mesmo caminho. */
+export async function reativarAssinatura(sub: Stripe.Subscription): Promise<void> {
+  const sched = scheduleDa(sub)
+  if (!sched) {
+    await stripe.subscriptions.update(sub.id, { cancel_at_period_end: false })
+    return
+  }
+  await stripe.subscriptionSchedules.update(sched, { end_behavior: 'release' })
+}
+
 /**
  * Devolve o valor e encerra a assinatura NA HORA.
  *
@@ -145,7 +191,17 @@ export async function reembolsarEEncerrar(
     reason: 'requested_by_customer',
   })
 
-  await Promise.all(subs.map(s => stripe.subscriptions.cancel(s.id)))
+  // Mesmo impedimento do cancelamento agendado: com schedule ativo o Stripe
+  // recusa encerrar a assinatura direto. `release` desfaz o vínculo sem mexer
+  // na assinatura, e aí o cancelamento passa.
+  for (const s of subs) {
+    const sched = scheduleDa(s)
+    if (sched) {
+      await stripe.subscriptionSchedules.release(sched)
+        .catch(e => console.error('[arrependimento] release do schedule falhou:', e))
+    }
+    await stripe.subscriptions.cancel(s.id)
+  }
 
   return { reembolsado: janela.valorCentavos }
 }

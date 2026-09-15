@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
-import { janelaArrependimento, reembolsarEEncerrar } from '@/lib/stripe-arrependimento'
+import { janelaArrependimento, reembolsarEEncerrar, agendarFimDaAssinatura, reativarAssinatura } from '@/lib/stripe-arrependimento'
 
 // Cancela (ou reativa) a assinatura vigente do usuário direto via API do Stripe.
 // Não depende do portal externo — controle total dentro do app.
@@ -82,21 +82,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // Monta o payload — inclui o motivo do cancelamento quando aplicável.
-    const updateParams: Parameters<typeof stripe.subscriptions.update>[1] = {
-      cancel_at_period_end: !reactivate,
-    }
-    if (!reactivate && (feedback || comment)) {
-      updateParams.cancellation_details = {
-        ...(feedback ? { feedback } : {}),
-        ...(comment ? { comment } : {}),
-      }
+    // Agenda o fim (ou desfaz). Passa pelos helpers porque assinatura sob
+    // `subscription_schedule` recusa alteração de cancelamento feita direto —
+    // era o que derrubava este endpoint em 500, sem o botão fazer nada.
+    for (const s of liveSubs) {
+      if (reactivate) await reativarAssinatura(s)
+      else await agendarFimDaAssinatura(s)
     }
 
-    // Aplica a operação em todas as vigentes (normalmente só há uma).
-    await Promise.all(
-      liveSubs.map(s => stripe.subscriptions.update(s.id, updateParams))
-    )
+    // O motivo é gravado à parte: `cancellation_details` é da assinatura, e
+    // continua aceito mesmo quando o cancelamento em si passou pelo schedule.
+    if (!reactivate && (feedback || comment)) {
+      await Promise.all(liveSubs.map(s => stripe.subscriptions.update(s.id, {
+        cancellation_details: {
+          ...(feedback ? { feedback } : {}),
+          ...(comment ? { comment } : {}),
+        },
+      }).catch(e => console.error('[stripe-cancel] motivo não gravado:', e))))
+    }
 
     // Sincroniza o banco com o novo estado.
     await reconcileUserFromStripe(user.id)
