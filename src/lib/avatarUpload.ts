@@ -64,7 +64,14 @@ export async function prepararFotoAvatar(file: File): Promise<{ arquivo: File; e
   const convertido = await viaNavegador(file) ?? await viaServidor(file)
   if (convertido) return { arquivo: convertido, ext: 'jpg' }
 
-  console.warn('[avatar] conversão para JPEG falhou; subindo o arquivo original')
+  // Formato que o navegador não desenha e a conversão não resgatou: subir
+  // assim mesmo reproduz o defeito original — arquivo salvo, avatar quebrado,
+  // nenhum aviso. Melhor recusar e dizer o que fazer.
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  if (['heic', 'heif'].includes(ext) || /heic|heif/.test(file.type)) {
+    throw new Error('Não consegui converter essa foto do iPhone. Tente de novo, ou escolha uma foto em JPG.')
+  }
+
+  console.warn('[avatar] conversão para JPEG falhou; subindo o arquivo original')
   return { arquivo: file, ext }
 }
