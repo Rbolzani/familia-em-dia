@@ -24,7 +24,12 @@ function comNomeJpeg(blob: Blob): File {
 
 async function viaNavegador(file: File): Promise<File | null> {
   try {
-    const bitmap = await createImageBitmap(file)
+    // ⚠️ `imageOrientation: 'from-image'` NÃO é detalhe. Foto de celular
+    // costuma ser gravada na horizontal com uma marca de EXIF dizendo como
+    // girar — é o iPhone em retrato o caso clássico. O <img> respeita essa
+    // marca; o canvas, por padrão, IGNORA. Sem esta linha, converter para
+    // JPEG "queima" a imagem na orientação crua e o avatar sai deitado.
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
     const lo = Math.max(bitmap.width, bitmap.height)
     const escala = lo > LADO_MAXIMO ? LADO_MAXIMO / lo : 1
     const canvas = document.createElement('canvas')
