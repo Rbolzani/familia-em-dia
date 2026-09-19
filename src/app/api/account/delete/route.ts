@@ -1,6 +1,61 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { buscarTodas } from '@/lib/paginacao'
+import { stripe } from '@/lib/stripe'
+import { janelaArrependimento, reembolsarEEncerrar } from '@/lib/stripe-arrependimento'
+
+/**
+ * Cancela a cobrança do usuário no Stripe — e devolve o dinheiro se a compra
+ * ainda estiver na janela de 7 dias do CDC.
+ *
+ * O cliente do Stripe NÃO é apagado: as faturas já pagas precisam continuar
+ * existindo (obrigação fiscal e prova para as duas partes). Sem assinatura
+ * ativa, um cliente parado não gera cobrança nenhuma.
+ */
+async function encerrarCobranca(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<void> {
+  const { data: row } = await admin
+    .from('subscriptions')
+    .select('stripe_customer_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const customerId = row?.stripe_customer_id as string | null | undefined
+  if (!customerId) return   // nunca assinou: nada a encerrar
+
+  const [ativas, emTeste] = await Promise.all([
+    stripe.subscriptions.list({ customer: customerId, status: 'active', limit: 20 }),
+    stripe.subscriptions.list({ customer: customerId, status: 'trialing', limit: 20 }),
+  ])
+  const vivas = [...ativas.data, ...emTeste.data]
+  if (vivas.length === 0) return
+
+  // Mesma regra do cancelamento pelo app: dentro dos 7 dias, desfaz a compra
+  // (devolve e encerra). Fora dela, encerra na hora — quem apaga a conta não
+  // fica pagando por um acesso que não existe mais.
+  const janela = await janelaArrependimento(customerId, vivas.map(s => s.id))
+  if (janela.dentro) {
+    const { reembolsado } = await reembolsarEEncerrar(janela, vivas, customerId)
+    console.warn('[delete-account] arrependimento na exclusão: R$ %s devolvidos',
+      (reembolsado / 100).toFixed(2))
+    return
+  }
+
+  for (const s of vivas) {
+    // Com `subscription_schedule` o Stripe recusa cancelar direto; soltar o
+    // schedule primeiro é o que destrava (ver achado 23).
+    const sched = (s as unknown as { schedule?: string | { id: string } }).schedule
+    const schedId = typeof sched === 'string' ? sched : sched?.id
+    if (schedId) {
+      await stripe.subscriptionSchedules.release(schedId)
+        .catch(e => console.error('[delete-account] release do schedule falhou:', e))
+    }
+    await stripe.subscriptions.cancel(s.id)
+  }
+  console.warn('[delete-account] %d assinatura(s) canceladas no Stripe', vivas.length)
+}
 
 export async function POST(request: Request) {
   // 1. Verificar sessão
@@ -70,6 +125,30 @@ export async function POST(request: Request) {
           )
         }
       }
+    }
+
+    // 3b. Encerrar a cobrança NO STRIPE — antes de apagar o banco.
+    //
+    // ⚠️ POR QUE AQUI, E POR QUE ABORTA SE FALHAR
+    // A exclusão apagava banco e arquivos e NUNCA falava com o Stripe. A
+    // assinatura seguia viva: quem apagou a conta era cobrado no próximo
+    // ciclo, sem app para cancelar e sem login para reclamar — descobria pela
+    // fatura do cartão. Cobrança indevida, e contra o direito de
+    // arrependimento que o próprio app implementa.
+    //
+    // O id do cliente vive em `subscriptions`, que o passo 4 apaga: depois
+    // dele não há mais como achar a assinatura. Por isso vem antes.
+    //
+    // Se o Stripe não responder, a exclusão PARA. Apagar a conta deixando a
+    // cobrança de pé é irreversível para a pessoa; adiar alguns minutos, não.
+    try {
+      await encerrarCobranca(admin, user.id)
+    } catch (e) {
+      console.error('[delete-account] falha ao encerrar cobrança no Stripe:', e)
+      return NextResponse.json({
+        error: 'Não consegui encerrar sua assinatura agora, e não vou apagar a conta '
+          + 'deixando a cobrança ativa. Tente de novo em alguns minutos ou fale com o suporte.',
+      }, { status: 503 })
     }
 
     // 4. Limpeza do banco via SECURITY DEFINER usando auth.uid() do usuário
