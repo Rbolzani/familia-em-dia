@@ -2,7 +2,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Child } from '@/lib/types'
-import { avatarPath, signChildAvatars } from '@/lib/avatars'
+import { avatarPath, signChildAvatars, limparAvataresAntigos } from '@/lib/avatars'
 import { prepararFotoAvatar } from '@/lib/avatarUpload'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
@@ -283,6 +283,11 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
       .from('avatars')
       .upload(path, photoFile, { upsert: true, contentType: photoFile.type })
 
+    // Troca de extensão (o `.heic` antigo virando `.jpg`) muda o nome do
+    // arquivo, então o anterior não é substituído — some do banco e fica no
+    // bucket. Limpa depois do upload dar certo, nunca antes.
+    if (!uploadError) await limparAvataresAntigos(supabase, famId, childId, path)
+
     if (uploadError) {
       console.error('[uploadPhoto] storage error:', uploadError)
       throw new Error(`Erro no upload da foto: ${uploadError.message}`)
@@ -341,6 +346,9 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
           // Removeu a foto: apaga o arquivo além de limpar a coluna, senão
           // sobra imagem de criança no bucket sem nada apontando para ela.
           await supabase.storage.from('avatars').remove([child.avatar_path])
+          // E qualquer versão anterior de outra extensão (o `.heic` de antes
+          // da conversão), que a coluna não conhece e ninguém mais apagaria.
+          await limparAvataresAntigos(supabase, familyId!, child.id, '')
           avatarPathNovo = null
         }
 

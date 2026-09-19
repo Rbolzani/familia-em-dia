@@ -10,6 +10,42 @@ export function avatarPath(familyId: string, childId: string, ext: string) {
 }
 
 /**
+ * Apaga fotos ANTERIORES do mesmo filho que tenham outra extensão.
+ *
+ * POR QUE PRECISA EXISTIR
+ * O nome do arquivo é `<child_id>.<ext>`, então `upsert` já substitui a foto
+ * quando a extensão é a mesma. Quando ela MUDA — o caso real: um `.heic`
+ * antigo virando `.jpg` depois que passamos a converter — o nome muda junto
+ * e o arquivo antigo fica órfão no bucket, sem nada apontando para ele.
+ * Foto de criança guardada para sempre, sem dono, é o resto que o achado 10
+ * já tinha mostrado por outro caminho.
+ *
+ * Melhor esforço: falhar aqui não pode derrubar a troca de foto, que já deu
+ * certo. O pior caso é continuar com o órfão que existia antes.
+ */
+export async function limparAvataresAntigos(
+  supabase: SupabaseClient,
+  familyId: string,
+  childId: string,
+  caminhoAtual: string,
+): Promise<void> {
+  try {
+    const { data: arquivos } = await supabase.storage.from('avatars').list(familyId)
+    const orfaos = (arquivos ?? [])
+      // `list` devolve subpastas com id nulo; só arquivos têm id.
+      .filter(f => f.id !== null && f.name.startsWith(`${childId}.`))
+      .map(f => `${familyId}/${f.name}`)
+      .filter(p => p !== caminhoAtual)
+
+    if (orfaos.length === 0) return
+    const { error } = await supabase.storage.from('avatars').remove(orfaos)
+    if (error) console.error('[avatars] limpeza de fotos antigas falhou:', error.message)
+  } catch (e) {
+    console.error('[avatars] limpeza de fotos antigas falhou:', e)
+  }
+}
+
+/**
  * Preenche `avatar_url` (campo transitório) a partir de `avatar_path` (o que
  * está no banco).
  *
