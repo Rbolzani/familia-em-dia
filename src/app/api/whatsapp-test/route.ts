@@ -38,7 +38,7 @@ export async function POST() {
     'Nenhuma dose prevista nos próximos 30 dias.',
   ]
 
-  const result = await sendWhatsApp(settings.whatsapp_number, params)
+  const result = await sendWhatsApp(settings.whatsapp_number, params, undefined, { userId: user.id, kind: 'teste' })
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 502 })
   }

@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       const phone = await getUserPhone(proposedTo)
       if (phone) {
         const msg = `Você tem sugestões de logística de ${proposerName} pendentes. Acesse o app Família em Dia para aceitar ou recusar.`
-        await sendWhatsApp(phone, msg)
+        await sendWhatsApp(phone, msg, undefined, { userId: proposedTo, kind: 'logistica' })
       }
     }
 
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
         ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(activityDate + 'T12:00:00'))
         : ''
       const msg = `${rejecterName} recusou sua sugestão de logística para a atividade ${activityTitle}${fmtDate ? ` na data ${fmtDate}` : ''}. O slot está livre novamente.`
-      await sendWhatsApp(phone, msg)
+      await sendWhatsApp(phone, msg, undefined, { userId: proposedBy, kind: 'logistica' })
     }
 
     return NextResponse.json({ ok: true })

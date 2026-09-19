@@ -41,6 +41,10 @@ export async function sendWhatsApp(
   // a contagem de parâmetros faz parte do contrato do template: mandar 1
   // parâmetro para um template de 5 é rejeitado pela Meta.
   templateOverride?: string,
+  // Quem recebe e por quê — vai para `whatsapp_messages`, onde o webhook de
+  // status depois grava se a Meta ENTREGOU. Opcional só para não quebrar
+  // chamadas antigas; toda chamada nova deve informar.
+  registro?: { userId?: string; kind: string },
 ): Promise<{ ok: boolean; error?: string; metaResponse?: string }> {
   const isMultiPart = Array.isArray(content)
 
@@ -111,7 +115,35 @@ export async function sendWhatsApp(
   })
   const resText = await res.text()
   if (!res.ok) return { ok: false, error: `Meta HTTP ${res.status}: ${resText}` }
+  await registrarEnvio(resText, templateName ?? null, registro)
   return { ok: true, metaResponse: resText }
+}
+
+// ⚠️ 200 da Meta NÃO é entrega. É só "recebi o pedido". A entrega (ou a falha
+// — cartão da WABA recusado, número sem WhatsApp, limite) chega DEPOIS, pelo
+// webhook `/api/whatsapp/webhook`. Guardar o wamid aqui é o que permite
+// ligar aquele aviso a uma pessoa. Foi assim que o resumo diário passou dois
+// dias sem chegar em set/2026 com todos os logs dizendo "enviado com sucesso".
+//
+// Falhar ao registrar nunca derruba o envio: a mensagem já saiu.
+async function registrarEnvio(
+  resText: string,
+  template: string | null,
+  registro?: { userId?: string; kind: string },
+): Promise<void> {
+  try {
+    const wamid = (JSON.parse(resText) as { messages?: { id?: string }[] }).messages?.[0]?.id
+    if (!wamid) return
+    const { error } = await adminClient().from('whatsapp_messages').upsert({
+      wamid,
+      user_id: registro?.userId ?? null,
+      kind: registro?.kind ?? null,
+      template,
+    }, { onConflict: 'wamid', ignoreDuplicates: true })
+    if (error) console.error('[whatsapp] registro do envio falhou:', error.message)
+  } catch (e) {
+    console.error('[whatsapp] registro do envio falhou:', e)
+  }
 }
 
 // ── Datas no fuso de São Paulo ───────────────────────────────────────────────
@@ -638,7 +670,7 @@ export async function runGraceNotices(admin: SupabaseClient): Promise<{ sent: nu
         ? `O acesso compartilhado da sua família será encerrado ${dayStr}.`
         : `Sua conexão com a família será encerrada ${dayStr}.`
 
-      const result = await sendWhatsApp(number, body, accountTemplate)
+      const result = await sendWhatsApp(number, body, accountTemplate, { userId: memberId, kind: 'grace' })
       if (result.ok) sent++; else { failed++; console.error(`[grace] falha p/ ${memberId}:`, result.error) }
 
       // Marca como enviado hoje (mesmo em falha, evita retry no mesmo dia).

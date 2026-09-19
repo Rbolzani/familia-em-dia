@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
         skipped++
         return
       }
-      const result = await sendWhatsApp(s.whatsapp_number!, summary.params)
+      const result = await sendWhatsApp(s.whatsapp_number!, summary.params, undefined, { userId: s.user_id, kind: 'resumo' })
       if (result.ok) {
         console.log(`[whatsapp-daily] user ${s.user_id}: enviado com sucesso`)
         sent++
