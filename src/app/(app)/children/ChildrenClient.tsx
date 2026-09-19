@@ -183,6 +183,7 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
   })
   const [photoFile,    setPhotoFile]    = useState<File|null>(null)
   const [photoPreview, setPhotoPreview] = useState<string|null>(null)
+  const [preparandoFoto, setPreparandoFoto] = useState(false)
 
   // Track current blob URL so we can revoke it when replaced or unmounted
   const blobUrlRef = useRef<string | null>(null)
@@ -234,13 +235,27 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
     setModal({ mode: 'edit', child })
   }
 
-  function handleFileSelected(f: File) {
-    setPhotoFile(f)
-    // Revoke previous blob URL before creating a new one
-    revokeBlobUrl()
-    const blobUrl = URL.createObjectURL(f)
-    blobUrlRef.current = blobUrl
-    setPhotoPreview(blobUrl)
+  // A conversão para JPEG acontece AQUI, na escolha do arquivo — não no
+  // salvamento. A prévia é um <img> apontando para o arquivo escolhido, e com
+  // HEIC ela aparecia quebrada: a foto só surgia depois de salvar, quando o
+  // que volta do bucket já está convertido. Convertendo antes, a prévia mostra
+  // exatamente o que será guardado.
+  async function handleFileSelected(f: File) {
+    setSaveError(null)
+    setPreparandoFoto(true)
+    try {
+      const { arquivo } = await prepararFotoAvatar(f)
+      setPhotoFile(arquivo)
+      revokeBlobUrl()
+      const blobUrl = URL.createObjectURL(arquivo)
+      blobUrlRef.current = blobUrl
+      setPhotoPreview(blobUrl)
+    } catch (e) {
+      setPhotoFile(null)
+      setSaveError(e instanceof Error ? e.message : 'Não foi possível usar essa foto.')
+    } finally {
+      setPreparandoFoto(false)
+    }
   }
 
   /**
@@ -257,14 +272,16 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
   async function uploadPhoto(famId: string, childId: string): Promise<string | null> {
     if (!photoFile) return null
 
-    // Sempre JPEG: HEIC de iPhone subia inteiro e o avatar ficava quebrado
-    // fora do Safari, sem erro nenhum. Ver `prepararFotoAvatar`.
-    const { arquivo, ext } = await prepararFotoAvatar(photoFile)
+    // Já vem convertido de `handleFileSelected` — a extensão acompanha o
+    // conteúdo real, senão o navegador recusa pelo mesmo motivo de antes.
+    const ext = photoFile.type === 'image/jpeg'
+      ? 'jpg'
+      : (photoFile.name.split('.').pop()?.toLowerCase() || 'jpg')
     const path = avatarPath(famId, childId, ext)
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(path, arquivo, { upsert: true, contentType: arquivo.type })
+      .upload(path, photoFile, { upsert: true, contentType: photoFile.type })
 
     if (uploadError) {
       console.error('[uploadPhoto] storage error:', uploadError)
@@ -638,6 +655,11 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
               onFile={handleFileSelected}
               onClear={() => { revokeBlobUrl(); setPhotoFile(null); setPhotoPreview(null) }}
             />
+            {preparandoFoto && (
+              <p style={{ margin: '8px 0 0', fontSize: 12.5, color: 'rgba(26,43,28,0.55)' }}>
+                Preparando a foto…
+              </p>
+            )}
           </div>
 
           {/* Name */}
@@ -723,11 +745,11 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
             </Button>
             <button
               onClick={handleSave}
-              disabled={saving || !form.name.trim()}
+              disabled={saving || preparandoFoto || !form.name.trim()}
               style={{
                 flex: 2, padding: '13px 20px', borderRadius: 14, border: 'none',
-                cursor: saving || !form.name.trim() ? 'not-allowed' : 'pointer',
-                background: saving || !form.name.trim()
+                cursor: saving || preparandoFoto || !form.name.trim() ? 'not-allowed' : 'pointer',
+                background: saving || preparandoFoto || !form.name.trim()
                   ? 'rgba(61,102,65,0.25)'
                   : 'linear-gradient(140deg,#FF8A6E,#FF6B5C)',
                 color: 'white', fontSize: 15, fontWeight: 700,

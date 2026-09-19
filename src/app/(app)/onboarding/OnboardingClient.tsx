@@ -92,14 +92,24 @@ function ChildCard({
   const inputId = `photo-${child.id}`
   const blobRef = useRef<string | null>(null)
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  // Converte na ESCOLHA, não no salvamento: a prévia é um <img> do arquivo
+  // escolhido, e HEIC de iPhone aparecia quebrado ali. Mesma razão da tela
+  // de Meus Filhos.
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
-    if (!f) return
-    if (blobRef.current) URL.revokeObjectURL(blobRef.current)
-    const url = URL.createObjectURL(f)
-    blobRef.current = url
-    onChange(child.id, { photoFile: f, photoPreview: url })
     e.target.value = ''
+    if (!f) return
+    let arquivo = f
+    try {
+      arquivo = (await prepararFotoAvatar(f)).arquivo
+    } catch {
+      // Sem conversão possível: segue com o original — no onboarding, travar
+      // o cadastro por causa de uma foto seria pior que um avatar sem foto.
+    }
+    if (blobRef.current) URL.revokeObjectURL(blobRef.current)
+    const url = URL.createObjectURL(arquivo)
+    blobRef.current = url
+    onChange(child.id, { photoFile: arquivo, photoPreview: url })
   }
 
   return (
@@ -228,12 +238,13 @@ export default function OnboardingClient({ firstName }: { firstName: string }) {
 
   /** Devolve o CAMINHO (`<family_id>/<child_id>.<ext>`), não uma URL. */
   async function uploadPhoto(famId: string, childId: string, file: File): Promise<string | null> {
-    // Mesma conversão da tela de filhos: HEIC do iPhone vira JPEG antes de
-    // subir, senão o avatar aparece quebrado fora do Safari.
-    const { arquivo, ext } = await prepararFotoAvatar(file)
+    // Já convertido em `handleFile`; a extensão acompanha o conteúdo real.
+    const ext = file.type === 'image/jpeg'
+      ? 'jpg'
+      : (file.name.split('.').pop()?.toLowerCase() || 'jpg')
     const path = avatarPath(famId, childId, ext)
     const { error } = await supabase.storage.from('avatars')
-      .upload(path, arquivo, { upsert: true, contentType: arquivo.type })
+      .upload(path, file, { upsert: true, contentType: file.type })
     if (error) return null
     return path
   }
