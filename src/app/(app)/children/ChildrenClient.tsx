@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Child } from '@/lib/types'
 import { avatarPath, signChildAvatars } from '@/lib/avatars'
+import { prepararFotoAvatar } from '@/lib/avatarUpload'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { Plus, Pencil, Trash2, GraduationCap, Cake, Camera, X, AlertCircle, Check, Lock } from 'lucide-react'
@@ -256,12 +257,14 @@ export default function ChildrenClient({ initialChildren, families, familyId, fa
   async function uploadPhoto(famId: string, childId: string): Promise<string | null> {
     if (!photoFile) return null
 
-    const ext  = photoFile.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+    // Sempre JPEG: HEIC de iPhone subia inteiro e o avatar ficava quebrado
+    // fora do Safari, sem erro nenhum. Ver `prepararFotoAvatar`.
+    const { arquivo, ext } = await prepararFotoAvatar(photoFile)
     const path = avatarPath(famId, childId, ext)
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(path, photoFile, { upsert: true })
+      .upload(path, arquivo, { upsert: true, contentType: arquivo.type })
 
     if (uploadError) {
       console.error('[uploadPhoto] storage error:', uploadError)

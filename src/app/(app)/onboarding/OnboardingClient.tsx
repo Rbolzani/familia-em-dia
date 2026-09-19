@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { avatarPath } from '@/lib/avatars'
+import { prepararFotoAvatar } from '@/lib/avatarUpload'
 import { Plus, Trash2, Camera, ArrowRight, Check, Users, Sparkles, Mic, ImageIcon, Type, X, Loader2, CalendarDays, Bot, Share2, Baby, Handshake } from 'lucide-react'
 
 const supabase = createClient()
@@ -227,9 +228,12 @@ export default function OnboardingClient({ firstName }: { firstName: string }) {
 
   /** Devolve o CAMINHO (`<family_id>/<child_id>.<ext>`), não uma URL. */
   async function uploadPhoto(famId: string, childId: string, file: File): Promise<string | null> {
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+    // Mesma conversão da tela de filhos: HEIC do iPhone vira JPEG antes de
+    // subir, senão o avatar aparece quebrado fora do Safari.
+    const { arquivo, ext } = await prepararFotoAvatar(file)
     const path = avatarPath(famId, childId, ext)
-    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    const { error } = await supabase.storage.from('avatars')
+      .upload(path, arquivo, { upsert: true, contentType: arquivo.type })
     if (error) return null
     return path
   }
