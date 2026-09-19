@@ -26,6 +26,11 @@ const securityHeaders = [
       "default-src 'self'",
       // Scripts: próprio domínio + inline necessário para Next.js + Supabase Realtime
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // Nada de <object>, <embed> ou <applet>: o app não usa nenhum, e eles
+      // executam conteúdo. Sem esta linha a diretiva cairia para
+      // `default-src 'self'`, que ainda permitiria embutir do próprio
+      // domínio — e o Cofre guarda arquivo enviado pelo usuário.
+      "object-src 'none'",
       // Estilos: inline (Tailwind em runtime / style props) + Google Fonts
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Fontes
