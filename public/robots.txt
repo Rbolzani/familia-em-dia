@@ -1,0 +1,13 @@
+# Família em Dia — o que os buscadores podem indexar.
+#
+# A landing e as páginas legais são públicas e devem aparecer na busca.
+# O resto é área autenticada: as rotas do app já redirecionam para o login,
+# então nada de dado vaza por aqui — pedir para não indexar evita apenas que
+# telas de login e de convite apareçam em resultados de busca.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /auth/
+Disallow: /convite/
+Disallow: /completar-cadastro
