@@ -69,11 +69,19 @@ export default function TermosPage() {
           fim do teste, salvo cancelamento, a assinatura é convertida em cobrança no plano escolhido.</Li>
         <Li>Os pagamentos são processados por operador externo (Stripe). A assinatura é
           <strong> recorrente</strong> e renovada automaticamente até o cancelamento.</Li>
-        <Li>O Usuário pode cancelar a qualquer momento; o acesso pago permanece até o fim do período já
-          pago, sem novas cobranças. Trocas de plano podem gerar cobrança proporcional (proração).</Li>
-        <Li>Por se tratar de serviço digital de fruição contínua, eventuais reembolsos observarão a
-          legislação aplicável, em especial o Código de Defesa do Consumidor (direito de arrependimento
-          em até 7 dias na contratação à distância, quando cabível).</Li>
+        <Li>O Usuário pode cancelar a qualquer momento. Fora do prazo de arrependimento descrito abaixo,
+          o acesso pago permanece até o fim do período já pago, sem novas cobranças. Trocas de plano
+          podem gerar cobrança proporcional (proração).</Li>
+        <Li><strong>Direito de arrependimento (7 dias).</strong> Em até <strong>7 dias corridos contados
+          da cobrança</strong>, o cancelamento feito pela Plataforma devolve <strong>integralmente</strong>
+          o valor pago, por estorno no mesmo meio de pagamento, e encerra a assinatura
+          <strong> imediatamente</strong> — já que o valor é devolvido, o acesso pago não continua.
+          O prazo vale para a contratação e para trocas de plano que gerem nova cobrança; a
+          <strong> renovação automática não abre novo prazo</strong>, por não se tratar de nova
+          contratação. Direito previsto no art. 49 do Código de Defesa do Consumidor.</Li>
+        <Li><strong>Exclusão da conta encerra a cobrança.</strong> Ao excluir a conta, a assinatura é
+          cancelada de imediato; se a exclusão ocorrer dentro do prazo de arrependimento, o valor é
+          devolvido na mesma operação.</Li>
       </ul>
 
       <H>6. Inteligência artificial</H>
@@ -129,9 +137,11 @@ export default function TermosPage() {
 
       <H>12. Rescisão</H>
       <P>
-        O Usuário pode encerrar sua conta a qualquer momento pela própria Plataforma. Podemos suspender ou
-        encerrar contas que violem estes Termos. O encerramento implica a eliminação dos dados conforme a
-        Política de Privacidade, ressalvadas as hipóteses de guarda legal obrigatória.
+        O Usuário pode encerrar sua conta a qualquer momento pela própria Plataforma. O encerramento
+        <strong> cancela a assinatura</strong> (item 5) e implica a eliminação dos dados conforme a
+        Política de Privacidade, <strong>incluindo os arquivos guardados no cofre e as fotos</strong>,
+        ressalvadas as hipóteses de guarda legal obrigatória. Podemos suspender ou encerrar contas que
+        violem estes Termos.
       </P>
 
       <H>13. Alterações destes Termos</H>

@@ -1,6 +1,6 @@
 /** Extrai nome amigável a partir de um endereço de email.
- *  vanessa.enju@yahoo.com.br → "Vanessa Enju"
- *  rbolzanic@gmail.com       → "Rbolzanic"
+ *  ana.souza@exemplo.com.br → "Ana Souza"
+ *  jbarbosa@exemplo.com     → "Jbarbosa"
  */
 export function nameFromEmail(email: string): string {
   if (!email) return 'Parceiro(a)'

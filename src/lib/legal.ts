@@ -1,8 +1,8 @@
 // Versão vigente dos documentos legais. Ao publicar uma nova versão dos Termos
 // ou da Política, incremente LEGAL_VERSION — assim o aceite passa a referenciar
 // a versão correta e é possível auditar quem aceitou o quê.
-export const LEGAL_VERSION = '2026-06-23'
-export const LEGAL_EFFECTIVE_DATE = '23 de junho de 2026'
+export const LEGAL_VERSION = '2026-09-19'
+export const LEGAL_EFFECTIVE_DATE = '19 de setembro de 2026'
 
 export const LEGAL_ENTITY = {
   razaoSocial: 'Bonju Serviços Ltda.',

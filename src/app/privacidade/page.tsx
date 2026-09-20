@@ -110,8 +110,11 @@ export default function PrivacidadePage() {
       <H>9. Retenção e eliminação</H>
       <P>
         Mantemos os dados enquanto a conta estiver ativa e pelo prazo necessário às finalidades e
-        obrigações legais. O Usuário pode solicitar a exclusão da conta, hipótese em que os dados são
-        eliminados, ressalvadas as informações que a lei exija reter.
+        obrigações legais. O Usuário pode excluir a conta pela própria Plataforma, em
+        &quot;Minha Conta&quot;. A exclusão elimina os dados de cadastro, os filhos, as atividades, as
+        mensalidades e <strong>também os arquivos guardados</strong> — documentos do cofre e fotos —,
+        além de encerrar a assinatura. Permanecem apenas os registros que a lei exija reter, como os
+        dados fiscais das cobranças já realizadas, mantidos pelo operador de pagamento.
       </P>
 
       <H>10. Direitos do titular</H>
@@ -135,7 +138,11 @@ export default function PrivacidadePage() {
       <P>
         Utilizamos cookies e armazenamento local estritamente necessários para autenticação e
         funcionamento do Serviço, além de parâmetros de atribuição de origem (UTM) para fins estatísticos
-        de aquisição.
+        de aquisição. Na primeira visita, um aviso permite escolher entre <strong>aceitar todos</strong>
+        ou <strong>somente os essenciais</strong>; a escolha fica registrada no seu próprio navegador e
+        pode ser alterada limpando os dados do site. <strong>Até esta versão, nenhuma ferramenta de
+        análise ou de publicidade está ativa no Serviço</strong> — os cookies em uso são os essenciais.
+        Caso isso mude, esta Política será atualizada antes da ativação.
       </P>
 
       <H>13. Alterações desta Política</H>
