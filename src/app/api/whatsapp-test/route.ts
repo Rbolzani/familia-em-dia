@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { adminClient, buildDailySummary, sendWhatsApp, templateHasClasses, templateHasReminders, templateHasExams, templateHasPayments } from '@/lib/whatsapp'
+import { enviarEmail, resumoEmHtml } from '@/lib/email'
 
 export async function POST() {
   const supabase = await createClient()
@@ -39,8 +40,19 @@ export async function POST() {
   ]
 
   const result = await sendWhatsApp(settings.whatsapp_number, params, undefined, { userId: user.id, kind: 'teste' })
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 502 })
+  if (result.ok) return NextResponse.json({ ok: true, canal: 'whatsapp' })
+
+  // Mesmo caminho do cron: WhatsApp fora do ar não pode significar "sem
+  // aviso". Aqui o teste também serve para conferir o canal reserva.
+  if (summary) {
+    const email = await enviarEmail(
+      user.email ?? '',
+      'Teste do resumo — Família em Dia',
+      resumoEmHtml(summary.full, 'https://www.familiaemdia.com.br/dashboard'),
+      summary.full,
+    )
+    if (email.ok) return NextResponse.json({ ok: true, canal: 'email' })
   }
-  return NextResponse.json({ ok: true })
+
+  return NextResponse.json({ error: result.error }, { status: 502 })
 }

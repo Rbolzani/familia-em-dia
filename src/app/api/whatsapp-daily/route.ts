@@ -3,8 +3,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminClient, buildDailySummary, sendWhatsApp, runGraceNotices } from '@/lib/whatsapp'
 import { buscarTodas } from '@/lib/paginacao'
+import { enviarEmail, resumoEmHtml } from '@/lib/email'
 
 export const maxDuration = 60
+
+const APP_URL = 'https://www.familiaemdia.com.br/dashboard'
+
+/**
+ * Entrega o resumo por e-mail quando o WhatsApp não entrega.
+ *
+ * POR QUE UM SEGUNDO CANAL
+ * Em set/2026 o WhatsApp ficou DUAS SEMANAS sem entregar — uma cobrança de
+ * US$ 1,01 em atraso na Meta, impossível de pagar pelo painel dela. O app
+ * seguiu "enviando com sucesso" todo dia. Um canal só significa que o
+ * produto inteiro cai junto com ele, e por motivo alheio ao código.
+ *
+ * Devolve o que aconteceu, em vez de um booleano, para o log distinguir
+ * "não tenho como enviar" de "tentei e falhou".
+ */
+async function enviarResumoPorEmail(
+  admin: ReturnType<typeof adminClient>,
+  userId: string,
+  textoDoResumo: string,
+): Promise<'enviado' | 'sem chave' | 'sem e-mail' | string> {
+  const { data } = await admin.auth.admin.getUserById(userId)
+  const email = data?.user?.email
+  if (!email) return 'sem e-mail'
+
+  const hoje = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit',
+  }).format(new Date())
+
+  const r = await enviarEmail(
+    email,
+    `Resumo da Família — ${hoje}`,
+    resumoEmHtml(textoDoResumo, APP_URL),
+    textoDoResumo,
+  )
+  if (r.ok) return 'enviado'
+  return r.naoConfigurado ? 'sem chave' : r.erro
+}
 
 // Arredonda "HH:MM" para o slot de 15 min (cadência do cron).
 function slot15(hhmm: string): string {
@@ -51,7 +89,10 @@ export async function GET(req: NextRequest) {
       .from('notification_settings')
       .select('user_id, whatsapp_number, summary_time')
       .eq('daily_summary_enabled', true)
-      .not('whatsapp_number', 'is', null)
+      // Sem `whatsapp_number` a pessoa entra na fila do mesmo jeito: quem não
+      // tem número (ou cujo envio falha) recebe por e-mail. O gate de plano
+      // continua dentro de `buildDailySummary` — a agenda diária é paga em
+      // qualquer canal.
       .range(de, ate))
   } catch (settingsError) {
     console.error('[whatsapp-daily] erro ao buscar notification_settings:', settingsError)
@@ -87,12 +128,25 @@ export async function GET(req: NextRequest) {
         skipped++
         return
       }
-      const result = await sendWhatsApp(s.whatsapp_number!, summary.params, undefined, { userId: s.user_id, kind: 'resumo' })
+      // WhatsApp primeiro — é o canal do produto. Só cai para o e-mail quando
+      // ele falha ou não está disponível (ver `enviarResumoPorEmail`).
+      const result = s.whatsapp_number
+        ? await sendWhatsApp(s.whatsapp_number, summary.params, undefined, { userId: s.user_id, kind: 'resumo' })
+        : { ok: false as const, error: 'sem número de WhatsApp' }
+
       if (result.ok) {
         console.log(`[whatsapp-daily] user ${s.user_id}: enviado com sucesso`)
         sent++
+        return
+      }
+
+      console.error(`[whatsapp-daily] user ${s.user_id}: falha no WhatsApp —`, result.error)
+      const email = await enviarResumoPorEmail(admin, s.user_id, summary.full)
+      if (email === 'enviado') {
+        console.warn(`[whatsapp-daily] user ${s.user_id}: resumo entregue por E-MAIL (WhatsApp falhou)`)
+        sent++
       } else {
-        console.error(`[whatsapp-daily] user ${s.user_id}: falha no envio —`, result.error)
+        console.error(`[whatsapp-daily] user ${s.user_id}: sem canal — e-mail ${email}`)
         failed++
       }
     } catch (e) {
