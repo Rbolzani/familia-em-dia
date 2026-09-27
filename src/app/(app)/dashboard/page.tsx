@@ -45,6 +45,28 @@ export default async function DashboardPage() {
   const moStart = format(startOfMonth(today), 'yyyy-MM-dd')
   const moEnd   = format(endOfMonth(today),   'yyyy-MM-dd')
 
+  // ⚠️ Saudação e data são resolvidas AQUI, no servidor, no fuso de São Paulo.
+  //
+  // Elas eram calculadas no componente de cliente com `new Date()`. Como ele
+  // também é renderizado no servidor — que roda em UTC — o HTML saía com um
+  // valor e o navegador remontava com outro, e o React derrubava a hidratação
+  // ("Hydration failed"). Acontecia toda noite entre 21h e meia-noite, quando
+  // no UTC já é o dia seguinte, e sempre que a hora cruzava 12h ou 18h.
+  //
+  // Sendo prop, o valor é o mesmo dos dois lados por construção — e fica
+  // coerente com o resto do app, que já trata o dia no fuso de São Paulo.
+  const capitalizar = (s: string) => s.replace(/^\w/, c => c.toUpperCase())
+  const horaSP = Number(
+    new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(today)
+  )
+  const saudacao  = horaSP < 12 ? 'Bom dia' : horaSP < 18 ? 'Boa tarde' : 'Boa noite'
+  const dataLonga = capitalizar(new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tz, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  }).format(today))
+  const dataCurta = capitalizar(new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tz, weekday: 'long', day: 'numeric', month: 'long',
+  }).format(today))
+
   const [
     { data: children },
     { data: todayActivities },
@@ -189,6 +211,9 @@ export default async function DashboardPage() {
       monthActivities={(monthActivities ?? []).filter(a => !isAparte(a)) as Parameters<typeof DashboardClient>[0]['monthActivities']}
       exams={exams as Parameters<typeof DashboardClient>[0]['exams']}
       todayDs={todayDs}
+      saudacao={saudacao}
+      dataLonga={dataLonga}
+      dataCurta={dataCurta}
       reminders={(reminders ?? []) as Parameters<typeof DashboardClient>[0]['reminders']}
       importantAlerts={importantAlerts}
     />

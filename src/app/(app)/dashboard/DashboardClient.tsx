@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, createContext, useContext } from 'react'
 import Link from 'next/link'
 import {
   BookOpen, HeartPulse, Trophy, Sparkles,
@@ -35,7 +35,22 @@ interface Props {
   reminders:          ActWithChild[]  // activities with no date
   exams:              ActWithChild[]  // provas de hoje + próximos 7 dias, por proximidade
   todayDs:            string          // data de hoje (America/Sao_Paulo), resolvida no servidor
+  saudacao:           string          // "Bom dia" | "Boa tarde" | "Boa noite" — ver page.tsx
+  dataLonga:          string          // "Sábado, 27 de setembro de 2026"
+  dataCurta:          string          // "Sábado, 27 de setembro" (mobile)
   importantAlerts:    ImportantAlert[]  // vencimentos de documentos do Cofre
+}
+
+// Data de hoje vinda do servidor, no fuso de São Paulo.
+//
+// ⚠️ Qualquer `new Date()` durante o render deste arquivo é armadilha: o
+// componente é renderizado NO SERVIDOR (UTC) e remontado no navegador (BRT),
+// e valores diferentes derrubam a hidratação — foi a origem do "Hydration
+// failed" que o Sentry acusou 13 vezes no /dashboard. O contexto evita passar
+// a data por quatro níveis de props só para isso.
+const HojeContext = createContext<string | null>(null)
+function useHoje(): string | null {
+  return useContext(HojeContext)
 }
 
 // ── Textures ───────────────────────────────────────────────────────────────
@@ -89,13 +104,6 @@ const CAT: Record<CatKey,{bar:string;barGlow:string;ibg:string;icolor:string;ico
   extracurricular: { bar:'#C49A6C', barGlow:'rgba(196,154,108,0.35)',ibg:'linear-gradient(140deg,#FEF3C7,#FDE68A)', icolor:'#92400E', icon:Trophy,      label:'Extracurricular' },
 }
 
-function greet() {
-  const h=new Date().getHours()
-  return h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'
-}
-function fmtDate() {
-  return format(new Date(),"EEEE, d 'de' MMMM 'de' yyyy",{locale:ptBR}).replace(/^\w/,c=>c.toUpperCase())
-}
 function SectionH({ children }: { children: React.ReactNode }) {
   // flex-wrap + min-w-0: títulos longos com selo ("Alertas Importantes · 3
   // vencidos") formavam uma linha indivisível que empurrava a largura da
@@ -129,7 +137,11 @@ function MiniCalendar({ activitiesByDate: initialByDate, canEdit, onChanged }: {
   activitiesByDate: Record<string, ActWithChild[]>; canEdit: boolean; onChanged: () => void
 }) {
   const supabase = createClient()
-  const today=new Date()
+  // Mês inicial derivado da data do servidor (São Paulo). Com `new Date()`, na
+  // virada do mês depois das 21h o servidor abria outubro e o navegador
+  // setembro — calendário divergente e hidratação quebrada.
+  const hojeSrv = useHoje()
+  const today = hojeSrv ? new Date(`${hojeSrv}T12:00:00`) : new Date()
   const [yr,setYr]=useState(today.getFullYear())
   const [mo,setMo]=useState(today.getMonth())
   const [selected,setSelected]=useState<string|null>(null)
@@ -315,7 +327,11 @@ function ActivityRow({ activities, canEdit, onChanged, badge }: {
 }) {
   const activity = activities[0]
   const cat    = CAT[activity.category as CatKey]??CAT.escola
-  const todayDs= format(new Date(), 'yyyy-MM-dd')
+  // Vem do servidor, no fuso de São Paulo. Calcular aqui com `new Date()`
+  // marcava como ATRASADA, entre 21h e meia-noite, uma atividade de hoje —
+  // porque no UTC já era amanhã. Além da hidratação, era tarja vermelha errada.
+  const hoje   = useHoje()
+  const todayDs= hoje ?? format(new Date(), 'yyyy-MM-dd')
   const overdue= activity.status==='pendente'&&!!activity.date&&activity.date<todayDs
   const [editing, setEditing] = useState(false)
   const { deleting, remove } = useActivityDelete(onChanged)
@@ -767,7 +783,7 @@ function ExamsPanel({ exams, todayDs, canEdit, onChanged }: {
   )
 }
 
-export default function DashboardClient({ userName, children, todayClasses, todayActivities, upcomingActivities, monthActivities, reminders, exams, todayDs, importantAlerts }: Props) {
+export default function DashboardClient({ userName, children, todayClasses, todayActivities, upcomingActivities, monthActivities, reminders, exams, todayDs, saudacao, dataLonga, dataCurta, importantAlerts }: Props) {
   const router = useRouter()
   const { canEdit } = useAccess()
   // As listas vêm do Server Component; após uma edição, router.refresh() traz
@@ -799,6 +815,7 @@ export default function DashboardClient({ userName, children, todayClasses, toda
   // conteúdo confunde mais do que destaca.
 
   return (
+    <HojeContext.Provider value={todayDs}>
     <div className="px-4 md:px-9 py-5 md:py-[34px] relative z-10 animate-fade-in max-w-full overflow-x-hidden">
 
       {/* Topbar */}
@@ -807,12 +824,12 @@ export default function DashboardClient({ userName, children, todayClasses, toda
           <div className="flex items-center gap-[7px] mb-[5px]"
             style={{ fontSize:'11px', fontWeight:700, letterSpacing:'0.13em', textTransform:'uppercase', color:'#5A8C5E' }}>
             <SunMedium size={13}/>
-            <span className="md:hidden">{format(new Date(),"EEEE, d 'de' MMMM",{locale:ptBR}).replace(/^\w/,c=>c.toUpperCase())}</span>
-            <span className="hidden md:inline">{fmtDate()}</span>
+            <span className="md:hidden">{dataCurta}</span>
+            <span className="hidden md:inline">{dataLonga}</span>
           </div>
           <h1 style={{ fontFamily:'var(--font-lora)', fontWeight:700, color:'#1A2B1C', lineHeight:1.1, letterSpacing:'-0.02em' }}
             className="text-[26px] md:text-[40px]">
-            {greet()},<br/>
+            {saudacao},<br/>
             <em style={{ fontStyle:'italic', background:'linear-gradient(120deg,#3D6641 30%,#C49A6C 100%)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>
               {userName}
             </em>
@@ -932,5 +949,6 @@ export default function DashboardClient({ userName, children, todayClasses, toda
 
       <div className="md:hidden h-20"/>
     </div>
+    </HojeContext.Provider>
   )
 }
