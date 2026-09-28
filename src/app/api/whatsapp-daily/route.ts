@@ -176,7 +176,21 @@ export async function GET(req: NextRequest) {
     console.error('[whatsapp-daily] erro no grace pass:', e)
   }
 
-  const result = { sent, skipped, failed, total, grace }
+  const result = { sent, skipped, failed, total, grace, slot: currentSlot }
   console.log('[whatsapp-daily] concluído:', result)
+
+  // Batimento — U6 (parte B). Grava SEMPRE, mesmo com total=0 (a maioria dos
+  // slots de 15 min não tem ninguém para enviar). O que importa aqui não é o
+  // resultado, é a prova de que o endpoint foi chamado agora há pouco — é
+  // essa ausência de batimento que /api/cron/check-daily-summary detecta.
+  try {
+    await admin.from('cron_heartbeats').upsert(
+      { name: 'whatsapp-daily', ran_at: new Date().toISOString(), result },
+      { onConflict: 'name' },
+    )
+  } catch (e) {
+    console.error('[whatsapp-daily] falha ao gravar heartbeat:', e)
+  }
+
   return NextResponse.json(result)
 }

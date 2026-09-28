@@ -117,5 +117,17 @@ export async function GET(request: Request) {
     console.log(`[expire-trials] fase 2: ${phase2Count} parceiro(s) desconectado(s)`)
   }
 
-  return NextResponse.json({ phase1: phase1Count, phase2Partners: phase2Count })
+  const result = { phase1: phase1Count, phase2Partners: phase2Count }
+
+  // Batimento — mesma lógica do whatsapp-daily (ver check-daily-summary).
+  try {
+    await admin.from('cron_heartbeats').upsert(
+      { name: 'expire-trials', ran_at: new Date().toISOString(), result },
+      { onConflict: 'name' },
+    )
+  } catch (e) {
+    console.error('[expire-trials] falha ao gravar heartbeat:', e)
+  }
+
+  return NextResponse.json(result)
 }
