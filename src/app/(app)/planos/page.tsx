@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
 import { janelaArrependimento } from '@/lib/stripe-arrependimento'
 import { createAdminClient } from '@/lib/supabase/server'
+import { statusOferta } from '@/lib/oferta-lancamento'
 import PlanosClient from './PlanosClient'
 
 export interface PlanPrices {
@@ -23,7 +24,7 @@ export default async function PlanosPage() {
   const eff = pre.isOwner ? await getEffectiveSubscription() : pre
 
   // Plano para gating/limites — getFamilyPlan já resolve owner mesmo para parceiro.
-  const [plan, prices] = await Promise.all([
+  const [plan, prices, oferta] = await Promise.all([
     getFamilyPlan(),
     (async (): Promise<PlanPrices> => {
       const ids = [
@@ -39,7 +40,9 @@ export default async function PlanosPage() {
         plus:    { monthly: cents(fetched[2]), yearly: cents(fetched[3]) / 12 },
       }
     })(),
+    statusOferta(),
   ])
+  let precoLancamento = false
 
   // Janela de arrependimento (7 dias) — só o owner tem cobrança própria, e só
   // faz sentido consultar o Stripe se houver plano pago para desfazer.
@@ -54,9 +57,9 @@ export default async function PlanosPage() {
         // Só as assinaturas vigentes: a janela tem que se referir ao que a
         // pessoa cancelaria agora, não a um plano antigo já encerrado.
         const vivas = await stripe.subscriptions.list({ customer: cus, status: 'all', limit: 20 })
-        const ids = vivas.data
-          .filter(s => s.status === 'active' || s.status === 'trialing')
-          .map(s => s.id)
+        const vigentes = vivas.data.filter(s => s.status === 'active' || s.status === 'trialing')
+        const ids = vigentes.map(s => s.id)
+        precoLancamento = vigentes.some(s => s.metadata?.oferta === 'lancamento')
         const j = await janelaArrependimento(cus, ids)
         if (j.dentro) arrependimentoAte = j.prazo
       }
@@ -82,6 +85,8 @@ export default async function PlanosPage() {
       childLimit={PLAN_LIMITS[plan].children}
       aiLimit={PLAN_LIMITS[plan].aiPerMonth}
       prices={prices}
+      oferta={oferta}
+      precoLancamento={precoLancamento}
     />
   )
 }

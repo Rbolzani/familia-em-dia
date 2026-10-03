@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Check, Loader2, Star, Zap, Heart, ExternalLink } from 'lucide-react'
 import type { PlanId, BillingInterval } from '@/lib/stripe'
 import type { PlanPrices } from './page'
+import type { StatusOferta } from '@/lib/oferta-lancamento'
 import Modal from '@/components/ui/Modal'
 
 // Rótulos de plano para exibição (local — não importar de billing.ts, que é server-only)
@@ -38,6 +39,10 @@ interface Props {
   childLimit: number
   aiLimit: number
   prices: PlanPrices
+  /** Oferta de lançamento do Família mensal (vagas contadas pelo Stripe). */
+  oferta?: StatusOferta
+  /** A assinatura vigente já tem o preço de lançamento. */
+  precoLancamento?: boolean
 }
 
 const NOISE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`
@@ -98,7 +103,7 @@ function fmtPrice(n: number) {
 export default function PlanosClient({
   currentPlan, status, trialEndsAt, currentPeriodEnd,
   cancelAtPeriodEnd, billingInterval, isOwner, ownerName, childLimit, aiLimit, prices,
-  arrependimentoAte = null, assinouNoTeste = false,
+  arrependimentoAte = null, assinouNoTeste = false, oferta, precoLancamento = false,
 }: Props) {
   // Toggle abre no intervalo do plano atual do usuário; sem plano pago (grátis/
   // cancelado) cai no padrão mensal.
@@ -351,6 +356,13 @@ export default function PlanosClient({
             const samePlanDiffInterval = currentPlan === plan.id && isPaidActive && billingInterval !== interval
             const planPrices = prices[plan.id as keyof PlanPrices]
             const price = interval === 'year' ? planPrices.yearly : planPrices.monthly
+            // Oferta de lançamento — só Família mensal. Quem já paga outro plano
+            // (ou assinou no teste) troca sem checkout, e a oferta só entra no
+            // checkout: mostrar R$ 29,90 para essa pessoa seria prometer à toa.
+            const familiaMensal  = plan.id === 'familia' && interval === 'month'
+            const jaTemLancamento = familiaMensal && precoLancamento
+            const ofereceLancamento = familiaMensal && !precoLancamento && !!oferta?.ativa && !isPaidActive && !assinouNoTeste
+            const precoFinal = jaTemLancamento || ofereceLancamento ? price - (oferta?.descontoReais ?? 10) : price
             const Icon  = plan.icon
 
             return (
@@ -396,14 +408,34 @@ export default function PlanosClient({
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
+                    {ofereceLancamento && (
+                      <p style={{ fontSize: 12, color: 'rgba(26,43,28,0.40)', margin: '0 0 2px', textDecoration: 'line-through' }}>
+                        R$ {fmtPrice(price)}
+                      </p>
+                    )}
                     <p style={{ fontSize: 24, fontWeight: 800, color: '#1A2B1C', margin: 0, lineHeight: 1 }}>
-                      R$ {fmtPrice(price)}
+                      R$ {fmtPrice(precoFinal)}
                     </p>
                     <p style={{ fontSize: 11, color: 'rgba(26,43,28,0.45)', margin: '3px 0 0' }}>
                       /mês{interval === 'year' ? ' · cobrado anualmente' : ''}
                     </p>
                   </div>
                 </div>
+
+                {(ofereceLancamento || jaTemLancamento) && (
+                  <div style={{
+                    margin: '-4px 0 14px', padding: '9px 12px', borderRadius: 11,
+                    background: 'rgba(255,107,92,0.10)', border: '1px solid rgba(255,107,92,0.28)',
+                    fontSize: 12.5, lineHeight: 1.45, color: '#1A2B1C',
+                  }}>
+                    {jaTemLancamento ? (
+                      <><b>Preço de lançamento garantido.</b> Você paga R$ {fmtPrice(precoFinal)}/mês enquanto continuar no plano Família mensal.</>
+                    ) : (
+                      <><b>🎯 Oferta de lançamento</b> · os {oferta!.total} primeiros assinantes pagam R$ {fmtPrice(precoFinal)}/mês para sempre.
+                        {' '}Restam <b>{oferta!.restantes} {oferta!.restantes === 1 ? 'vaga' : 'vagas'}</b>.</>
+                    )}
+                  </div>
+                )}
 
                 {/* Features */}
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: 7 }}>

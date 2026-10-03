@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripe, planToPrice, type PlanId, type BillingInterval } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
+import { statusOferta, CUPOM_LANCAMENTO } from '@/lib/oferta-lancamento'
 
 export async function POST(request: Request) {
   // 1. Sessão
@@ -81,12 +82,18 @@ export async function POST(request: Request) {
         if (currentPriceId !== priceId) {
           const hasPm = !!current.default_payment_method
           if (hasPm) {
+            // O preço de lançamento vale enquanto a pessoa estiver no Família
+            // mensal. Saindo dele, o desconto sai junto — senão os R$ 10 iriam
+            // para a fatura anual do Família, o que a oferta não promete.
+            const eraLancamento = current.metadata?.oferta === 'lancamento'
+            const continuaLancamento = eraLancamento && priceId === planToPrice('familia', 'month')
             await stripe.subscriptions.update(current.id, {
               items: [{ id: currentItem.id, price: priceId }],
               proration_behavior: 'create_prorations',
               billing_cycle_anchor: 'now',
               cancel_at_period_end: false,
-              metadata: { user_id: user.id, plan },
+              metadata: { user_id: user.id, plan, oferta: continuaLancamento ? 'lancamento' : '' },
+              ...(eraLancamento && !continuaLancamento ? { discounts: '' as const } : {}),
             })
             await reconcileUserFromStripe(user.id)
             return NextResponse.json({ url: `${baseUrl}/planos?billing=plano-alterado` })
@@ -116,6 +123,11 @@ export async function POST(request: Request) {
       }
     }
 
+    // Oferta de lançamento: só no Família mensal e enquanto houver vaga. O
+    // Stripe não aceita cupom aplicado e campo de código promocional na
+    // mesma sessão, então quem entra pela oferta não vê o campo de código.
+    const comOferta = plan === 'familia' && interval === 'month' && (await statusOferta()).ativa
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
@@ -123,9 +135,9 @@ export async function POST(request: Request) {
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
         ...(trialEnd ? { trial_end: trialEnd } : {}),
-        metadata: { user_id: user.id, plan },
+        metadata: { user_id: user.id, plan, ...(comOferta ? { oferta: 'lancamento' } : {}) },
       },
-      allow_promotion_codes: true,
+      ...(comOferta ? { discounts: [{ coupon: CUPOM_LANCAMENTO }] } : { allow_promotion_codes: true }),
       // Passa por /api/stripe/return: ele reconcilia o plano com o Stripe
       // (protege contra webhook atrasado) e entrega o Início. Antes vinha
       // direto para /configuracoes — que reconcilia, mas deixava a pessoa em
