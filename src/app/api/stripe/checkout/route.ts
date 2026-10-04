@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { stripe, planToPrice, type PlanId, type BillingInterval } from '@/lib/stripe'
+import { stripe, planToPrice, ehPrecoLancamento, type PlanId, type BillingInterval } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
-import { statusOferta, CUPOM_LANCAMENTO } from '@/lib/oferta-lancamento'
+import { reservarVaga, precoLancamentoId, CHECKOUT_LANCAMENTO_SEGUNDOS } from '@/lib/oferta-lancamento'
 
 export async function POST(request: Request) {
   // 1. Sessão
@@ -68,9 +68,14 @@ export async function POST(request: Request) {
       if (current) {
         const currentItem = current.items.data[0]
         const currentPriceId = currentItem?.price?.id
+        // Quem tem preço de lançamento leva o desconto para qualquer plano:
+        // a troca vai para o preço de lançamento do plano novo.
+        const alvoId = ehPrecoLancamento(currentItem?.price)
+          ? (await precoLancamentoId(plan, interval)) ?? priceId
+          : priceId
 
         // 4a. Mesmo plano/intervalo → nada a trocar.
-        if (currentPriceId === priceId && !current.cancel_at_period_end) {
+        if (currentPriceId === alvoId && !current.cancel_at_period_end) {
           return NextResponse.json({ url: `${baseUrl}/planos` })
         }
 
@@ -79,21 +84,15 @@ export async function POST(request: Request) {
         // Trocar o item de preço por um de intervalo diferente faz a sub adotar
         // o novo intervalo; billing_cycle_anchor:'now' inicia o ciclo já e cobra
         // a diferença proporcional. Reconcilia do Stripe para refletir no banco.
-        if (currentPriceId !== priceId) {
+        if (currentPriceId !== alvoId) {
           const hasPm = !!current.default_payment_method
           if (hasPm) {
-            // O preço de lançamento vale enquanto a pessoa estiver no Família
-            // mensal. Saindo dele, o desconto sai junto — senão os R$ 10 iriam
-            // para a fatura anual do Família, o que a oferta não promete.
-            const eraLancamento = current.metadata?.oferta === 'lancamento'
-            const continuaLancamento = eraLancamento && priceId === planToPrice('familia', 'month')
             await stripe.subscriptions.update(current.id, {
-              items: [{ id: currentItem.id, price: priceId }],
+              items: [{ id: currentItem.id, price: alvoId }],
               proration_behavior: 'create_prorations',
               billing_cycle_anchor: 'now',
               cancel_at_period_end: false,
-              metadata: { user_id: user.id, plan, oferta: continuaLancamento ? 'lancamento' : '' },
-              ...(eraLancamento && !continuaLancamento ? { discounts: '' as const } : {}),
+              metadata: { user_id: user.id, plan },
             })
             await reconcileUserFromStripe(user.id)
             return NextResponse.json({ url: `${baseUrl}/planos?billing=plano-alterado` })
@@ -103,7 +102,7 @@ export async function POST(request: Request) {
         }
 
         // 4c. Mesmo preço mas estava cancelando → reativar.
-        if (currentPriceId === priceId && current.cancel_at_period_end) {
+        if (currentPriceId === alvoId && current.cancel_at_period_end) {
           await stripe.subscriptions.update(current.id, { cancel_at_period_end: false })
           return NextResponse.json({ url: `${baseUrl}/planos?billing=reativado` })
         }
@@ -123,21 +122,32 @@ export async function POST(request: Request) {
       }
     }
 
-    // Oferta de lançamento: só no Família mensal e enquanto houver vaga. O
-    // Stripe não aceita cupom aplicado e campo de código promocional na
-    // mesma sessão, então quem entra pela oferta não vê o campo de código.
-    const comOferta = plan === 'familia' && interval === 'month' && (await statusOferta()).ativa
+    // Oferta de lançamento: reserva uma das 20 vagas antes de abrir o
+    // pagamento. A reserva dura um pouco mais que a sessão (que expira em 31
+    // min); checkout abandonado devolve a vaga sozinho. Se a vaga não sair
+    // (esgotou, ou o banco falhou), segue no preço regular — nunca trava a
+    // assinatura. Código promocional fica desligado na oferta para não
+    // empilhar desconto sobre desconto.
+    let linhaPreco = priceId
+    let comOferta = false
+    const vaga = await reservarVaga(user.id)
+    if (vaga === 'reservada' || vaga === 'confirmada') {
+      const lancamento = await precoLancamentoId(plan, interval)
+      if (lancamento) { linhaPreco = lancamento; comOferta = true }
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
       client_reference_id: user.id,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: linhaPreco, quantity: 1 }],
       subscription_data: {
         ...(trialEnd ? { trial_end: trialEnd } : {}),
         metadata: { user_id: user.id, plan, ...(comOferta ? { oferta: 'lancamento' } : {}) },
       },
-      ...(comOferta ? { discounts: [{ coupon: CUPOM_LANCAMENTO }] } : { allow_promotion_codes: true }),
+      ...(comOferta
+        ? { expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_LANCAMENTO_SEGUNDOS }
+        : { allow_promotion_codes: true }),
       // Passa por /api/stripe/return: ele reconcilia o plano com o Stripe
       // (protege contra webhook atrasado) e entrega o Início. Antes vinha
       // direto para /configuracoes — que reconcilia, mas deixava a pessoa em

@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server'
-import { stripe, priceToPlan } from '@/lib/stripe'
+import { stripe, planoDoPreco, ehPrecoLancamento } from '@/lib/stripe'
 import type Stripe from 'stripe'
 
 const GRACE_DAYS = 5
@@ -117,8 +117,8 @@ export async function syncSubscriptionToDb(
     return
   }
 
-  const priceId = sub.items?.data?.[0]?.price?.id
-  const mapped = priceId ? priceToPlan(priceId) : null
+  const price = sub.items?.data?.[0]?.price
+  const mapped = price ? planoDoPreco(price) : null
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id
 
   const isEnded = sub.status === 'canceled' || sub.status === 'incomplete_expired'
@@ -154,6 +154,13 @@ export async function syncSubscriptionToDb(
     ...cotaZerada,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
+
+  // Assinatura viva com preço de lançamento: a vaga deixa de ser reserva e
+  // passa a ser definitiva (não volta nem se a pessoa cancelar depois).
+  if (!isEnded && ehPrecoLancamento(price)) {
+    const { error } = await admin.rpc('confirmar_vaga_lancamento', { p_user: userId })
+    if (error) console.error('[stripe-sync] confirmar vaga de lançamento falhou:', error.message)
+  }
 }
 
 // Escolhe a assinatura "vigente" entre as do cliente:

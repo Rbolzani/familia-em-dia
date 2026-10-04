@@ -1,9 +1,9 @@
 import { getEffectiveSubscription, getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
-import { stripe } from '@/lib/stripe'
+import { stripe, ehPrecoLancamento } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
 import { janelaArrependimento } from '@/lib/stripe-arrependimento'
 import { createAdminClient } from '@/lib/supabase/server'
-import { statusOferta } from '@/lib/oferta-lancamento'
+import { statusOferta, vagaDoUsuario } from '@/lib/oferta-lancamento'
 import PlanosClient from './PlanosClient'
 
 export interface PlanPrices {
@@ -43,6 +43,9 @@ export default async function PlanosPage() {
     statusOferta(),
   ])
   let precoLancamento = false
+  // Vaga já garantida (ex.: assinou com o preço de lançamento e cancelou):
+  // continua dela, mesmo com a oferta esgotada para os outros.
+  const vagaPropria = eff.isOwner && eff.ownerId ? await vagaDoUsuario(eff.ownerId) : null
 
   // Janela de arrependimento (7 dias) — só o owner tem cobrança própria, e só
   // faz sentido consultar o Stripe se houver plano pago para desfazer.
@@ -59,7 +62,7 @@ export default async function PlanosPage() {
         const vivas = await stripe.subscriptions.list({ customer: cus, status: 'all', limit: 20 })
         const vigentes = vivas.data.filter(s => s.status === 'active' || s.status === 'trialing')
         const ids = vigentes.map(s => s.id)
-        precoLancamento = vigentes.some(s => s.metadata?.oferta === 'lancamento')
+        precoLancamento = vigentes.some(s => ehPrecoLancamento(s.items.data[0]?.price))
         const j = await janelaArrependimento(cus, ids)
         if (j.dentro) arrependimentoAte = j.prazo
       }
@@ -87,6 +90,7 @@ export default async function PlanosPage() {
       prices={prices}
       oferta={oferta}
       precoLancamento={precoLancamento}
+      vagaPropria={vagaPropria}
     />
   )
 }
