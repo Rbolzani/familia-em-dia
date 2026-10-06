@@ -265,7 +265,7 @@ NEXT_PUBLIC_SUPPORT_WHATSAPP=
 
 > **E-mail transacional (Resend):** a API key do Resend **não** é env var do Next.js — fica no **Supabase → Auth → SMTP** (envio dos e-mails de auth de `noreply@familiaemdia.com.br`) e no Gmail ("Enviar como" de `dpo@`/`suporte@`). Nunca commitar essa key.
 
-> **Caixas de e-mail de domínio:** `dpo@` e `suporte@familiaemdia.com.br` recebem via **ImprovMX** (encaminha p/ Gmail) e respondem via **Resend** (SMTP). Config de DNS toda no Registro.br. Ver mapa de contas no CLAUDE.md da raiz.
+> **Caixas de e-mail de domínio:** `dpo@` e `suporte@familiaemdia.com.br` recebem via **ImprovMX** (encaminha p/ Gmail) e respondem via **Resend** (SMTP). Config de DNS toda no Registro.br. Ver mapa de contas no CLAUDE.md da raiz. Há ainda o alias `social@familiaemdia.com.br` (05/10/2026), só recebimento, usado apenas para cadastro em redes sociais (Instagram) — não é canal de atendimento.
 
 ---
 

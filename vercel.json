@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/api/whatsapp-daily",
-      "schedule": "0 10 * * *"
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/check-daily-summary",
+      "schedule": "7,37 * * * *"
     },
     {
       "path": "/api/cron/expire-trials",
