@@ -36,7 +36,9 @@ export async function dadosFiscais(userId: string): Promise<DadosFiscais> {
 // Campos do Customer derivados do cadastro. Só inclui o que existe: um campo
 // ausente não apaga o que já está no Stripe.
 export function camposDoCliente(d: DadosFiscais): Stripe.CustomerUpdateParams {
-  const campos: Stripe.CustomerUpdateParams = {}
+  // Sem idioma definido o Stripe emite fatura, recibo e e-mails em inglês
+  // ("Unused time on…" numa troca de plano). O produto é só em português.
+  const campos: Stripe.CustomerUpdateParams = { preferred_locales: ['pt-BR'] }
   if (d.nome) campos.name = d.nome
   if (d.telefone) campos.phone = `+55${d.telefone}`
   if (d.endereco) {

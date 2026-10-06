@@ -43,6 +43,9 @@ export default async function PlanosPage() {
     statusOferta(),
   ])
   let precoLancamento = false
+  // Plano cortesia (fundadores): plano pago gravado direto no banco, sem
+  // cliente no Stripe. Não há assinatura para gerenciar, cancelar ou trocar.
+  let cortesia = false
   // Vaga já garantida (ex.: assinou com o preço de lançamento e cancelou):
   // continua dela, mesmo com a oferta esgotada para os outros.
   const vagaPropria = eff.isOwner && eff.ownerId ? await vagaDoUsuario(eff.ownerId) : null
@@ -56,6 +59,7 @@ export default async function PlanosPage() {
       const { data } = await admin.from('subscriptions')
         .select('stripe_customer_id').eq('user_id', eff.ownerId).maybeSingle()
       const cus = data?.stripe_customer_id as string | null | undefined
+      if (!cus && eff.status === 'active') cortesia = true
       if (cus) {
         // Só as assinaturas vigentes: a janela tem que se referir ao que a
         // pessoa cancelaria agora, não a um plano antigo já encerrado.
@@ -91,6 +95,7 @@ export default async function PlanosPage() {
       oferta={oferta}
       precoLancamento={precoLancamento}
       vagaPropria={vagaPropria}
+      cortesia={cortesia}
     />
   )
 }

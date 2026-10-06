@@ -40,11 +40,20 @@ export async function POST(request: Request) {
     // 3. Buscar/garantir o Stripe customer do usuário
     const { data: sub } = await admin
       .from('subscriptions')
-      .select('stripe_customer_id, status, trial_ends_at')
+      .select('stripe_customer_id, status, trial_ends_at, plan')
       .eq('user_id', user.id)
       .maybeSingle()
 
     let customerId = sub?.stripe_customer_id as string | null | undefined
+
+    // Conta cortesia: plano pago gravado no banco, sem cliente no Stripe.
+    // Assinar por aqui cobraria de verdade quem já tem acesso completo.
+    if (!customerId && sub?.status === 'active' && sub?.plan && sub.plan !== 'free') {
+      return NextResponse.json(
+        { error: 'Esta conta tem plano cortesia e não precisa de assinatura.', code: 'cortesia' },
+        { status: 400 },
+      )
+    }
 
     // A nota fiscal sai com nome, CPF e endereço do cadastro. Nome e CPF são
     // obrigatórios para entrar no app; o endereço pode faltar (conta antiga ou

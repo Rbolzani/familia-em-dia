@@ -48,6 +48,8 @@ interface Props {
   precoLancamento?: boolean
   /** Vaga da oferta que já é desta pessoa (vale mesmo com a oferta esgotada). */
   vagaPropria?: 'confirmada' | 'reservada' | null
+  /** Plano concedido sem assinatura no Stripe: nada a pagar, trocar ou cancelar. */
+  cortesia?: boolean
 }
 
 const NOISE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`
@@ -108,7 +110,7 @@ function fmtPrice(n: number) {
 export default function PlanosClient({
   currentPlan, status, trialEndsAt, currentPeriodEnd,
   cancelAtPeriodEnd, billingInterval, isOwner, ownerName, childLimit, aiLimit, prices,
-  arrependimentoAte = null, assinouNoTeste = false, oferta, precoLancamento = false, vagaPropria = null,
+  arrependimentoAte = null, assinouNoTeste = false, oferta, precoLancamento = false, vagaPropria = null, cortesia = false,
 }: Props) {
   // Toggle abre no intervalo do plano atual do usuário; sem plano pago (grátis/
   // cancelado) cai no padrão mensal.
@@ -209,6 +211,44 @@ export default function PlanosClient({
       setError(e instanceof Error ? e.message : 'Erro desconhecido')
       setLoading(null)
     }
+  }
+
+  // Conta cortesia: os botões de assinar, trocar e cancelar abririam uma
+  // cobrança real ou falhariam (não existe assinatura por trás). A tela mostra
+  // só o plano; o servidor também recusa o checkout.
+  if (cortesia && isOwner) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        <div className="animate-fade-up">
+          <p className="text-xs font-bold uppercase tracking-widest mb-0.5" style={{ color: '#3D6641' }}>Assinatura</p>
+          <h1 style={{ fontFamily: 'var(--font-lora)', fontSize: 30, fontWeight: 700, color: '#1A2B1C', lineHeight: 1.1 }}>
+            Planos
+          </h1>
+        </div>
+        <div className="animate-fade-up rounded-2xl p-5" style={{
+          background: `${NOISE}, linear-gradient(160deg,#FFFFFF,#FAFAF7)`,
+          backgroundSize: '200px 200px, 100% 100%',
+          border: '1px solid rgba(61,102,65,0.20)',
+          boxShadow: '0 2px 12px rgba(44,74,46,0.07)',
+        }}>
+          <p className="text-xs font-bold uppercase tracking-widest mb-0.5" style={{ color: 'rgba(26,43,28,0.40)' }}>
+            Plano atual
+          </p>
+          <div className="flex items-center gap-2">
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#1A2B1C' }}>
+              {currentPlan === 'familia' ? 'Família' : 'Família Plus'}
+            </span>
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full"
+              style={{ background: 'rgba(255,107,92,0.12)', color: '#B5432A' }}>
+              Cortesia
+            </span>
+          </div>
+          <p className="text-sm mt-2" style={{ color: 'rgba(26,43,28,0.60)', lineHeight: 1.55 }}>
+            Acesso completo, sem cobrança. Esta conta não tem assinatura: não há nada a pagar, renovar ou cancelar.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
