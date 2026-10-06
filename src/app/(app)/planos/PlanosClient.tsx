@@ -88,7 +88,6 @@ const PLANS = [
       { text: 'Parceiros ilimitados', bold: true },
       { text: 'Cofre de documentos inteligente (5 GB)', bold: true },
       { text: 'Suporte prioritário', bold: true },
-      { text: 'Histórico completo de atividades', bold: false },
     ],
   },
 ]

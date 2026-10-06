@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# Códigos de recuperação e anotações pessoais nunca entram no repositório
+C*digo Backup*.txt
