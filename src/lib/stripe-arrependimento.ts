@@ -28,18 +28,24 @@ export const DIAS_ARREPENDIMENTO = 7
  */
 const MOTIVOS_QUE_ABREM_JANELA = ['subscription_create', 'subscription_update']
 
+export interface CobrancaReembolsavel {
+  invoiceId: string
+  paymentIntentId: string | null
+  valorCentavos: number
+}
+
 export interface JanelaArrependimento {
   dentro: boolean
-  /** Fim da janela, ISO. Null quando não há cobrança elegível. */
+  /** Fim da janela da cobrança mais recente, ISO. Null quando não há cobrança elegível. */
   prazo: string | null
-  /** Quanto seria devolvido, em centavos. */
+  /** Quanto seria devolvido, em centavos — soma de `cobrancas`. */
   valorCentavos: number
-  invoiceId: string | null
-  paymentIntentId: string | null
+  /** Cada cobrança ainda dentro dos próprios 7 dias. Todas são devolvidas. */
+  cobrancas: CobrancaReembolsavel[]
 }
 
 const VAZIA: JanelaArrependimento = {
-  dentro: false, prazo: null, valorCentavos: 0, invoiceId: null, paymentIntentId: null,
+  dentro: false, prazo: null, valorCentavos: 0, cobrancas: [],
 }
 
 /**
@@ -58,8 +64,14 @@ function subscriptionDaFatura(inv: Stripe.Invoice): string | null {
 }
 
 /**
- * Avalia se ainda estamos na janela de 7 dias da última cobrança real
- * **das assinaturas informadas**.
+ * Avalia se ainda estamos na janela de 7 dias de alguma cobrança real
+ * **das assinaturas informadas**, e lista TODAS as que ainda estão no prazo.
+ *
+ * ⚠️ Não basta a última cobrança. Quem assina o Família (R$ 29,90) e faz
+ * upgrade para o Plus no dia seguinte paga duas vezes: a contratação e a
+ * diferença (~R$ 15). Devolver só a mais recente deixaria os R$ 29,90 com a
+ * gente, dentro do prazo legal. Cada cobrança tem a própria janela de 7 dias;
+ * o que ainda está dentro dela volta.
  *
  * ⚠️ `subscriptionIds` não é opcional por preguiça de tipo: sem ele o cálculo
  * erra feio. Um cliente que trocou de plano tem faturas de assinaturas
@@ -87,16 +99,25 @@ export async function janelaArrependimento(
 
   if (elegiveis.length === 0) return VAZIA
 
-  const inv = elegiveis.sort((a, b) => b.created - a.created)[0]
-  const fim = (inv.created + DIAS_ARREPENDIMENTO * 86_400) * 1000
+  const fimDe = (inv: Stripe.Invoice) => (inv.created + DIAS_ARREPENDIMENTO * 86_400) * 1000
+  const agora = Date.now()
+  const maisRecente = elegiveis.sort((a, b) => b.created - a.created)[0]
+  const noPrazo = elegiveis.filter(inv => agora <= fimDe(inv) && !!inv.id)
+
+  const cobrancas: CobrancaReembolsavel[] = []
+  for (const inv of noPrazo) {
+    cobrancas.push({
+      invoiceId: inv.id as string,
+      paymentIntentId: await resolvePaymentIntent(inv.id),
+      valorCentavos: inv.amount_paid,
+    })
+  }
 
   return {
-    ...VAZIA,
-    dentro: Date.now() <= fim,
-    prazo: new Date(fim).toISOString(),
-    valorCentavos: inv.amount_paid,
-    invoiceId: inv.id ?? null,
-    paymentIntentId: await resolvePaymentIntent(inv.id),
+    dentro: cobrancas.length > 0,
+    prazo: new Date(fimDe(maisRecente)).toISOString(),
+    valorCentavos: cobrancas.reduce((s, c) => s + c.valorCentavos, 0),
+    cobrancas,
   }
 }
 
@@ -181,16 +202,26 @@ export async function reembolsarEEncerrar(
   subs: Stripe.Subscription[],
   customerId: string,
 ): Promise<{ reembolsado: number; creditoZerado: number }> {
-  if (!janela.paymentIntentId) {
+  if (janela.cobrancas.length === 0 || janela.cobrancas.some(c => !c.paymentIntentId)) {
     throw new Error('Cobrança sem payment_intent — reembolso precisa ser feito no painel do Stripe')
   }
 
   // Reembolso primeiro. Se falhar, a assinatura NÃO é cancelada — é melhor a
   // pessoa continuar com o acesso que pagou do que perder acesso e dinheiro.
-  await stripe.refunds.create({
-    payment_intent: janela.paymentIntentId,
-    reason: 'requested_by_customer',
-  })
+  //
+  // Uma cobrança já estornada não pode travar as outras: se a primeira passou
+  // e a segunda falhou, a nova tentativa encontraria a primeira "já devolvida"
+  // e nunca chegaria à segunda.
+  for (const c of janela.cobrancas) {
+    try {
+      await stripe.refunds.create({
+        payment_intent: c.paymentIntentId as string,
+        reason: 'requested_by_customer',
+      })
+    } catch (err) {
+      if ((err as { code?: string })?.code !== 'charge_already_refunded') throw err
+    }
+  }
 
   // Mesmo impedimento do cancelamento agendado: com schedule ativo o Stripe
   // recusa encerrar a assinatura direto. `release` desfaz o vínculo sem mexer
