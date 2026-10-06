@@ -6,9 +6,9 @@ import { normalizeImage } from '@/lib/image'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
-// Extração de imagem com thinking pode levar mais que os 10s padrão do
-// Vercel Hobby, especialmente em grades de horário densas.
-export const maxDuration = 60
+// Grade de horário densa, com thinking, leva 52–59s. O teto de 60s era do
+// plano Hobby e deixava ~1s de folga (achado 15); no Pro o limite é 300s.
+export const maxDuration = 300
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024
 const MAX_TEXT_CHARS = 12_000
@@ -595,7 +595,7 @@ export async function POST(req: NextRequest) {
         // aulas no caso mais fácil possível.
         //
         // O aperto de tempo é real, mas é problema de PLATAFORMA, não de modelo:
-        // 60s é o teto do plano Hobby da Vercel. O Pro leva para 300s e resolve
+        // 60s era o teto do plano Hobby da Vercel. O Pro levou para 300s e resolveu
         // sem tocar na qualidade. Ver achado 15 do painel de prontidão.
         ...(isScheduleGrid ? { thinking: { type: 'enabled' as const, budget_tokens: 4000 } } : {}),
         messages: [{
