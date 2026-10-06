@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
+import type Stripe from 'stripe'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripe, planToPrice, ehPrecoLancamento, type PlanId, type BillingInterval } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
 import { reservarVaga, precoLancamentoId, CHECKOUT_LANCAMENTO_SEGUNDOS } from '@/lib/oferta-lancamento'
+import { dadosFiscais, camposDoCliente, sincronizarClienteStripe } from '@/lib/stripe-customer'
 
 export async function POST(request: Request) {
   // 1. Sessão
@@ -44,9 +46,21 @@ export async function POST(request: Request) {
 
     let customerId = sub?.stripe_customer_id as string | null | undefined
 
+    // A nota fiscal sai com nome, CPF e endereço do cadastro. Nome e CPF são
+    // obrigatórios para entrar no app; o endereço pode faltar (conta antiga ou
+    // parceiro convidado que virou assinante) — sem ele não há como faturar.
+    const fiscais = await dadosFiscais(user.id)
+    if (!fiscais.endereco) {
+      return NextResponse.json(
+        { error: 'Antes de assinar, complete seu endereço em Minha Conta. Ele é usado na nota fiscal.', code: 'endereco_pendente' },
+        { status: 400 },
+      )
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email ?? undefined,
+        ...(camposDoCliente(fiscais) as Stripe.CustomerCreateParams),
         metadata: { user_id: user.id },
       })
       customerId = customer.id
@@ -55,6 +69,9 @@ export async function POST(request: Request) {
         .from('subscriptions')
         .upsert({ user_id: user.id, stripe_customer_id: customerId }, { onConflict: 'user_id' })
     }
+
+    // Mantém o Customer em dia com o cadastro (e registra o CPF como Tax ID).
+    await sincronizarClienteStripe(customerId, user.id, fiscais)
 
     // 4. Decidir entre: trocar de plano/intervalo, reativar, ou criar checkout novo.
     if (customerId) {

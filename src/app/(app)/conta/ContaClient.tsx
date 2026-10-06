@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { Save, Lock, AlertTriangle, Trash2, Loader2 } from 'lucide-react'
 import { toast } from '@/components/ui/Toast'
 import { formatCPF, formatPhoneBR, isValidPhoneBR } from '@/lib/cpf'
+import { addressError, normalizeAddress, type Address } from '@/lib/address'
+import AddressFields from '@/components/AddressFields'
 
 interface Props {
   email: string
@@ -10,15 +12,17 @@ interface Props {
   phone: string
   birthDate: string
   cpf: string
+  address: Address
   marketingConsent: boolean
   isOwner: boolean
   hasPartners: boolean
 }
 
-export default function ContaClient({ email, fullName, phone, birthDate, cpf, marketingConsent, isOwner, hasPartners }: Props) {
+export default function ContaClient({ email, fullName, phone, birthDate, cpf, address, marketingConsent, isOwner, hasPartners }: Props) {
   const [name, setName]       = useState(fullName)
   const [phoneV, setPhoneV]   = useState(phone ? formatPhoneBR(phone) : '')
   const [birth, setBirth]     = useState(birthDate)
+  const [addr, setAddr]       = useState<Address>(address)
   const [consent, setConsent] = useState(marketingConsent)
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
@@ -56,13 +60,24 @@ export default function ContaClient({ email, fullName, phone, birthDate, cpf, ma
     if (name.trim().length < 3) { setError('Informe seu nome completo.'); return }
     if (!isValidPhoneBR(phoneV)) { setError('Celular inválido. Use DDD + número.'); return }
     if (!birth) { setError('Informe sua data de nascimento.'); return }
+    // Endereço é opcional para parceiro convidado; se começou a preencher,
+    // tem que terminar. Em branco, o salvamento não mexe no que já existe.
+    const endereco = normalizeAddress(addr)
+    const temEndereco = Object.values(endereco).some(Boolean)
+    if (temEndereco) {
+      const problema = addressError(endereco)
+      if (problema) { setError(problema); return }
+    }
 
     setSaving(true)
     try {
       const res = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name: name, phone: phoneV, birth_date: birth, marketing_consent: consent }),
+        body: JSON.stringify({
+          full_name: name, phone: phoneV, birth_date: birth, marketing_consent: consent,
+          ...(temEndereco ? { address: endereco } : {}),
+        }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Erro ao salvar.')
@@ -125,6 +140,14 @@ export default function ContaClient({ email, fullName, phone, birthDate, cpf, ma
           <label className="block text-xs font-semibold mb-2" style={labelStyle}>Data de nascimento</label>
           <input type="date" required value={birth} onChange={e => setBirth(e.target.value)}
             max={new Date().toISOString().slice(0, 10)} className="input-field" />
+        </div>
+
+        <div className="pt-2">
+          <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#3D6641' }}>Endereço</p>
+          <p className="text-xs mb-3" style={{ color: 'rgba(26,43,28,0.50)' }}>
+            Usado na nota fiscal da sua assinatura.
+          </p>
+          <AddressFields value={addr} onChange={setAddr} />
         </div>
 
         <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">

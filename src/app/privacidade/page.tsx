@@ -33,7 +33,7 @@ export default function PrivacidadePage() {
 
       <H>2. Dados que coletamos</H>
       <ul>
-        <Li><strong>Cadastro do responsável:</strong> nome completo, e-mail, telefone/celular, CPF e data de nascimento.</Li>
+        <Li><strong>Cadastro do responsável:</strong> nome completo, e-mail, telefone/celular, CPF, data de nascimento e endereço.</Li>
         <Li><strong>Dados dos filhos (crianças/adolescentes):</strong> nome, data de nascimento, escola, foto e
           informações de atividades — inseridos pelo responsável.</Li>
         <Li><strong>Documentos e dados sensíveis:</strong> arquivos que o Usuário opte por armazenar no cofre
@@ -77,7 +77,8 @@ export default function PrivacidadePage() {
         <Li><strong>Supabase</strong> — hospedagem de banco de dados e armazenamento de arquivos;</Li>
         <Li><strong>Anthropic</strong> e <strong>Groq</strong> — processamento por IA (classificação de
           texto/imagem e transcrição de voz);</Li>
-        <Li><strong>Stripe</strong> — processamento de pagamentos e assinaturas;</Li>
+        <Li><strong>Stripe</strong> — processamento de pagamentos e assinaturas; recebe nome, CPF, telefone e
+          endereço de quem assina, para a cobrança e a emissão de nota fiscal;</Li>
         <Li><strong>Meta (WhatsApp)</strong> — envio de mensagens e alertas;</Li>
         <Li><strong>Vercel</strong> — hospedagem da aplicação;</Li>
         <Li><strong>Resend</strong> — envio de e-mails da conta (confirmação de cadastro,

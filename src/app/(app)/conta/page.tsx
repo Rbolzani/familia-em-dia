@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ContaClient from './ContaClient'
+import { ADDRESS_COLUMNS, addressFromRow } from '@/lib/address'
 
 export default async function ContaPage() {
   const supabase = await createClient()
@@ -9,7 +10,7 @@ export default async function ContaPage() {
 
   const { data: prof } = await supabase
     .from('profiles')
-    .select('full_name, phone, birth_date, cpf, marketing_consent')
+    .select(`full_name, phone, birth_date, cpf, marketing_consent, ${ADDRESS_COLUMNS}`)
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -34,6 +35,7 @@ export default async function ContaPage() {
       phone={prof?.phone ?? ''}
       birthDate={prof?.birth_date ?? ''}
       cpf={prof?.cpf ?? ''}
+      address={addressFromRow(prof)}
       marketingConsent={prof?.marketing_consent ?? false}
       isOwner={isOwner}
       hasPartners={hasPartners}

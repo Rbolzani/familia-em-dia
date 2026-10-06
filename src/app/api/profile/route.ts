@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { isValidCPF, isValidPhoneBR, onlyDigits } from '@/lib/cpf'
 import { LEGAL_VERSION } from '@/lib/legal'
+import { addressError, addressToRow, normalizeAddress, type Address } from '@/lib/address'
+import { sincronizarClienteStripe } from '@/lib/stripe-customer'
 
 // Salva o cadastro inicial de dados pessoais (LGPD / cobrança) e marca
 // profile_completed_at. Validação no servidor — o cliente é só conveniência.
@@ -14,6 +16,7 @@ export async function POST(request: Request) {
     full_name?: string; phone?: string; cpf?: string; birth_date?: string
     marketing_consent?: boolean; acquisition_source?: string
     attribution?: Record<string, unknown>; terms_accepted?: boolean
+    address?: Partial<Record<keyof Address, unknown>>
   }
   try {
     body = await request.json()
@@ -32,6 +35,16 @@ export async function POST(request: Request) {
   // Não permite data de nascimento no futuro.
   if (new Date(birthDate) > new Date()) {
     return NextResponse.json({ error: 'Data de nascimento inválida.' }, { status: 400 })
+  }
+
+  // Endereço: exigido de quem assina (nota fiscal), não de parceiro convidado —
+  // por isso é opcional aqui e cobrado no checkout. Se veio, tem que vir inteiro.
+  let addressRow: ReturnType<typeof addressToRow> | null = null
+  if (body.address) {
+    const address = normalizeAddress(body.address)
+    const problema = addressError(address)
+    if (problema) return NextResponse.json({ error: problema }, { status: 400 })
+    addressRow = addressToRow(address)
   }
 
   // CPF é imutável após o primeiro cadastro (identidade fiscal). Server-side:
@@ -79,6 +92,7 @@ export async function POST(request: Request) {
     phone,
     cpf,
     birth_date: birthDate,
+    ...(addressRow ?? {}),
     marketing_consent: consent,
     marketing_consent_at: consentAt,
     acquisition_source: acquisitionSource,
@@ -102,6 +116,13 @@ export async function POST(request: Request) {
     // A mensagem do PostgREST descreve o schema; fica no log, não na resposta.
     return NextResponse.json({ error: 'Não foi possível salvar seus dados.' }, { status: 500 })
   }
+
+  // Quem já é cliente no Stripe tem o nome/endereço atualizados lá também,
+  // para a próxima nota sair com o dado novo.
+  const { data: sub } = await createAdminClient()
+    .from('subscriptions').select('stripe_customer_id').eq('user_id', user.id).maybeSingle()
+  const customerId = sub?.stripe_customer_id as string | null | undefined
+  if (customerId) await sincronizarClienteStripe(customerId, user.id)
 
   return NextResponse.json({ ok: true })
 }

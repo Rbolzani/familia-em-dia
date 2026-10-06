@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import { formatCPF, formatPhoneBR, isValidCPF, isValidPhoneBR } from '@/lib/cpf'
 import { readAttribution, clearAttribution } from '@/lib/attribution'
+import { EMPTY_ADDRESS, addressError, normalizeAddress, type Address } from '@/lib/address'
+import AddressFields from '@/components/AddressFields'
 
 const ACQUISITION_OPTIONS = [
   'Instagram', 'Facebook', 'Google / busca', 'TikTok',
@@ -22,6 +24,7 @@ export default function CompletarCadastroClient({ email, initialName, inviteToke
   const [phone, setPhone]       = useState('')
   const [cpf, setCpf]           = useState('')
   const [birthDate, setBirth]   = useState('')
+  const [address, setAddress]   = useState<Address>(EMPTY_ADDRESS)
   const [source, setSource]     = useState('')
   const [consent, setConsent]   = useState(false)
   const [terms, setTerms]       = useState(false)
@@ -30,6 +33,9 @@ export default function CompletarCadastroClient({ email, initialName, inviteToke
 
   const cpfOk   = cpf.length === 0 || isValidCPF(cpf)
   const phoneOk = phone.length === 0 || isValidPhoneBR(phone)
+  // Quem chega por convite entra no ambiente de outra pessoa e não assina:
+  // não precisa de endereço (que só existe para a nota fiscal).
+  const pedeEndereco = !inviteToken
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -38,6 +44,11 @@ export default function CompletarCadastroClient({ email, initialName, inviteToke
     if (!isValidPhoneBR(phone))     { setError('Celular inválido. Use DDD + número.'); return }
     if (!isValidCPF(cpf))           { setError('CPF inválido.'); return }
     if (!birthDate)                 { setError('Informe sua data de nascimento.'); return }
+    const endereco = normalizeAddress(address)
+    if (pedeEndereco) {
+      const problema = addressError(endereco)
+      if (problema) { setError(problema); return }
+    }
     if (!source)                    { setError('Conte como você nos conheceu.'); return }
     if (!terms)                     { setError('É necessário aceitar os Termos de Uso e a Política de Privacidade.'); return }
 
@@ -48,6 +59,7 @@ export default function CompletarCadastroClient({ email, initialName, inviteToke
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           full_name: fullName, phone, cpf, birth_date: birthDate,
+          ...(pedeEndereco ? { address: endereco } : {}),
           acquisition_source: source,
           marketing_consent: consent,
           terms_accepted: terms,
@@ -124,6 +136,16 @@ export default function CompletarCadastroClient({ email, initialName, inviteToke
               <input type="date" required value={birthDate} onChange={e => setBirth(e.target.value)}
                 max={new Date().toISOString().slice(0, 10)} className="input-field" />
             </div>
+
+            {pedeEndereco && (
+              <div className="pt-2">
+                <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#3D6641' }}>Endereço</p>
+                <p className="text-xs mb-3" style={{ color: 'rgba(26,43,28,0.50)' }}>
+                  Digite o CEP e preenchemos o resto. Usamos na nota fiscal, se você assinar.
+                </p>
+                <AddressFields value={address} onChange={setAddress} />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold mb-2" style={{ color: 'rgba(26,43,28,0.55)' }}>Como você nos conheceu?</label>
