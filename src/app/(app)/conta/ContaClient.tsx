@@ -13,16 +13,22 @@ interface Props {
   birthDate: string
   cpf: string
   address: Address
+  termsAccepted: boolean
   marketingConsent: boolean
   isOwner: boolean
   hasPartners: boolean
 }
 
-export default function ContaClient({ email, fullName, phone, birthDate, cpf, address, marketingConsent, isOwner, hasPartners }: Props) {
+export default function ContaClient({ email, fullName, phone, birthDate, cpf, address, termsAccepted, marketingConsent, isOwner, hasPartners }: Props) {
   const [name, setName]       = useState(fullName)
   const [phoneV, setPhoneV]   = useState(phone ? formatPhoneBR(phone) : '')
   const [birth, setBirth]     = useState(birthDate)
   const [addr, setAddr]       = useState<Address>(address)
+  // Contas criadas antes do aceite existir no cadastro ainda não aceitaram os
+  // Termos: o servidor exige o aceite no primeiro salvamento, então a caixa
+  // precisa aparecer aqui. Depois de aceito, some.
+  const [accepted, setAccepted] = useState(termsAccepted)
+  const [terms, setTerms]       = useState(false)
   const [consent, setConsent] = useState(marketingConsent)
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
@@ -60,6 +66,7 @@ export default function ContaClient({ email, fullName, phone, birthDate, cpf, ad
     if (name.trim().length < 3) { setError('Informe seu nome completo.'); return }
     if (!isValidPhoneBR(phoneV)) { setError('Celular inválido. Use DDD + número.'); return }
     if (!birth) { setError('Informe sua data de nascimento.'); return }
+    if (!accepted && !terms) { setError('É necessário aceitar os Termos de Uso e a Política de Privacidade.'); return }
     // Endereço é opcional para parceiro convidado; se começou a preencher,
     // tem que terminar. Em branco, o salvamento não mexe no que já existe.
     const endereco = normalizeAddress(addr)
@@ -77,10 +84,12 @@ export default function ContaClient({ email, fullName, phone, birthDate, cpf, ad
         body: JSON.stringify({
           full_name: name, phone: phoneV, birth_date: birth, marketing_consent: consent,
           ...(temEndereco ? { address: endereco } : {}),
+          ...(!accepted ? { terms_accepted: terms } : {}),
         }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Erro ao salvar.')
+      setAccepted(true)
       toast('Dados atualizados ✓')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido.')
@@ -149,6 +158,19 @@ export default function ContaClient({ email, fullName, phone, birthDate, cpf, ad
           </p>
           <AddressFields value={addr} onChange={setAddr} />
         </div>
+
+        {!accepted && (
+          <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
+            <input type="checkbox" checked={terms} onChange={e => setTerms(e.target.checked)}
+              className="mt-0.5" style={{ accentColor: '#3D6641', width: 16, height: 16 }} />
+            <span className="text-xs leading-relaxed" style={{ color: 'rgba(26,43,28,0.70)' }}>
+              Li e aceito os{' '}
+              <a href="/termos" target="_blank" className="font-semibold underline" style={{ color: '#3D6641' }}>Termos de Uso</a>
+              {' '}e a{' '}
+              <a href="/privacidade" target="_blank" className="font-semibold underline" style={{ color: '#3D6641' }}>Política de Privacidade</a>.
+            </span>
+          </label>
+        )}
 
         <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
           <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)}
