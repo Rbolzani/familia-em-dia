@@ -7,7 +7,7 @@ import {
   CalendarDays, FolderLock, Sparkles, Leaf,
   Palette, Moon, Sun, SlidersHorizontal,
   Users, LogOut, Car, Settings, UserPlus, Bell, X, Clock, Star, UserCog,
-  ChevronRight, Headphones, HelpCircle, FileText, Shield, ExternalLink, Wallet,
+  ChevronRight, Headphones, HelpCircle, FileText, Shield, ExternalLink, Wallet, ChartPie,
 } from 'lucide-react'
 import { ChildAvatar } from '@/app/(app)/children/ChildrenClient'
 import { createClient } from '@/lib/supabase/client'
@@ -29,6 +29,8 @@ interface Props {
   children: React.ReactNode
   sidebarChildren: SidebarChild[]
   activeFamilyId?: string | null
+  /** Fundador: mostra a seção Admin em Configurações. Decidido no servidor. */
+  isAdmin?: boolean
 }
 
 // ── Palettes ───────────────────────────────────────────────────────────
@@ -42,7 +44,7 @@ const PALETTES = [
 
 
 // ── Component ──────────────────────────────────────────────────────────
-export default function AppLayout({ children, sidebarChildren: initial, activeFamilyId }: Props) {
+export default function AppLayout({ children, sidebarChildren: initial, activeFamilyId, isAdmin = false }: Props) {
   const pathname = usePathname()
   const router   = useRouter()
   const { isActive: tourActive } = useTour()
@@ -581,6 +583,16 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
           <div style={{ fontSize:10, fontWeight:800, letterSpacing:'0.14em', textTransform:'uppercase',
             color:'rgba(231,241,238,0.5)', padding:'2px 12px 4px' }}>Sobre</div>
           <CfgPanelItem href="https://www.familiaemdia.com.br/marketing/Landing-Familia-em-Dia-P6-IA.html" label="Site" icon={ExternalLink} external />
+          {/* Só fundadores. Esconder o item é conveniência: quem barra o acesso
+              é o servidor, em /admin. */}
+          {isAdmin && (
+            <>
+              <div style={{ height:1, background:'rgba(255,255,255,0.10)', margin:'6px 8px' }} />
+              <div style={{ fontSize:10, fontWeight:800, letterSpacing:'0.14em', textTransform:'uppercase',
+                color:'rgba(231,241,238,0.5)', padding:'2px 12px 4px' }}>Admin</div>
+              <CfgPanelItem href="/admin" label="Painel do negócio" icon={ChartPie} />
+            </>
+          )}
         </div>
       )}
 

@@ -10,6 +10,7 @@ import TrialBanner from '@/components/billing/TrialBanner'
 import GraceBanner from '@/components/billing/GraceBanner'
 import { PLAN_LABELS, getEffectiveSubscription } from '@/lib/billing'
 import { signChildAvatars } from '@/lib/avatars'
+import { ehFundador } from '@/lib/admin'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -120,7 +121,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   return (
     <TourProvider hasChildren={hasChildren} userId={user?.id ?? ''}>
       <AccessProvider value={access}>
-        <AppLayout sidebarChildren={sidebarChildrenComFoto} activeFamilyId={activeFamilyId}>
+        <AppLayout sidebarChildren={sidebarChildrenComFoto} activeFamilyId={activeFamilyId} isAdmin={ehFundador(user?.id)}>
           <RealtimeSync />
           <PartnerBanner />
           {bannerInfo?.type === 'trial' && (
