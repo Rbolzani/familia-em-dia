@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { destinoInternoSeguro } from '@/lib/redirectSeguro'
+import { ehFundador } from '@/lib/admin-ids'
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -68,6 +69,19 @@ export async function proxy(request: NextRequest) {
       res.cookies.set('pending_invite', inviteMatch[1], { path: '/', maxAge: 3600, sameSite: 'lax' })
     }
     return res
+  }
+
+  // Painel do negócio: só fundadores. Qualquer outra conta logada recebe 404
+  // aqui, na borda, antes de a página renderizar — a mesma resposta de um
+  // endereço que não existe. (Sem sessão, o bloco acima já mandou para o login.)
+  // A página confere de novo por conta própria; isto é a primeira das duas travas.
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    if (!ehFundador(user?.id)) {
+      return new NextResponse('Not Found', {
+        status: 404,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' },
+      })
+    }
   }
 
   // Exceção: /auth/reset-password precisa ser acessível MESMO com sessão — o link

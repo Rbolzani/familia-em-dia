@@ -10,7 +10,7 @@ import TrialBanner from '@/components/billing/TrialBanner'
 import GraceBanner from '@/components/billing/GraceBanner'
 import { PLAN_LABELS, getEffectiveSubscription } from '@/lib/billing'
 import { signChildAvatars } from '@/lib/avatars'
-import { ehFundador } from '@/lib/admin'
+import { ehFundador } from '@/lib/admin-ids'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
