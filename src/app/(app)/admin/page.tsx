@@ -46,13 +46,15 @@ export default async function AdminPage() {
     r.incompletos > 0 && `${r.incompletos} que não ${r.incompletos === 1 ? 'concluiu' : 'concluíram'} o cadastro`,
   ].filter(Boolean) as string[]
 
-  const etapas: [string, number, boolean?][] = [
+  const etapas: [string, number, string?][] = [
     ['Criaram conta', p.funil.criaram],
     ['Concluíram o cadastro', p.funil.concluiram],
     ['Cadastraram um filho', p.funil.comFilho],
     ['Usaram a captura por IA', p.funil.usaramIa],
-    ['Assinaram', p.funil.assinaram, true],
+    ['Assinaram', p.funil.assinaram, '#FF6B5C'],
+    ['Cancelaram', p.funil.cancelaram, '#9A8F7A'],
   ]
+  const rt = p.retencao
 
   return (
     <div className="adm">
@@ -71,6 +73,10 @@ export default async function AdminPage() {
           <div className="adm-num"><b>{r.cadastros}</b><span>cadastros no total</span></div>
           <div className="adm-num"><b>{r.emTeste}</b><span>em teste grátis</span></div>
           <div className="adm-num"><b>{r.assinantes}</b><span>assinantes pagantes</span></div>
+          <div className="adm-num">
+            <b className="adm-par"><span>{r.pagantesFamilia}<small>Família</small></span><span>{r.pagantesPlus}<small>Plus</small></span></b>
+            <span>pagantes por plano</span>
+          </div>
           <div className="adm-num"><b>{r.gratuito}</b><span>no plano gratuito</span></div>
           <div className="adm-num"><b>{r.cancelaram}</b><span>cancelaram</span></div>
           <div className="adm-num adm-destaque"><b>{reais(r.receitaMensalCentavos)}</b><span>receita mensal recorrente</span></div>
@@ -82,16 +88,48 @@ export default async function AdminPage() {
       <section className="adm-cartao">
         <div className="adm-cab"><h2>Funil</h2><small>dos cadastros até a assinatura</small></div>
         <div className="adm-funil">
-          {etapas.map(([rotulo, n, coral]) => (
+          {etapas.map(([rotulo, n, cor]) => (
             <div className="adm-f" key={rotulo}>
               <span>{rotulo}</span>
-              <span className="adm-b"><i style={{ width: `${pct(n, p.funil.criaram)}%`, ...(coral ? { background: '#FF6B5C' } : {}) }} /></span>
+              <span className="adm-b"><i style={{ width: `${pct(n, p.funil.criaram)}%`, ...(cor ? { background: cor } : {}) }} /></span>
               <span className="adm-v">{n}</span>
             </div>
           ))}
         </div>
-        <p className="adm-ver">&quot;Assinaram&quot; conta quem assina hoje e quem cancelou depois.</p>
+        <p className="adm-ver">&quot;Assinaram&quot; conta quem assina hoje e quem cancelou depois. &quot;Cancelaram&quot; são os que assinaram e hoje não pagam mais.</p>
       </section>
+
+      <div className="adm-duas">
+        <section className="adm-cartao">
+          <div className="adm-cab"><h2>Depois dos 14 dias de teste</h2></div>
+          <div className="adm-rolar">
+            <table style={{ minWidth: 280 }}>
+              <tbody>
+                <tr><td>Cancelaram a assinatura ainda nos 14 dias</td><td className="adm-n"><b>{rt.cancelouNoTeste}</b></td></tr>
+                <tr><td>Passaram dos 14 dias e estão no gratuito</td><td className="adm-n"><b>{rt.ficouGratis}</b></td></tr>
+                <tr><td>Passaram dos 14 dias e pagam um plano hoje</td><td className="adm-n"><b>{rt.pagandoApos}</b></td></tr>
+                <tr><td>Cancelaram a assinatura depois dos 14 dias</td><td className="adm-n"><b>{rt.cancelouApos}</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="adm-ver">Os 14 dias contam da criação da conta. Cada pessoa entra em um grupo só. Ficam de fora quem ainda está no teste, contas cortesia, convidados e cadastros incompletos.</p>
+        </section>
+
+        <section className="adm-cartao">
+          <div className="adm-cab"><h2>Tempo de base</h2><small>há quanto tempo estão conosco</small></div>
+          <div className="adm-rolar">
+            <table style={{ minWidth: 280 }}>
+              <thead><tr><th>Faixa</th><th className="adm-n">Cadastros</th><th className="adm-n">Pagantes</th></tr></thead>
+              <tbody>
+                {p.tempoDeBase.map(t => (
+                  <tr key={t.faixa}><td>{t.faixa}</td><td className="adm-n">{t.cadastros}</td><td className="adm-n">{t.pagantes}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="adm-ver">Cadastros contam da criação da conta (sem convidados). Pagantes contam do início da assinatura atual.</p>
+        </section>
+      </div>
 
       <section className="adm-cartao">
         <div className="adm-cab">
@@ -214,6 +252,9 @@ const CSS = `
 .adm-num{background:#fff;border:1px solid rgba(61,102,65,.18);border-radius:14px;box-shadow:0 1px 2px rgba(30,51,32,.05),0 8px 22px rgba(30,51,32,.07);padding:13px 15px}
 .adm-num b{display:block;font-family:var(--font-lora),Georgia,serif;font-size:28px;line-height:1.05;font-variant-numeric:tabular-nums}
 .adm-num b small{font-size:15px;color:rgba(26,43,28,.42)}
+.adm-num b.adm-par{display:flex;gap:18px}
+.adm-num b.adm-par span{display:flex;align-items:baseline;gap:5px;font-size:28px;color:inherit}
+.adm-num b.adm-par small{font-family:var(--font-dm),system-ui,sans-serif;font-size:12.5px;font-weight:500}
 .adm-num span{font-size:12.5px;color:rgba(26,43,28,.62)}
 .adm-destaque{background:#14463A;border-color:#14463A;color:#fff}
 .adm-destaque span{color:#C9DDD6}

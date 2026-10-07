@@ -26,14 +26,24 @@ export interface LinhaCancelamento {
   motivo: string | null; comentario: string | null; reembolsado: boolean
 }
 export interface LinhaOrigem { origem: string; cadastros: number; assinaram: number }
+export interface LinhaTempo { faixa: string; cadastros: number; pagantes: number }
+
+// Dias de teste grátis. É o marco que separa "desistiu ainda no teste" de
+// "ficou depois do teste".
+const DIAS_TESTE = 14
 
 export interface PainelNegocio {
   resumo: {
     cadastros: number; emTeste: number; assinantes: number; gratuito: number; cancelaram: number
     receitaMensalCentavos: number; vagasUsadas: number; vagasTotal: number
     cortesia: number; convidados: number; incompletos: number
+    pagantesFamilia: number; pagantesPlus: number
   }
-  funil: { criaram: number; concluiram: number; comFilho: number; usaramIa: number; assinaram: number }
+  funil: { criaram: number; concluiram: number; comFilho: number; usaramIa: number; assinaram: number; cancelaram: number }
+  /** O que aconteceu em relação aos 14 dias de teste. Grupos sem sobreposição. */
+  retencao: { cancelouNoTeste: number; ficouGratis: number; pagandoApos: number; cancelouApos: number }
+  /** Há quanto tempo estão na base: cadastros (pela criação da conta) e pagantes (pelo início da assinatura). */
+  tempoDeBase: LinhaTempo[]
   emTeste: LinhaTeste[]
   assinantes: LinhaAssinante[]
   cancelamentos: LinhaCancelamento[]
@@ -141,6 +151,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
     const anual = (info?.interval ?? item?.price?.recurring?.interval) === 'year'
     return {
       item,
+      chave: info?.plan ?? null,
       plano: PLANO[info?.plan ?? ''] ?? 'Plano',
       periodo: (anual ? 'Anual' : 'Mensal') as 'Anual' | 'Mensal',
       centavos: item?.price?.unit_amount ?? 0,
@@ -187,9 +198,44 @@ export async function montarPainel(): Promise<PainelNegocio> {
     .sort((a, b) => b.canceladoEm.localeCompare(a.canceladoEm))
   const cancelaram = new Set(canceladas.map(s => idDe(s.customer)).filter(c => !clientesPagantes.has(c))).size
 
+  // ── Em relação aos 14 dias de teste ───────────────────────────────────
+  // O marco é a criação da conta (quando o teste começa). Se a conta já foi
+  // excluída, o melhor substituto é a criação do cliente no Stripe.
+  const inicioDe = (s: Stripe.Subscription): number => {
+    const u = usuarioDe.get(s.metadata?.user_id ?? '')
+    if (u) return new Date(u.criado).getTime()
+    const c = clienteVivo(s.customer)
+    return ((c?.created ?? s.start_date) as number) * 1000
+  }
+  const retencao = { cancelouNoTeste: 0, ficouGratis: 0, pagandoApos: 0, cancelouApos: 0 }
+  const jaContado = new Set<string>()
+  // Quem cancelou e não paga hoje: uma vez por cliente, pelo cancelamento mais recente.
+  for (const s of [...canceladas].sort((a, b) => (b.ended_at ?? 0) - (a.ended_at ?? 0))) {
+    const cli = idDe(s.customer)
+    if (clientesPagantes.has(cli) || jaContado.has(cli)) continue
+    jaContado.add(cli)
+    const fim = ((s.ended_at ?? s.canceled_at ?? s.start_date) as number) * 1000
+    if (fim - inicioDe(s) <= DIAS_TESTE * DIA) retencao.cancelouNoTeste++
+    else retencao.cancelouApos++
+  }
+  const pagantesContados = new Set<string>()
+  let pagantesFamilia = 0, pagantesPlus = 0
+  const inicioDosPagantes: number[] = []
+  for (const s of pagas) {
+    const cli = idDe(s.customer)
+    if (pagantesContados.has(cli)) continue
+    pagantesContados.add(cli)
+    if (descreve(s).chave === 'plus') pagantesPlus++; else pagantesFamilia++
+    inicioDosPagantes.push(s.start_date * 1000)
+    if (agora - inicioDe(s) > DIAS_TESTE * DIA) retencao.pagandoApos++
+  }
+  const usuariosQueCancelaram = new Set(canceladas.map(s => s.metadata?.user_id).filter(Boolean) as string[])
+  const usuariosPagantes = new Set(pagas.map(s => s.metadata?.user_id).filter(Boolean) as string[])
+
   // ── Situação de cada cadastro ─────────────────────────────────────────
   const usuariosQueAssinaram = new Set(jaAssinaram.map(s => s.metadata?.user_id).filter(Boolean) as string[])
   const emTeste: LinhaTeste[] = []
+  const cadastrosEm: number[] = []
   let gratuito = 0, cortesia = 0, incompletos = 0, nConvidados = 0, concluiram = 0, comFilho = 0, usaramIa = 0
   const porOrigem = new Map<string, LinhaOrigem>()
   const porCampanha = new Map<string, LinhaOrigem>()
@@ -230,8 +276,24 @@ export async function montarPainel(): Promise<PainelNegocio> {
       })
     } else if (s?.status === 'active' && s.plan && s.plan !== 'free') {
       if (!s.stripe_customer_id) cortesia++
-    } else gratuito++
+    } else {
+      gratuito++
+      // Passou dos 14 dias, nunca cancelou nada e não paga: ficou no gratuito.
+      const idade = agora - new Date(u.criado).getTime()
+      if (idade > DIAS_TESTE * DIA && !usuariosQueCancelaram.has(u.id) && !usuariosPagantes.has(u.id)) retencao.ficouGratis++
+    }
+    if (!ehConvidado) cadastrosEm.push(new Date(u.criado).getTime())
   }
+
+  const MES = 30 * DIA
+  const faixas: [string, number, number][] = [
+    ['Menos de 1 mês', 0, MES], ['De 1 a 3 meses', MES, 3 * MES], ['De 3 a 6 meses', 3 * MES, 6 * MES],
+    ['De 6 meses a 1 ano', 6 * MES, 365 * DIA], ['Mais de 1 ano', 365 * DIA, Infinity],
+  ]
+  const naFaixa = (datas: number[], de: number, ate: number) => datas.filter(d => agora - d >= de && agora - d < ate).length
+  const tempoDeBase: LinhaTempo[] = faixas.map(([faixa, de, ate]) => ({
+    faixa, cadastros: naFaixa(cadastrosEm, de, ate), pagantes: naFaixa(inicioDosPagantes, de, ate),
+  }))
   emTeste.sort((a, b) => a.fimDoTeste.localeCompare(b.fimDoTeste))
   const ordena = (m: Map<string, LinhaOrigem>) => [...m.values()].sort((a, b) => b.cadastros - a.cadastros)
 
@@ -239,12 +301,14 @@ export async function montarPainel(): Promise<PainelNegocio> {
     resumo: {
       cadastros: usuarios.length, emTeste: emTeste.length, assinantes: pagas.length, gratuito, cancelaram,
       receitaMensalCentavos, vagasUsadas: Number(vagasRes.data ?? 0), vagasTotal: VAGAS_LANCAMENTO,
-      cortesia, convidados: nConvidados, incompletos,
+      cortesia, convidados: nConvidados, incompletos, pagantesFamilia, pagantesPlus,
     },
     funil: {
       criaram: usuarios.length, concluiram, comFilho, usaramIa,
       assinaram: new Set(jaAssinaram.map(s => idDe(s.customer))).size,
+      cancelaram,
     },
+    retencao, tempoDeBase,
     emTeste, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
   }
 }
