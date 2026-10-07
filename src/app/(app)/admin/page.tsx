@@ -41,7 +41,6 @@ export default async function AdminPage() {
   const p = await montarPainel()
   const r = p.resumo
   const outros = [
-    r.cortesia > 0 && `${r.cortesia} ${r.cortesia === 1 ? 'conta cortesia' : 'contas cortesia'}`,
     r.convidados > 0 && `${r.convidados} ${r.convidados === 1 ? 'convidado por link' : 'convidados por link'}`,
     r.incompletos > 0 && `${r.incompletos} que não ${r.incompletos === 1 ? 'concluiu' : 'concluíram'} o cadastro`,
   ].filter(Boolean) as string[]
@@ -78,6 +77,7 @@ export default async function AdminPage() {
             <span>pagantes por plano</span>
           </div>
           <div className="adm-num"><b>{r.gratuito}</b><span>no plano gratuito</span></div>
+          <div className="adm-num adm-cortesia"><b>{r.cortesia}</b><span>contas cortesia (administradores)</span></div>
           <div className="adm-num"><b>{r.cancelaram}</b><span>cancelaram</span></div>
           <div className="adm-num adm-destaque"><b>{reais(r.receitaMensalCentavos)}</b><span>receita mensal recorrente</span></div>
           <div className="adm-num"><b>{r.vagasUsadas} <small>de {r.vagasTotal}</small></b><span>vagas de lançamento usadas</span></div>
@@ -96,7 +96,15 @@ export default async function AdminPage() {
             </div>
           ))}
         </div>
-        <p className="adm-ver">&quot;Assinaram&quot; conta quem assina hoje e quem cancelou depois. &quot;Cancelaram&quot; são os que assinaram e hoje não pagam mais.</p>
+        <div className="adm-funil adm-fora">
+          <div className="adm-f">
+            <span>Contas cortesia (administradores)</span>
+            <span className="adm-b"><i style={{ width: `${Math.min(100, pct(r.cortesia, p.funil.criaram))}%`, background: '#5B8DEF' }} /></span>
+            <span className="adm-v">{r.cortesia}</span>
+          </div>
+        </div>
+        <p className="adm-ver">As contas cortesia têm acesso completo sem pagar: entram em &quot;Criaram conta&quot;, mas não aparecem como gratuitas nem como pagantes.</p>
+        <p className="adm-ver" style={{ marginTop: 4 }}>&quot;Assinaram&quot; conta quem assina hoje e quem cancelou depois. &quot;Cancelaram&quot; são os que assinaram e hoje não pagam mais.</p>
       </section>
 
       <div className="adm-duas">
@@ -252,7 +260,9 @@ const CSS = `
 .adm-num{background:#fff;border:1px solid rgba(61,102,65,.18);border-radius:14px;box-shadow:0 1px 2px rgba(30,51,32,.05),0 8px 22px rgba(30,51,32,.07);padding:13px 15px}
 .adm-num b{display:block;font-family:var(--font-lora),Georgia,serif;font-size:28px;line-height:1.05;font-variant-numeric:tabular-nums}
 .adm-num b small{font-size:15px;color:rgba(26,43,28,.42)}
-.adm-num b.adm-par{display:flex;gap:18px}
+.adm-cortesia{border-style:dashed;border-color:rgba(91,141,239,.55);background:#F4F7FF}
+.adm-fora{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(61,102,65,.25)}
+.adm-num b.adm-par{display:flex;flex-wrap:wrap;gap:4px 14px}
 .adm-num b.adm-par span{display:flex;align-items:baseline;gap:5px;font-size:28px;color:inherit}
 .adm-num b.adm-par small{font-family:var(--font-dm),system-ui,sans-serif;font-size:12.5px;font-weight:500}
 .adm-num span{font-size:12.5px;color:rgba(26,43,28,.62)}
