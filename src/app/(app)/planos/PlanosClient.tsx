@@ -4,7 +4,7 @@ import { Check, Loader2, Star, Zap, Heart, ExternalLink } from 'lucide-react'
 import type { PlanId, BillingInterval } from '@/lib/stripe'
 import type { PlanPrices } from './page'
 import type { StatusOferta } from '@/lib/oferta-lancamento'
-import { track } from '@vercel/analytics'
+import { medir } from '@/lib/medicao'
 
 // Espelha DESCONTO_LANCAMENTO_PCT de oferta-lancamento.ts (server-only).
 const DESCONTO_LANCAMENTO_PCT = 25
@@ -143,7 +143,7 @@ export default function PlanosClient({
   async function handleCheckout(plan: PlanId) {
     setLoading(plan)
     setError(null)
-    track('checkout_iniciado', { plano: plan, periodo: interval, lancamento: lancamentoAplica })
+    medir('checkout_iniciado', { plano: plan, periodo: interval, lancamento: lancamentoAplica })
     try {
       const res  = await fetch('/api/stripe/checkout', {
         method: 'POST',

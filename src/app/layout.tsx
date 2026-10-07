@@ -5,6 +5,7 @@ import ServiceWorkerRegistrar from "@/components/layout/ServiceWorkerRegistrar";
 import PwaInstallBanner from "@/components/layout/PwaInstallBanner";
 import CookieBanner from "@/components/ui/CookieBanner";
 import VercelAnalytics from "@/components/layout/VercelAnalytics";
+import MedicaoComConsentimento from "@/components/layout/MedicaoComConsentimento";
 
 // DM Sans — corpo e UI
 const dmSans = DM_Sans({
@@ -65,6 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <CookieBanner />
         {children}
         <VercelAnalytics />
+        <MedicaoComConsentimento />
       </body>
     </html>
   );

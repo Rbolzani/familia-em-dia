@@ -6,7 +6,7 @@ import { formatCPF, formatPhoneBR, isValidCPF, isValidPhoneBR } from '@/lib/cpf'
 import { readAttribution, clearAttribution } from '@/lib/attribution'
 import { EMPTY_ADDRESS, addressError, normalizeAddress, type Address } from '@/lib/address'
 import AddressFields from '@/components/AddressFields'
-import { track } from '@vercel/analytics'
+import { medir } from '@/lib/medicao'
 
 const ACQUISITION_OPTIONS = [
   'Instagram', 'Facebook', 'Google / busca', 'TikTok',
@@ -70,7 +70,7 @@ export default function CompletarCadastroClient({ email, initialName, inviteToke
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Erro ao salvar.')
       clearAttribution()
-      track('cadastro_concluido', { convidado: !!inviteToken, origem: source })
+      medir('cadastro_concluido', { convidado: !!inviteToken, origem: source })
       // Se o usuário chegou por um link de convite, vai para a tela de aceite
       // (ambiente compartilhado) em vez do dashboard da própria conta.
       if (inviteToken) {

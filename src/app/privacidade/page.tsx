@@ -82,6 +82,10 @@ export default function PrivacidadePage() {
         <Li><strong>Meta (WhatsApp)</strong> — envio de mensagens e alertas;</Li>
         <Li><strong>Vercel</strong> — hospedagem da aplicação e estatísticas de visitas (páginas vistas, origem do
           acesso e cliques em botões), coletadas <strong>sem cookies</strong> e sem identificar o visitante;</Li>
+        <Li><strong>Google (Google Analytics)</strong> — medição de audiência do site e do app, <strong>somente
+          para quem aceitar os cookies</strong> no aviso da primeira visita. Recebe dados de navegação
+          (páginas vistas, origem do acesso, cliques e conversões como cadastro e assinatura) e um
+          identificador guardado em cookie. Não enviamos nome, e-mail, CPF nem dados dos filhos;</Li>
         <Li><strong>Resend</strong> — envio de e-mails da conta (confirmação de cadastro,
           redefinição de senha) e <strong>ImprovMX</strong> — recebimento dos e-mails de
           contato e suporte;</Li>
@@ -142,9 +146,10 @@ export default function PrivacidadePage() {
         funcionamento do Serviço, além de parâmetros de atribuição de origem (UTM) para fins estatísticos
         de aquisição. Na primeira visita, um aviso permite escolher entre <strong>aceitar todos</strong>
         ou <strong>somente os essenciais</strong>; a escolha fica registrada no seu próprio navegador e
-        pode ser alterada limpando os dados do site. <strong>Até esta versão, nenhuma ferramenta de
-        análise ou de publicidade está ativa no Serviço</strong> — os cookies em uso são os essenciais.
-        Caso isso mude, esta Política será atualizada antes da ativação.
+        pode ser alterada limpando os dados do site. Se você escolher <strong>aceitar todos</strong>, o
+        Google Analytics passa a usar cookies de medição de audiência; se escolher <strong>somente os
+        essenciais</strong>, ele não é carregado. <strong>Nenhuma ferramenta de publicidade está ativa
+        no Serviço</strong>. Caso isso mude, esta Política será atualizada antes da ativação.
       </P>
 
       <H>13. Alterações desta Política</H>

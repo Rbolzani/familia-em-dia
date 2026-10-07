@@ -25,7 +25,9 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // Scripts: próprio domínio + inline necessário para Next.js + Supabase Realtime
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // googletagmanager.com: o script do Google Analytics, que só é pedido
+      // depois do aceite de cookies (ver src/lib/medicao.ts).
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com",
       // Nada de <object>, <embed> ou <applet>: o app não usa nenhum, e eles
       // executam conteúdo. Sem esta linha a diretiva cairia para
       // `default-src 'self'`, que ainda permitiria embutir do próprio
@@ -36,7 +38,7 @@ const securityHeaders = [
       // Fontes
       "font-src 'self' https://fonts.gstatic.com",
       // Imagens: próprio domínio + Supabase Storage (avatars, documents)
-      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
+      "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://www.googletagmanager.com https://*.google-analytics.com",
       // Conexões: Supabase REST/Auth/Realtime + Anthropic + APIs externas
       // api.twilio.com saiu: o Twilio foi abandonado e o número liberado em
       // 10/08/2026. Permissão que não serve a nada é só superfície extra.
@@ -56,7 +58,7 @@ const securityHeaders = [
       // `'self'` sozinho barra: o navegador reporta "Failed to fetch", sem
       // status e sem log no servidor. Os dois domínios ficam explícitos aqui
       // para que o CSP nunca seja a causa desse sintoma.
-      "connect-src 'self' https://familiaemdia.com.br https://www.familiaemdia.com.br https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.anthropic.com https://api.groq.com https://graph.facebook.com https://*.sentry.io",
+      "connect-src 'self' https://familiaemdia.com.br https://www.familiaemdia.com.br https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in https://api.anthropic.com https://api.groq.com https://graph.facebook.com https://*.sentry.io https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com",
       // Frames: nenhum
       "frame-src 'none'",
       // frame-src diz o que ESTA página pode embutir; frame-ancestors diz quem

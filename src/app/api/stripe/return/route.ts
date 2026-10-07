@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
+import { createAdminClient } from '@/lib/supabase/server'
+import { stripe } from '@/lib/stripe'
 
 /**
  * Volta do Checkout do Stripe: sincroniza o plano e manda para o Início.
@@ -19,13 +21,35 @@ import { reconcileUserFromStripe } from '@/lib/stripe-sync'
  * Não dá para simplesmente reconciliar dentro do dashboard: ele é a tela mais
  * visitada do app, e isso viraria uma chamada ao Stripe a cada abertura.
  */
+// Põe no endereço de destino o que a medição precisa para registrar a compra
+// (plano, período e valor). Nada disso é sensível, e o componente de medição
+// tira os parâmetros da barra de endereço logo que lê. Falhar aqui não importa:
+// a pessoa segue para o Início do mesmo jeito, só sem o evento de compra.
+async function anexarCompra(destino: URL, userId: string) {
+  try {
+    const { data } = await createAdminClient().from('subscriptions')
+      .select('plan, billing_interval, stripe_subscription_id').eq('user_id', userId).maybeSingle()
+    const subId = data?.stripe_subscription_id as string | null | undefined
+    if (!subId || !data?.plan || data.plan === 'free') return
+    const sub = await stripe.subscriptions.retrieve(subId)
+    const centavos = sub.items.data[0]?.price?.unit_amount ?? 0
+    destino.searchParams.set('assinou', `${data.plan}-${data.billing_interval === 'year' ? 'anual' : 'mensal'}`)
+    destino.searchParams.set('valor', (centavos / 100).toFixed(2))
+  } catch (e) {
+    console.error('[stripe-return] dados da compra para medição indisponíveis:', (e as { code?: string })?.code)
+  }
+}
+
 export async function GET(request: Request) {
   const destino = new URL('/dashboard', request.url)
 
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) await reconcileUserFromStripe(user.id)
+    if (user) {
+      await reconcileUserFromStripe(user.id)
+      await anexarCompra(destino, user.id)
+    }
   } catch (e) {
     // Falhar aqui não pode prender a pessoa numa tela de erro depois de pagar:
     // o webhook e a reconciliação de /planos ainda corrigem o estado. Segue
