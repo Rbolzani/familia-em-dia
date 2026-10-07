@@ -80,7 +80,8 @@ export default function PrivacidadePage() {
         <Li><strong>Stripe</strong> — processamento de pagamentos e assinaturas; recebe nome, CPF, telefone e
           endereço de quem assina, para a cobrança e a emissão de nota fiscal;</Li>
         <Li><strong>Meta (WhatsApp)</strong> — envio de mensagens e alertas;</Li>
-        <Li><strong>Vercel</strong> — hospedagem da aplicação;</Li>
+        <Li><strong>Vercel</strong> — hospedagem da aplicação e estatísticas de visitas (páginas vistas, origem do
+          acesso e cliques em botões), coletadas <strong>sem cookies</strong> e sem identificar o visitante;</Li>
         <Li><strong>Resend</strong> — envio de e-mails da conta (confirmação de cadastro,
           redefinição de senha) e <strong>ImprovMX</strong> — recebimento dos e-mails de
           contato e suporte;</Li>

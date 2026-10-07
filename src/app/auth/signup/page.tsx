@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { captureAttribution } from '@/lib/attribution'
+import { track } from '@vercel/analytics'
 import { Eye, EyeOff, ArrowRight } from 'lucide-react'
 
 export default function SignupPage() {
@@ -81,6 +82,7 @@ export default function SignupPage() {
       },
     })
     if (error) { setError(error.message); setLoading(false); return }
+    track('conta_criada')
     if (data.session) {
       const dest = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard'
       router.push(dest)
