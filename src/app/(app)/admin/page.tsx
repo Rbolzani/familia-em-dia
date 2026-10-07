@@ -91,7 +91,7 @@ export default async function AdminPage() {
           {etapas.map(([rotulo, n, cor]) => (
             <div className="adm-f" key={rotulo}>
               <span>{rotulo}</span>
-              <span className="adm-b"><i style={{ width: `${pct(n, p.funil.criaram)}%`, ...(cor ? { background: cor } : {}) }} /></span>
+              <span className="adm-b"><i style={{ width: `${Math.min(100, pct(n, p.funil.criaram))}%`, ...(cor ? { background: cor } : {}) }} /></span>
               <span className="adm-v">{n}</span>
             </div>
           ))}
