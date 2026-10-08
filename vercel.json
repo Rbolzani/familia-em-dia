@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/expire-trials",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/lembrete-cadastro",
+      "schedule": "0 13 * * *"
     }
   ]
 }

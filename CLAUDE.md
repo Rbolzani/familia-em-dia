@@ -49,6 +49,7 @@ src/
       whatsapp-daily/ # Cron — resumo diário via WhatsApp (agenda paga; grace sempre)
       stripe/         # checkout, cancel, portal, webhook
       cron/           # expire-trials — trial→free+grace (fase 1), remoção pós-grace (fase 2)
+                      # lembrete-cadastro — e-mail único a quem não concluiu o cadastro (após 24h)
     auth/             # Login e cadastro
   components/
     activities/       # ActivitiesPage.tsx — modal de criação/edição

@@ -16,6 +16,11 @@ export interface LinhaTeste {
   fimDoTeste: string; diasRestantes: number; deixouCartao: boolean
   origem: string; filhos: number; atividades: number; ultimoAcesso: string | null
 }
+/** Criou a conta e parou antes de concluir o cadastro. Só há e-mail: nome e celular ficam na etapa que faltou. */
+export interface LinhaIncompleto {
+  email: string; criadoEm: string; emailConfirmado: boolean
+  fimDoTeste: string | null; ultimoAcesso: string | null; lembreteEm: string | null
+}
 export interface LinhaAssinante {
   nome: string; email: string; plano: string; lancamento: boolean
   periodo: 'Mensal' | 'Anual'; centavos: number
@@ -45,6 +50,7 @@ export interface PainelNegocio {
   /** Há quanto tempo estão na base: cadastros (pela criação da conta) e pagantes (pelo início da assinatura). */
   tempoDeBase: LinhaTempo[]
   emTeste: LinhaTeste[]
+  incompletos: LinhaIncompleto[]
   assinantes: LinhaAssinante[]
   cancelamentos: LinhaCancelamento[]
   origem: LinhaOrigem[]
@@ -75,12 +81,12 @@ async function todas<T>(tabela: string, colunas: string): Promise<T[]> {
 
 async function todosUsuarios() {
   const admin = createAdminClient()
-  const out: { id: string; email: string; criado: string; ultimoAcesso: string | null }[] = []
+  const out: { id: string; email: string; criado: string; ultimoAcesso: string | null; confirmado: boolean }[] = []
   for (let page = 1; page <= 50; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
     if (error) throw new Error('auth.users')
     for (const u of data.users) {
-      out.push({ id: u.id, email: u.email ?? '', criado: u.created_at, ultimoAcesso: u.last_sign_in_at ?? null })
+      out.push({ id: u.id, email: u.email ?? '', criado: u.created_at, ultimoAcesso: u.last_sign_in_at ?? null, confirmado: !!u.email_confirmed_at })
     }
     if (data.users.length < 1000) break
   }
@@ -103,15 +109,18 @@ export async function montarPainel(): Promise<PainelNegocio> {
   type Membro = { user_id: string; role: string | null }
   type Uso = { user_id: string; filhos: number; atividades: number; usou_ia: boolean }
 
-  const [usuarios, perfis, subs, membros, usoRes, vagasRes] = await Promise.all([
+  const [usuarios, perfis, subs, membros, lembretes, usoRes, vagasRes] = await Promise.all([
     todosUsuarios(),
     todas<Perfil>('profiles', 'user_id, full_name, phone, acquisition_source, profile_completed_at, signup_attribution'),
     todas<Sub>('subscriptions', 'user_id, plan, status, trial_ends_at, stripe_customer_id, stripe_subscription_id'),
     todas<Membro>('family_members', 'user_id, role'),
+    todas<{ user_id: string; enviado_em: string }>('cadastro_lembretes', 'user_id, enviado_em'),
     admin.rpc('admin_uso_por_usuario'),
     admin.rpc('vagas_lancamento_usadas'),
   ])
   if (usoRes.error) avisos.push('Não consegui ler as contagens de uso.')
+  if (!process.env.RESEND_API_KEY) avisos.push('O lembrete por e-mail de cadastro incompleto está parado: falta a chave RESEND_API_KEY na Vercel.')
+  const lembreteDe = new Map(lembretes.map(l => [l.user_id, l.enviado_em]))
 
   const perfilDe = new Map(perfis.map(p => [p.user_id, p]))
   const subDe = new Map(subs.map(s => [s.user_id, s]))
@@ -235,6 +244,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   // ── Situação de cada cadastro ─────────────────────────────────────────
   const usuariosQueAssinaram = new Set(jaAssinaram.map(s => s.metadata?.user_id).filter(Boolean) as string[])
   const emTeste: LinhaTeste[] = []
+  const listaIncompletos: LinhaIncompleto[] = []
   const cadastrosEm: number[] = []
   let gratuito = 0, cortesia = 0, incompletos = 0, nConvidados = 0, concluiram = 0, comFilho = 0, usaramIa = 0
   const porOrigem = new Map<string, LinhaOrigem>()
@@ -264,7 +274,14 @@ export async function montarPainel(): Promise<PainelNegocio> {
 
     const fimTeste = s?.trial_ends_at ? new Date(s.trial_ends_at).getTime() : 0
     if (ehConvidado) nConvidados++
-    else if (!p?.profile_completed_at) incompletos++
+    else if (!p?.profile_completed_at) {
+      incompletos++
+      listaIncompletos.push({
+        email: u.email, criadoEm: u.criado, emailConfirmado: u.confirmado,
+        fimDoTeste: s?.status === 'trialing' && fimTeste > agora ? s.trial_ends_at : null,
+        ultimoAcesso: u.ultimoAcesso, lembreteEm: lembreteDe.get(u.id) ?? null,
+      })
+    }
     else if (s?.status === 'trialing' && fimTeste > agora) {
       emTeste.push({
         nome: p.full_name || '—', email: u.email, celular: p.phone,
@@ -295,6 +312,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
     faixa, cadastros: naFaixa(cadastrosEm, de, ate), pagantes: naFaixa(inicioDosPagantes, de, ate),
   }))
   emTeste.sort((a, b) => a.fimDoTeste.localeCompare(b.fimDoTeste))
+  listaIncompletos.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
   const ordena = (m: Map<string, LinhaOrigem>) => [...m.values()].sort((a, b) => b.cadastros - a.cadastros)
 
   return {
@@ -309,6 +327,6 @@ export async function montarPainel(): Promise<PainelNegocio> {
       cancelaram,
     },
     retencao, tempoDeBase,
-    emTeste, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
+    emTeste, incompletos: listaIncompletos, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
   }
 }

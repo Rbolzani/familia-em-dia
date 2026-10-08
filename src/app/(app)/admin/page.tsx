@@ -71,6 +71,7 @@ export default async function AdminPage() {
         <div className="adm-numeros">
           <div className="adm-num"><b>{r.cadastros}</b><span>cadastros no total</span></div>
           <div className="adm-num"><b>{r.emTeste}</b><span>em teste grátis</span></div>
+          <div className="adm-num"><b>{r.incompletos}</b><span>cadastro incompleto</span></div>
           <div className="adm-num"><b>{r.assinantes}</b><span>assinantes pagantes</span></div>
           <div className="adm-num">
             <b className="adm-par"><span>{r.pagantesFamilia}<small>Família</small></span><span>{r.pagantesPlus}<small>Plus</small></span></b>
@@ -169,6 +170,39 @@ export default async function AdminPage() {
             </table>
           </div>
         )}
+      </section>
+
+      <section className="adm-cartao">
+        <div className="adm-cab">
+          <h2>Cadastro incompleto</h2>
+          <small>{r.incompletos} {r.incompletos === 1 ? 'pessoa criou' : 'pessoas criaram'} a conta e não {r.incompletos === 1 ? 'concluiu' : 'concluíram'} · mais recentes primeiro</small>
+        </div>
+        {p.incompletos.length === 0 ? <p className="adm-vazio">Ninguém parou no meio do cadastro.</p> : (
+          <div className="adm-rolar">
+            <table>
+              <thead><tr><th>E-mail</th><th>Conta criada</th><th>Teste termina</th><th>Último acesso</th><th>Lembrete por e-mail</th></tr></thead>
+              <tbody>
+                {p.incompletos.map(i => (
+                  <tr key={i.email}>
+                    <td className="adm-quem">
+                      <b>{i.email}</b>
+                      {!i.emailConfirmado && <span className="adm-p adm-cin" style={{ marginTop: 4 }}>e-mail não confirmado</span>}
+                    </td>
+                    <td className="adm-nq">{data(i.criadoEm)}<span className="adm-data">{haQuanto(i.criadoEm)}</span></td>
+                    <td className="adm-nq">{i.fimDoTeste ? data(i.fimDoTeste) : 'já terminou'}</td>
+                    <td className="adm-nq">{haQuanto(i.ultimoAcesso)}</td>
+                    <td className="adm-nq">
+                      {i.lembreteEm
+                        ? <span className="adm-p adm-ok">enviado em {data(i.lembreteEm)}</span>
+                        : <span className="adm-p adm-cin">{i.emailConfirmado && i.fimDoTeste ? 'ainda não enviado' : 'não será enviado'}</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="adm-ver">O lembrete sai uma única vez, por volta das 10h, para quem criou a conta há mais de 24 horas, confirmou o e-mail e ainda está dentro do teste grátis. Nome e celular não aparecem porque são pedidos na etapa que faltou.</p>
       </section>
 
       <section className="adm-cartao">

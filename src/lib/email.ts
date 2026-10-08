@@ -30,6 +30,9 @@ export async function enviarEmail(
   assunto: string,
   html: string,
   texto: string,
+  // `de` troca o remetente (precisa ser do domínio verificado); `responderPara`
+  // faz a resposta da pessoa cair numa caixa lida por gente.
+  opcoes: { de?: string; responderPara?: string } = {},
 ): Promise<ResultadoEmail> {
   const key = process.env.RESEND_API_KEY
   if (!key) return { ok: false, naoConfigurado: true }
@@ -40,7 +43,10 @@ export async function enviarEmail(
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       // `text` junto do `html` não é capricho: melhora a entrega e é o que
       // aparece na pré-visualização de vários clientes de e-mail.
-      body: JSON.stringify({ from: REMETENTE, to: [para], subject: assunto, html, text: texto }),
+      body: JSON.stringify({
+        from: opcoes.de ?? REMETENTE, to: [para], subject: assunto, html, text: texto,
+        ...(opcoes.responderPara ? { reply_to: opcoes.responderPara } : {}),
+      }),
     })
     const corpo = await res.text()
     if (!res.ok) return { ok: false, erro: `Resend HTTP ${res.status}: ${corpo.slice(0, 300)}` }

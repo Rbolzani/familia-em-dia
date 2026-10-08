@@ -18,6 +18,8 @@ const CRONS: { name: string; maxAtrasoMin: number; descricao: string }[] = [
   { name: 'whatsapp-daily', maxAtrasoMin: 45, descricao: 'resumo diário / avisos de grace' },
   // Vercel Cron nativo, 1x/dia às 06:00 UTC — 27h dá folga para atraso de fila
   { name: 'expire-trials', maxAtrasoMin: 27 * 60, descricao: 'expiração de trial / grace period' },
+  // Vercel Cron nativo, 1x/dia às 13:00 UTC (10h de Brasília)
+  { name: 'lembrete-cadastro', maxAtrasoMin: 27 * 60, descricao: 'lembrete de cadastro incompleto' },
 ]
 
 export async function GET(request: Request) {
