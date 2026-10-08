@@ -2,18 +2,36 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { isValidCPF, isValidPhoneBR, onlyDigits } from '@/lib/cpf'
 import { LEGAL_VERSION } from '@/lib/legal'
-import { addressError, addressToRow, normalizeAddress, type Address } from '@/lib/address'
+import { ADDRESS_COLUMNS, addressError, addressFromRow, addressToRow, normalizeAddress, type Address } from '@/lib/address'
 import { sincronizarClienteStripe } from '@/lib/stripe-customer'
 
-// Salva o cadastro inicial de dados pessoais (LGPD / cobrança) e marca
-// profile_completed_at. Validação no servidor — o cliente é só conveniência.
+// Dados para a assinatura: o que já existe, para a tela pré-preencher.
+export async function GET() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data } = await supabase
+    .from('profiles').select(`full_name, phone, cpf, ${ADDRESS_COLUMNS}`).eq('user_id', user.id).maybeSingle()
+  const row = data as Record<string, string | null> | null
+  return NextResponse.json({
+    full_name: row?.full_name ?? '', phone: row?.phone ?? '',
+    // O CPF não muda depois de gravado: a tela só precisa saber se já existe.
+    tem_cpf: !!row?.cpf,
+    address: addressFromRow(row),
+  })
+}
+
+// Salva os dados pessoais e marca profile_completed_at. A conta grátis exige
+// nome, celular e aceite dos Termos; CPF e endereço são opcionais aqui e
+// cobrados na assinatura (/api/stripe/checkout). Validação no servidor — o
+// cliente é só conveniência.
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   let body: {
-    full_name?: string; phone?: string; cpf?: string; birth_date?: string
+    full_name?: string; phone?: string; cpf?: string
     marketing_consent?: boolean; acquisition_source?: string
     attribution?: Record<string, unknown>; terms_accepted?: boolean
     address?: Partial<Record<keyof Address, unknown>>
@@ -26,16 +44,9 @@ export async function POST(request: Request) {
 
   const full_name = (body.full_name ?? '').trim()
   const phone     = onlyDigits(body.phone ?? '')
-  const birthDate = (body.birth_date ?? '').trim() || null
 
-  if (full_name.length < 3)        return NextResponse.json({ error: 'Informe seu nome completo.' }, { status: 400 })
+  if (full_name.length < 2)        return NextResponse.json({ error: 'Informe seu nome.' }, { status: 400 })
   if (!isValidPhoneBR(phone))      return NextResponse.json({ error: 'Celular inválido. Use DDD + número.' }, { status: 400 })
-  if (!birthDate)                  return NextResponse.json({ error: 'Informe sua data de nascimento.' }, { status: 400 })
-
-  // Não permite data de nascimento no futuro.
-  if (new Date(birthDate) > new Date()) {
-    return NextResponse.json({ error: 'Data de nascimento inválida.' }, { status: 400 })
-  }
 
   // Endereço: exigido de quem assina (nota fiscal), não de parceiro convidado —
   // por isso é opcional aqui e cobrado no checkout. Se veio, tem que vir inteiro.
@@ -67,15 +78,20 @@ export async function POST(request: Request) {
   const termsAcceptedAt = existing?.terms_accepted_at ?? new Date().toISOString()
   const termsVersion = existing?.terms_version ?? LEGAL_VERSION
 
-  let cpf = existing?.cpf as string | null | undefined
+  // Em branco é permitido: a conta grátis não tem CPF. Se veio, tem que valer.
+  let cpf = (existing?.cpf as string | null | undefined) ?? null
   if (!cpf) {
-    cpf = onlyDigits(body.cpf ?? '')
-    if (!isValidCPF(cpf)) return NextResponse.json({ error: 'CPF inválido.' }, { status: 400 })
+    const informado = onlyDigits(body.cpf ?? '')
+    if (informado) {
+      if (!isValidCPF(informado)) return NextResponse.json({ error: 'CPF inválido.' }, { status: 400 })
+      cpf = informado
+    }
   }
 
   // Consentimento de marketing (LGPD): editável a qualquer momento. Registra o
   // timestamp na transição para "concedido"; mantém o original se já concedido.
-  const consent = body.marketing_consent === true
+  // Quem não manda o campo (ex.: tela de dados da assinatura) não mexe nele.
+  const consent = typeof body.marketing_consent === 'boolean' ? body.marketing_consent : !!existing?.marketing_consent
   const now = new Date().toISOString()
   const consentAt = consent
     ? (existing?.marketing_consent ? existing.marketing_consent_at : now)
@@ -91,7 +107,6 @@ export async function POST(request: Request) {
     full_name,
     phone,
     cpf,
-    birth_date: birthDate,
     ...(addressRow ?? {}),
     marketing_consent: consent,
     marketing_consent_at: consentAt,

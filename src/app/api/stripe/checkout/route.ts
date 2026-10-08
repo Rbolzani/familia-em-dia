@@ -4,7 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripe, planToPrice, ehPrecoLancamento, type PlanId, type BillingInterval } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
 import { reservarVaga, precoLancamentoId, CHECKOUT_LANCAMENTO_SEGUNDOS } from '@/lib/oferta-lancamento'
-import { dadosFiscais, camposDoCliente, sincronizarClienteStripe } from '@/lib/stripe-customer'
+import { dadosFiscais, camposDoCliente, sincronizarClienteStripe, nomeCompleto } from '@/lib/stripe-customer'
 
 export async function POST(request: Request) {
   // 1. Sessão
@@ -55,13 +55,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // A nota fiscal sai com nome, CPF e endereço do cadastro. Nome e CPF são
-    // obrigatórios para entrar no app; o endereço pode faltar (conta antiga ou
-    // parceiro convidado que virou assinante) — sem ele não há como faturar.
+    // A nota fiscal sai com nome completo, CPF e endereço. A conta grátis não
+    // pede nenhum dos três: são cobrados aqui, na hora de assinar. A tela de
+    // planos reconhece o código e abre "Dados para a assinatura".
     const fiscais = await dadosFiscais(user.id)
-    if (!fiscais.endereco) {
+    if (!nomeCompleto(fiscais.nome) || !fiscais.cpf || !fiscais.endereco) {
       return NextResponse.json(
-        { error: 'Antes de assinar, complete seu endereço em Minha Conta. Ele é usado na nota fiscal.', code: 'endereco_pendente' },
+        { error: 'Antes de assinar, informe nome completo, CPF e endereço. Eles são usados na nota fiscal.', code: 'dados_pendentes' },
         { status: 400 },
       )
     }

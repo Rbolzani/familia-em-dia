@@ -9,6 +9,7 @@ import { medir } from '@/lib/medicao'
 // Espelha DESCONTO_LANCAMENTO_PCT de oferta-lancamento.ts (server-only).
 const DESCONTO_LANCAMENTO_PCT = 25
 import Modal from '@/components/ui/Modal'
+import DadosAssinaturaModal from '@/components/billing/DadosAssinaturaModal'
 
 // Rótulos de plano para exibição (local — não importar de billing.ts, que é server-only)
 const PLAN_LABELS_UI: Record<PlanId, string> = {
@@ -120,6 +121,8 @@ export default function PlanosClient({
   const [loading,  setLoading]  = useState<string | null>(null)
   const [error,    setError]    = useState<string | null>(null)
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  // Plano que a pessoa tentou assinar sem ter nome completo, CPF e endereço.
+  const [dadosPara, setDadosPara] = useState<PlanId | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelComment, setCancelComment] = useState('')
 
@@ -151,6 +154,8 @@ export default function PlanosClient({
         body: JSON.stringify({ plan, interval }),
       })
       const data = await res.json()
+      // Faltam os dados da nota fiscal: pede agora e retoma o mesmo plano.
+      if (!res.ok && data.code === 'dados_pendentes') { setDadosPara(plan); setLoading(null); return }
       if (!res.ok) throw new Error(data.error || 'Erro ao iniciar checkout')
       window.location.href = data.url
     } catch (e: unknown) {
@@ -581,6 +586,12 @@ export default function PlanosClient({
           </p>
         </>
       )}
+
+      <DadosAssinaturaModal
+        open={dadosPara !== null}
+        onClose={() => setDadosPara(null)}
+        onSalvo={() => { const plano = dadosPara; setDadosPara(null); if (plano) handleCheckout(plano) }}
+      />
 
       {/* Modal de cancelamento — captura o motivo */}
       <Modal open={cancelModalOpen} onClose={() => { if (loading !== 'cancel') setCancelModalOpen(false) }} title="Cancelar assinatura" size="sm">

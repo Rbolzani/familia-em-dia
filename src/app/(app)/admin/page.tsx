@@ -42,12 +42,12 @@ export default async function AdminPage() {
   const r = p.resumo
   const outros = [
     r.convidados > 0 && `${r.convidados} ${r.convidados === 1 ? 'convidado por link' : 'convidados por link'}`,
-    r.incompletos > 0 && `${r.incompletos} que não ${r.incompletos === 1 ? 'concluiu' : 'concluíram'} o cadastro`,
+    r.incompletos > 0 && `${r.incompletos} com cadastro antigo não concluído`,
   ].filter(Boolean) as string[]
 
   const etapas: [string, number, string?][] = [
     ['Criaram conta', p.funil.criaram],
-    ['Concluíram o cadastro', p.funil.concluiram],
+    ['Confirmaram o e-mail e entraram', p.funil.concluiram],
     ['Cadastraram um filho', p.funil.comFilho],
     ['Usaram a captura por IA', p.funil.usaramIa],
     ['Assinaram', p.funil.assinaram, '#FF6B5C'],
@@ -71,7 +71,7 @@ export default async function AdminPage() {
         <div className="adm-numeros">
           <div className="adm-num"><b>{r.cadastros}</b><span>cadastros no total</span></div>
           <div className="adm-num"><b>{r.emTeste}</b><span>em teste grátis</span></div>
-          <div className="adm-num"><b>{r.incompletos}</b><span>cadastro incompleto</span></div>
+          <div className="adm-num"><b>{r.semUso}</b><span>cadastraram e não usaram</span></div>
           <div className="adm-num"><b>{r.assinantes}</b><span>assinantes pagantes</span></div>
           <div className="adm-num">
             <b className="adm-par"><span>{r.pagantesFamilia}<small>Família</small></span><span>{r.pagantesPlus}<small>Plus</small></span></b>
@@ -121,7 +121,7 @@ export default async function AdminPage() {
               </tbody>
             </table>
           </div>
-          <p className="adm-ver">Os 14 dias contam da criação da conta. Cada pessoa entra em um grupo só. Ficam de fora quem ainda está no teste, contas cortesia, convidados e cadastros incompletos.</p>
+          <p className="adm-ver">Os 14 dias contam da criação da conta. Cada pessoa entra em um grupo só. Ficam de fora quem ainda está no teste, contas cortesia, convidados e cadastros antigos não concluídos.</p>
         </section>
 
         <section className="adm-cartao">
@@ -174,20 +174,23 @@ export default async function AdminPage() {
 
       <section className="adm-cartao">
         <div className="adm-cab">
-          <h2>Cadastro incompleto</h2>
-          <small>{r.incompletos} {r.incompletos === 1 ? 'pessoa criou' : 'pessoas criaram'} a conta e não {r.incompletos === 1 ? 'concluiu' : 'concluíram'} · mais recentes primeiro</small>
+          <h2>Cadastraram e não usaram</h2>
+          <small>{r.semUso} {r.semUso === 1 ? 'conta' : 'contas'} sem nenhum filho cadastrado · mais recentes primeiro</small>
         </div>
-        {p.incompletos.length === 0 ? <p className="adm-vazio">Ninguém parou no meio do cadastro.</p> : (
+        {p.semUso.length === 0 ? <p className="adm-vazio">Todo mundo que criou conta já cadastrou um filho.</p> : (
           <div className="adm-rolar">
             <table>
-              <thead><tr><th>E-mail</th><th>Conta criada</th><th>Teste termina</th><th>Último acesso</th><th>Lembrete por e-mail</th></tr></thead>
+              <thead><tr><th>Quem</th><th>Celular</th><th>Conta criada</th><th>Teste termina</th><th>Último acesso</th><th>Lembrete por e-mail</th></tr></thead>
               <tbody>
-                {p.incompletos.map(i => (
+                {p.semUso.map(i => (
                   <tr key={i.email}>
                     <td className="adm-quem">
-                      <b>{i.email}</b>
-                      {!i.emailConfirmado && <span className="adm-p adm-cin" style={{ marginTop: 4 }}>e-mail não confirmado</span>}
+                      <b>{i.nome || '—'}</b><span>{i.email}</span>
+                      {!i.emailConfirmado
+                        ? <span className="adm-p adm-cin" style={{ marginTop: 4 }}>e-mail não confirmado</span>
+                        : !i.cadastroConcluido && <span className="adm-p adm-cin" style={{ marginTop: 4 }}>cadastro antigo, não concluído</span>}
                     </td>
+                    <td className="adm-nq">{i.celular ? formatPhoneBR(i.celular) : '—'}</td>
                     <td className="adm-nq">{data(i.criadoEm)}<span className="adm-data">{haQuanto(i.criadoEm)}</span></td>
                     <td className="adm-nq">{i.fimDoTeste ? data(i.fimDoTeste) : 'já terminou'}</td>
                     <td className="adm-nq">{haQuanto(i.ultimoAcesso)}</td>
@@ -202,7 +205,7 @@ export default async function AdminPage() {
             </table>
           </div>
         )}
-        <p className="adm-ver">O lembrete sai uma única vez, por volta das 10h, para quem criou a conta há mais de 24 horas, confirmou o e-mail e ainda está dentro do teste grátis. Nome e celular não aparecem porque são pedidos na etapa que faltou.</p>
+        <p className="adm-ver">Sem filho cadastrado o app fica vazio, então é o sinal de que a pessoa ainda não começou. O lembrete sai uma única vez, por volta das 10h, para quem criou a conta há mais de 24 horas, confirmou o e-mail e ainda está no teste grátis. Quem está no teste aparece também em &quot;Em teste grátis&quot;. Convidados por link e contas cortesia ficam de fora.</p>
       </section>
 
       <section className="adm-cartao">

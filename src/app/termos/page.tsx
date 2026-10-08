@@ -38,8 +38,8 @@ export default function TermosPage() {
       <H>2. Elegibilidade e cadastro</H>
       <P>
         Para usar o Serviço, o Usuário deve ser <strong>maior de 18 anos</strong> e plenamente capaz.
-        O Usuário compromete-se a fornecer informações verídicas, completas e atualizadas (incluindo
-        nome, e-mail, telefone, CPF e data de nascimento) e a mantê-las atualizadas. O Usuário é
+        O Usuário compromete-se a fornecer informações verídicas, completas e atualizadas (nome,
+        e-mail e telefone no cadastro; nome completo, CPF e endereço ao assinar um plano pago) e a mantê-las atualizadas. O Usuário é
         responsável pela confidencialidade de suas credenciais e por toda atividade realizada em sua conta.
       </P>
 

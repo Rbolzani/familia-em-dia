@@ -1,9 +1,13 @@
-// Cron diário (Vercel Cron, 10:00 BRT): lembra, UMA vez, quem criou a conta,
-// confirmou o e-mail e parou antes de concluir o cadastro.
+// Cron diário (Vercel Cron, 10:00 BRT): lembra, UMA vez, quem criou a conta
+// e ainda não começou a usar.
 //
-// Quem entra: conta criada há mais de 24h, e-mail confirmado, cadastro não
-// concluído, teste grátis ainda correndo (o texto diz "seu teste já está
+// Quem entra: conta criada há mais de 24h, e-mail confirmado, NENHUM filho
+// cadastrado, teste grátis ainda correndo (o texto diz "seu teste já está
 // valendo" — depois dos 14 dias seria mentira) e sem lembrete anterior.
+// Quem fica de fora: convidado por link (usa os filhos de outra família) e
+// conta cortesia (não está em teste).
+// O nome da rota e da tabela (`cadastro_lembretes`) vem da primeira versão,
+// que mirava o cadastro incompleto — etapa que deixou de existir.
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { enviarEmail } from '@/lib/email'
@@ -55,21 +59,22 @@ export async function GET(request: Request) {
     if (!data || data.length < 1000) break
   }
 
-  // Tira quem já concluiu o cadastro e quem já foi lembrado (em lotes, para o
-  // filtro caber no endereço da consulta).
+  // Tira quem já cadastrou filho, quem é convidado em outra família e quem já
+  // foi lembrado (em lotes, para o filtro caber no endereço da consulta).
   const fora = new Set<string>()
   for (let i = 0; i < candidatos.length; i += 200) {
     const lote = candidatos.slice(i, i + 200)
-    const [concluidos, lembrados] = await Promise.all([
-      admin.from('profiles').select('user_id').not('profile_completed_at', 'is', null).in('user_id', lote),
+    const [comFilho, convidados, lembrados] = await Promise.all([
+      admin.from('children').select('user_id').in('user_id', lote),
+      admin.from('family_members').select('user_id').neq('role', 'owner').in('user_id', lote),
       admin.from('cadastro_lembretes').select('user_id').in('user_id', lote),
     ])
-    const falha = concluidos.error ?? lembrados.error
+    const falha = comFilho.error ?? convidados.error ?? lembrados.error
     if (falha) {
       console.error('[lembrete-cadastro] erro ao selecionar:', falha.code)
       return NextResponse.json({ error: falha.code }, { status: 500 })
     }
-    for (const r of [...(concluidos.data ?? []), ...(lembrados.data ?? [])]) fora.add(r.user_id as string)
+    for (const r of [...(comFilho.data ?? []), ...(convidados.data ?? []), ...(lembrados.data ?? [])]) fora.add(r.user_id as string)
   }
   const pendentes = candidatos.filter(id => !fora.has(id)).slice(0, MAX_POR_EXECUCAO)
 

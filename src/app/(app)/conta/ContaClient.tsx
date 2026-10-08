@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Save, Lock, AlertTriangle, Trash2, Loader2 } from 'lucide-react'
 import { toast } from '@/components/ui/Toast'
-import { formatCPF, formatPhoneBR, isValidPhoneBR } from '@/lib/cpf'
+import { formatCPF, formatPhoneBR, isValidCPF, isValidPhoneBR } from '@/lib/cpf'
 import { addressError, normalizeAddress, type Address } from '@/lib/address'
 import AddressFields from '@/components/AddressFields'
 
@@ -10,7 +10,6 @@ interface Props {
   email: string
   fullName: string
   phone: string
-  birthDate: string
   cpf: string
   address: Address
   termsAccepted: boolean
@@ -19,10 +18,13 @@ interface Props {
   hasPartners: boolean
 }
 
-export default function ContaClient({ email, fullName, phone, birthDate, cpf, address, termsAccepted, marketingConsent, isOwner, hasPartners }: Props) {
+export default function ContaClient({ email, fullName, phone, cpf, address, termsAccepted, marketingConsent, isOwner, hasPartners }: Props) {
   const [name, setName]       = useState(fullName)
   const [phoneV, setPhoneV]   = useState(phone ? formatPhoneBR(phone) : '')
-  const [birth, setBirth]     = useState(birthDate)
+  // O CPF só é pedido na assinatura. Quem ainda não tem pode informar aqui;
+  // depois de gravado, não muda mais.
+  const [cpfSalvo, setCpfSalvo] = useState(cpf)
+  const [cpfNovo, setCpfNovo]   = useState('')
   const [addr, setAddr]       = useState<Address>(address)
   // Contas criadas antes do aceite existir no cadastro ainda não aceitaram os
   // Termos: o servidor exige o aceite no primeiro salvamento, então a caixa
@@ -63,9 +65,9 @@ export default function ContaClient({ email, fullName, phone, birthDate, cpf, ad
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (name.trim().length < 3) { setError('Informe seu nome completo.'); return }
+    if (name.trim().length < 2) { setError('Informe seu nome.'); return }
     if (!isValidPhoneBR(phoneV)) { setError('Celular inválido. Use DDD + número.'); return }
-    if (!birth) { setError('Informe sua data de nascimento.'); return }
+    if (!cpfSalvo && cpfNovo && !isValidCPF(cpfNovo)) { setError('CPF inválido.'); return }
     if (!accepted && !terms) { setError('É necessário aceitar os Termos de Uso e a Política de Privacidade.'); return }
     // Endereço é opcional para parceiro convidado; se começou a preencher,
     // tem que terminar. Em branco, o salvamento não mexe no que já existe.
@@ -82,7 +84,8 @@ export default function ContaClient({ email, fullName, phone, birthDate, cpf, ad
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          full_name: name, phone: phoneV, birth_date: birth, marketing_consent: consent,
+          full_name: name, phone: phoneV, marketing_consent: consent,
+          ...(!cpfSalvo && cpfNovo ? { cpf: cpfNovo } : {}),
           ...(temEndereco ? { address: endereco } : {}),
           ...(!accepted ? { terms_accepted: terms } : {}),
         }),
@@ -90,6 +93,7 @@ export default function ContaClient({ email, fullName, phone, birthDate, cpf, ad
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Erro ao salvar.')
       setAccepted(true)
+      if (!cpfSalvo && cpfNovo) setCpfSalvo(cpfNovo.replace(/\D/g, ''))
       toast('Dados atualizados ✓')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido.')
@@ -139,22 +143,27 @@ export default function ContaClient({ email, fullName, phone, birthDate, cpf, ad
 
         <div>
           <label className="flex items-center gap-1.5 text-xs font-semibold mb-2" style={labelStyle}>
-            CPF <Lock size={11} />
+            CPF {cpfSalvo && <Lock size={11} />}
           </label>
-          <input type="text" value={cpf ? formatCPF(cpf) : '—'} disabled className="input-field" style={{ opacity: 0.6 }} />
-          <p className="text-xs mt-1" style={{ color: 'rgba(26,43,28,0.40)' }}>O CPF não pode ser alterado. Em caso de erro, fale com o suporte.</p>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold mb-2" style={labelStyle}>Data de nascimento</label>
-          <input type="date" required value={birth} onChange={e => setBirth(e.target.value)}
-            max={new Date().toISOString().slice(0, 10)} className="input-field" />
+          {cpfSalvo ? (
+            <>
+              <input type="text" value={formatCPF(cpfSalvo)} disabled className="input-field" style={{ opacity: 0.6 }} />
+              <p className="text-xs mt-1" style={{ color: 'rgba(26,43,28,0.40)' }}>O CPF não pode ser alterado. Em caso de erro, fale com o suporte.</p>
+            </>
+          ) : (
+            <>
+              <input type="text" inputMode="numeric" value={cpfNovo}
+                onChange={e => setCpfNovo(formatCPF(e.target.value))}
+                placeholder="000.000.000-00" className="input-field" />
+              <p className="text-xs mt-1" style={{ color: 'rgba(26,43,28,0.40)' }}>Opcional. Só é necessário para assinar um plano; depois de salvo, não pode ser alterado.</p>
+            </>
+          )}
         </div>
 
         <div className="pt-2">
           <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#3D6641' }}>Endereço</p>
           <p className="text-xs mb-3" style={{ color: 'rgba(26,43,28,0.50)' }}>
-            Usado na nota fiscal da sua assinatura.
+            Opcional. Usado na nota fiscal, se você assinar um plano.
           </p>
           <AddressFields value={addr} onChange={setAddr} />
         </div>

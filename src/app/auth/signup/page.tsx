@@ -3,7 +3,10 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { captureAttribution } from '@/lib/attribution'
+import { captureAttribution, readAttribution, clearAttribution } from '@/lib/attribution'
+import { formatPhoneBR, isValidPhoneBR } from '@/lib/cpf'
+import { ACQUISITION_OPTIONS } from '@/lib/cadastro-opcoes'
+import { LEGAL_VERSION } from '@/lib/legal'
 import { medir } from '@/lib/medicao'
 import { Eye, EyeOff, ArrowRight } from 'lucide-react'
 
@@ -15,6 +18,10 @@ export default function SignupPage() {
   const [familyName, setFamilyName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [phone, setPhone] = useState('')
+  const [source, setSource] = useState('')
+  const [terms, setTerms] = useState(false)
+  const [consent, setConsent] = useState(false)
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -23,7 +30,24 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (password.length < 6) { setError('A senha deve ter pelo menos 6 caracteres.'); return }
+    if (!isValidPhoneBR(phone)) { setError('Celular inválido. Use DDD + número.'); return }
+    if (!source) { setError('Conte como você nos conheceu.'); return }
+    if (!terms) { setError('É necessário aceitar os Termos de Uso e a Política de Privacidade.'); return }
     setLoading(true); setError('')
+
+    // Tudo o que a conta grátis pede vai junto com a criação: o servidor grava
+    // no perfil no primeiro acesso (ver src/lib/cadastro.ts). CPF e endereço
+    // só são pedidos na hora de assinar.
+    const cadastro = {
+      full_name: name.trim(),
+      family_name: familyName.trim() || 'Minha Família',
+      phone,
+      acquisition_source: source,
+      marketing_consent: consent,
+      terms_accepted: true,
+      terms_version: LEGAL_VERSION,
+      attribution: readAttribution(),
+    }
 
     const params = new URLSearchParams(window.location.search)
     const redirect = params.get('redirect')
@@ -38,7 +62,7 @@ export default function SignupPage() {
       const res = await fetch('/api/auth/signup-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, familyName: familyName.trim() || 'Minha Família', token: inviteToken }),
+        body: JSON.stringify({ email, password, token: inviteToken, cadastro }),
       })
       const body = await res.json()
       if (!res.ok) { setError(body.error || 'Erro ao criar conta.'); setLoading(false); return }
@@ -67,8 +91,10 @@ export default function SignupPage() {
       // Limpa o cookie pending_invite (não é mais necessário)
       document.cookie = 'pending_invite=; path=/; max-age=0'
 
-      // Vai direto para completar o cadastro (ou dashboard se já completou)
-      router.push('/completar-cadastro')
+      clearAttribution()
+      medir('conta_criada')
+      medir('cadastro_concluido', { convidado: true, origem: source })
+      router.push('/dashboard')
       return
     }
 
@@ -77,12 +103,14 @@ export default function SignupPage() {
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: {
-        data: { full_name: name, family_name: familyName.trim() || 'Minha Família' },
+        data: cadastro,
         emailRedirectTo: `${window.location.origin}/auth/callback${window.location.search}`,
       },
     })
     if (error) { setError(error.message); setLoading(false); return }
+    clearAttribution()
     medir('conta_criada')
+    medir('cadastro_concluido', { convidado: false, origem: source })
     if (data.session) {
       const dest = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard'
       router.push(dest)
@@ -202,6 +230,14 @@ export default function SignupPage() {
               </div>
 
               <div>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#8585A8' }}>Celular</label>
+                <p className="text-xs mb-2" style={{ color: '#C0BFD5' }}>Para receber o resumo diário no WhatsApp</p>
+                <input type="tel" inputMode="numeric" autoComplete="tel-national" required value={phone}
+                  onChange={e => setPhone(formatPhoneBR(e.target.value))}
+                  placeholder="(11) 90000-0000" className="input-field" />
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold mb-2" style={{ color: '#8585A8' }}>Senha</label>
                 <div className="relative">
                   <input type={showPw ? 'text' : 'password'} required value={password}
@@ -222,6 +258,33 @@ export default function SignupPage() {
                   </div>
                 )}
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-2" style={{ color: '#8585A8' }}>Como você nos conheceu?</label>
+                <select required value={source} onChange={e => setSource(e.target.value)} className="input-field">
+                  <option value="" disabled>Selecione…</option>
+                  {ACQUISITION_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input type="checkbox" checked={terms} onChange={e => setTerms(e.target.checked)}
+                  className="mt-0.5 flex-none" style={{ accentColor: '#7B6FE8', width: 16, height: 16 }} />
+                <span className="text-xs leading-relaxed" style={{ color: '#6B6B8D' }}>
+                  Tenho 18 anos ou mais e aceito os{' '}
+                  <a href="/termos" target="_blank" className="font-semibold underline" style={{ color: '#7B6FE8' }}>Termos de Uso</a>
+                  {' '}e a{' '}
+                  <a href="/privacidade" target="_blank" className="font-semibold underline" style={{ color: '#7B6FE8' }}>Política de Privacidade</a>.
+                </span>
+              </label>
+
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)}
+                  className="mt-0.5 flex-none" style={{ accentColor: '#7B6FE8', width: 16, height: 16 }} />
+                <span className="text-xs leading-relaxed" style={{ color: '#8585A8' }}>
+                  Quero receber dicas, novidades e ofertas da Família em Dia por e-mail e WhatsApp. (opcional)
+                </span>
+              </label>
 
               {error && (
                 <div className="text-xs font-semibold px-4 py-3 rounded-2xl"

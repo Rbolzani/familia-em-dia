@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import AppLayout from '@/components/layout/AppLayout'
 import RealtimeSync from '@/components/layout/RealtimeSync'
@@ -11,6 +12,7 @@ import GraceBanner from '@/components/billing/GraceBanner'
 import { PLAN_LABELS, getEffectiveSubscription } from '@/lib/billing'
 import { signChildAvatars } from '@/lib/avatars'
 import { ehFundador } from '@/lib/admin-ids'
+import { concluirCadastroPelosMetadados, conviteGuardado } from '@/lib/cadastro'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -19,16 +21,24 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   // Bootstrap: garante que todo usuário autenticado tem uma família com o nome correto.
   // Usuários com auto-confirm não passam por /auth/callback, então criamos aqui.
   // Também corrige o nome se a família foi criada com o nome padrão genérico.
-  // Gate de cadastro: todo usuário precisa completar os dados pessoais (LGPD/cobrança)
-  // antes de entrar no app. A página /completar-cadastro fica fora deste grupo (app),
-  // então não há loop de redirect.
+  // Gate de cadastro: nome, celular e aceite dos Termos. Quem criou a conta
+  // pela tela atual já informou tudo ali — o perfil é concluído aqui mesmo, no
+  // primeiro acesso. Só cai em /completar-cadastro (formulário curto, fora
+  // deste grupo, sem loop) a conta antiga que parou no meio.
   if (user) {
     const { data: prof } = await supabase
       .from('profiles')
       .select('profile_completed_at')
       .eq('user_id', user.id)
       .maybeSingle()
-    if (!prof?.profile_completed_at) redirect('/completar-cadastro')
+    if (!prof?.profile_completed_at) {
+      if (!(await concluirCadastroPelosMetadados(user))) redirect('/completar-cadastro')
+      // Chegou por link de convite e acabou de concluir: vai aceitar o convite
+      // em vez de cair numa família nova e vazia. (A tela de aceite fica fora
+      // deste grupo e apaga o cookie ao aceitar.)
+      const convite = conviteGuardado((await cookies()).get('pending_invite')?.value)
+      if (convite) redirect(`/convite/${convite}`)
+    }
   }
 
   if (user) {

@@ -33,7 +33,8 @@ export default function PrivacidadePage() {
 
       <H>2. Dados que coletamos</H>
       <ul>
-        <Li><strong>Cadastro do responsável:</strong> nome completo, e-mail, telefone/celular, CPF, data de nascimento e endereço.</Li>
+        <Li><strong>Cadastro do responsável:</strong> nome, e-mail e telefone/celular. <strong>Nome completo, CPF e
+          endereço</strong> são pedidos apenas a quem assina um plano pago, para a cobrança e a nota fiscal.</Li>
         <Li><strong>Dados dos filhos (crianças/adolescentes):</strong> nome, data de nascimento, escola, foto e
           informações de atividades — inseridos pelo responsável.</Li>
         <Li><strong>Documentos e dados sensíveis:</strong> arquivos que o Usuário opte por armazenar no cofre
@@ -87,7 +88,7 @@ export default function PrivacidadePage() {
           (páginas vistas, origem do acesso, cliques e conversões como cadastro e assinatura) e um
           identificador guardado em cookie. Não enviamos nome, e-mail, CPF nem dados dos filhos;</Li>
         <Li><strong>Resend</strong> — envio de e-mails da conta (confirmação de cadastro,
-          redefinição de senha, resumo diário e um lembrete único a quem não concluiu o cadastro) e <strong>ImprovMX</strong> — recebimento dos e-mails de
+          redefinição de senha, resumo diário e um lembrete único a quem criou a conta e ainda não começou a usar) e <strong>ImprovMX</strong> — recebimento dos e-mails de
           contato e suporte;</Li>
         <Li><strong>Sentry</strong> — monitoramento de erros da aplicação. Registra falhas
           técnicas para correção; não recebe conteúdo dos seus documentos, e identificadores

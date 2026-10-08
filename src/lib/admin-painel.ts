@@ -16,9 +16,10 @@ export interface LinhaTeste {
   fimDoTeste: string; diasRestantes: number; deixouCartao: boolean
   origem: string; filhos: number; atividades: number; ultimoAcesso: string | null
 }
-/** Criou a conta e parou antes de concluir o cadastro. Só há e-mail: nome e celular ficam na etapa que faltou. */
-export interface LinhaIncompleto {
-  email: string; criadoEm: string; emailConfirmado: boolean
+/** Criou a conta e ainda não cadastrou nenhum filho — ou seja, não começou a usar. */
+export interface LinhaSemUso {
+  nome: string | null; email: string; celular: string | null; origem: string | null
+  criadoEm: string; emailConfirmado: boolean; cadastroConcluido: boolean
   fimDoTeste: string | null; ultimoAcesso: string | null; lembreteEm: string | null
 }
 export interface LinhaAssinante {
@@ -41,7 +42,7 @@ export interface PainelNegocio {
   resumo: {
     cadastros: number; emTeste: number; assinantes: number; gratuito: number; cancelaram: number
     receitaMensalCentavos: number; vagasUsadas: number; vagasTotal: number
-    cortesia: number; convidados: number; incompletos: number
+    cortesia: number; convidados: number; incompletos: number; semUso: number
     pagantesFamilia: number; pagantesPlus: number
   }
   funil: { criaram: number; concluiram: number; comFilho: number; usaramIa: number; assinaram: number; cancelaram: number }
@@ -50,7 +51,7 @@ export interface PainelNegocio {
   /** Há quanto tempo estão na base: cadastros (pela criação da conta) e pagantes (pelo início da assinatura). */
   tempoDeBase: LinhaTempo[]
   emTeste: LinhaTeste[]
-  incompletos: LinhaIncompleto[]
+  semUso: LinhaSemUso[]
   assinantes: LinhaAssinante[]
   cancelamentos: LinhaCancelamento[]
   origem: LinhaOrigem[]
@@ -119,7 +120,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
     admin.rpc('vagas_lancamento_usadas'),
   ])
   if (usoRes.error) avisos.push('Não consegui ler as contagens de uso.')
-  if (!process.env.RESEND_API_KEY) avisos.push('O lembrete por e-mail de cadastro incompleto está parado: falta a chave RESEND_API_KEY na Vercel.')
+  if (!process.env.RESEND_API_KEY) avisos.push('O lembrete por e-mail para quem cadastrou e não usou está parado: falta a chave RESEND_API_KEY na Vercel.')
   const lembreteDe = new Map(lembretes.map(l => [l.user_id, l.enviado_em]))
 
   const perfilDe = new Map(perfis.map(p => [p.user_id, p]))
@@ -244,7 +245,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   // ── Situação de cada cadastro ─────────────────────────────────────────
   const usuariosQueAssinaram = new Set(jaAssinaram.map(s => s.metadata?.user_id).filter(Boolean) as string[])
   const emTeste: LinhaTeste[] = []
-  const listaIncompletos: LinhaIncompleto[] = []
+  const semUso: LinhaSemUso[] = []
   const cadastrosEm: number[] = []
   let gratuito = 0, cortesia = 0, incompletos = 0, nConvidados = 0, concluiram = 0, comFilho = 0, usaramIa = 0
   const porOrigem = new Map<string, LinhaOrigem>()
@@ -274,14 +275,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
 
     const fimTeste = s?.trial_ends_at ? new Date(s.trial_ends_at).getTime() : 0
     if (ehConvidado) nConvidados++
-    else if (!p?.profile_completed_at) {
-      incompletos++
-      listaIncompletos.push({
-        email: u.email, criadoEm: u.criado, emailConfirmado: u.confirmado,
-        fimDoTeste: s?.status === 'trialing' && fimTeste > agora ? s.trial_ends_at : null,
-        ultimoAcesso: u.ultimoAcesso, lembreteEm: lembreteDe.get(u.id) ?? null,
-      })
-    }
+    else if (!p?.profile_completed_at) incompletos++
     else if (s?.status === 'trialing' && fimTeste > agora) {
       emTeste.push({
         nome: p.full_name || '—', email: u.email, celular: p.phone,
@@ -300,6 +294,18 @@ export async function montarPainel(): Promise<PainelNegocio> {
       if (idade > DIAS_TESTE * DIA && !usuariosQueCancelaram.has(u.id) && !usuariosPagantes.has(u.id)) retencao.ficouGratis++
     }
     if (!ehConvidado) cadastrosEm.push(new Date(u.criado).getTime())
+
+    // Cadastrou e não usou: sem nenhum filho. Convidado usa os filhos da
+    // família de quem convidou, e conta cortesia é dos administradores.
+    const ehCortesia = s?.status === 'active' && !!s.plan && s.plan !== 'free' && !s.stripe_customer_id
+    if (!ehConvidado && !ehCortesia && (uso?.filhos ?? 0) === 0) {
+      semUso.push({
+        nome: p?.full_name ?? null, email: u.email, celular: p?.phone ?? null, origem: p?.acquisition_source ?? null,
+        criadoEm: u.criado, emailConfirmado: u.confirmado, cadastroConcluido: !!p?.profile_completed_at,
+        fimDoTeste: s?.status === 'trialing' && fimTeste > agora ? s.trial_ends_at : null,
+        ultimoAcesso: u.ultimoAcesso, lembreteEm: lembreteDe.get(u.id) ?? null,
+      })
+    }
   }
 
   const MES = 30 * DIA
@@ -312,14 +318,14 @@ export async function montarPainel(): Promise<PainelNegocio> {
     faixa, cadastros: naFaixa(cadastrosEm, de, ate), pagantes: naFaixa(inicioDosPagantes, de, ate),
   }))
   emTeste.sort((a, b) => a.fimDoTeste.localeCompare(b.fimDoTeste))
-  listaIncompletos.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+  semUso.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
   const ordena = (m: Map<string, LinhaOrigem>) => [...m.values()].sort((a, b) => b.cadastros - a.cadastros)
 
   return {
     resumo: {
       cadastros: usuarios.length, emTeste: emTeste.length, assinantes: pagas.length, gratuito, cancelaram,
       receitaMensalCentavos, vagasUsadas: Number(vagasRes.data ?? 0), vagasTotal: VAGAS_LANCAMENTO,
-      cortesia, convidados: nConvidados, incompletos, pagantesFamilia, pagantesPlus,
+      cortesia, convidados: nConvidados, incompletos, semUso: semUso.length, pagantesFamilia, pagantesPlus,
     },
     funil: {
       criaram: usuarios.length, concluiram, comFilho, usaramIa,
@@ -327,6 +333,6 @@ export async function montarPainel(): Promise<PainelNegocio> {
       cancelaram,
     },
     retencao, tempoDeBase,
-    emTeste, incompletos: listaIncompletos, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
+    emTeste, semUso, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
   }
 }

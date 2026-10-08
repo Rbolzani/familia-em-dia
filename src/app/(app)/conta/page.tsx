@@ -10,7 +10,7 @@ export default async function ContaPage() {
 
   const { data: prof } = await supabase
     .from('profiles')
-    .select(`full_name, phone, birth_date, cpf, marketing_consent, terms_accepted_at, ${ADDRESS_COLUMNS}`)
+    .select(`full_name, phone, cpf, marketing_consent, terms_accepted_at, ${ADDRESS_COLUMNS}`)
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -33,7 +33,6 @@ export default async function ContaPage() {
       email={user.email ?? ''}
       fullName={prof?.full_name ?? ''}
       phone={prof?.phone ?? ''}
-      birthDate={prof?.birth_date ?? ''}
       cpf={prof?.cpf ?? ''}
       address={addressFromRow(prof)}
       termsAccepted={!!prof?.terms_accepted_at}

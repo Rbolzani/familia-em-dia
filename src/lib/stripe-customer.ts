@@ -33,6 +33,11 @@ export async function dadosFiscais(userId: string): Promise<DadosFiscais> {
   }
 }
 
+/** Nome e sobrenome: o cadastro grátis aceita só o primeiro nome; a nota fiscal, não. */
+export function nomeCompleto(nome: string | null | undefined): boolean {
+  return (nome ?? '').trim().split(/\s+/).filter(p => p.length >= 2).length >= 2
+}
+
 // Campos do Customer derivados do cadastro. Só inclui o que existe: um campo
 // ausente não apaga o que já está no Stripe.
 export function camposDoCliente(d: DadosFiscais): Stripe.CustomerUpdateParams {
