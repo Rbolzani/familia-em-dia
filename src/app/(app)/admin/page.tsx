@@ -72,6 +72,7 @@ export default async function AdminPage() {
           <div className="adm-num"><b>{r.cadastros}</b><span>cadastros no total</span></div>
           <div className="adm-num"><b>{r.emTeste}</b><span>em teste grátis</span></div>
           <div className="adm-num"><b>{r.semUso}</b><span>cadastraram e não usaram</span></div>
+          <div className="adm-num"><b>{r.contratadas}</b><span>assinaturas contratadas</span></div>
           <div className="adm-num"><b>{r.assinantes}</b><span>assinantes pagantes</span></div>
           <div className="adm-num">
             <b className="adm-par"><span>{r.pagantesFamilia}<small>Família</small></span><span>{r.pagantesPlus}<small>Plus</small></span></b>
@@ -210,22 +211,35 @@ export default async function AdminPage() {
       </section>
 
       <section className="adm-cartao">
-        <div className="adm-cab"><h2>Assinantes</h2><small>{r.assinantes} {r.assinantes === 1 ? 'pagante' : 'pagantes'}</small></div>
-        {p.assinantes.length === 0 ? <p className="adm-vazio">Nenhum assinante pagante ainda.</p> : (
+        <div className="adm-cab">
+          <h2>Assinantes</h2>
+          <small>
+            {r.contratadas} {r.contratadas === 1 ? 'assinatura contratada' : 'assinaturas contratadas'} · {r.assinantes} {r.assinantes === 1 ? 'pagante' : 'pagantes'}
+            {r.aguardandoCobranca > 0 && <> · {r.aguardandoCobranca} aguardando a 1ª cobrança (receita prevista de {reais(r.receitaPrevistaCentavos)} por mês)</>}
+          </small>
+        </div>
+        {p.assinantes.length === 0 ? <p className="adm-vazio">Nenhuma assinatura contratada ainda.</p> : (
           <div className="adm-rolar">
             <table>
-              <thead><tr><th>Quem</th><th>Plano</th><th>Período</th><th className="adm-n">Valor</th><th>Próxima cobrança</th><th>Desde</th></tr></thead>
+              <thead><tr><th>Quem</th><th>Plano</th><th>Período</th><th className="adm-n">Valor</th><th>Próxima cobrança</th><th>Contratada em</th></tr></thead>
               <tbody>
                 {p.assinantes.map(a => (
                   <tr key={a.email + a.desde}>
                     <td className="adm-quem">
                       <b>{a.nome}</b><span>{a.email}</span>
                       {a.cancelaNoFim && <span className="adm-p adm-amb" style={{ marginTop: 4 }}>cancela ao fim do período</span>}
+                      {a.aguardandoPrimeiraCobranca && <span className="adm-p adm-az" style={{ marginTop: 4 }}>no teste grátis, ainda não cobrada</span>}
                     </td>
                     <td>{a.plano} {a.lancamento && <span className="adm-p adm-cor">lançamento</span>}</td>
                     <td>{a.periodo}</td>
-                    <td className="adm-n">{reais(a.centavos)}</td>
-                    <td className="adm-nq">{data(a.proximaCobranca)}</td>
+                    <td className="adm-n">
+                      {reais(a.centavos)}
+                      {a.aguardandoPrimeiraCobranca && <span className="adm-data">receita prevista</span>}
+                    </td>
+                    <td className="adm-nq">
+                      {data(a.proximaCobranca)}
+                      {a.aguardandoPrimeiraCobranca && a.proximaCobranca && <span className="adm-data">1ª cobrança</span>}
+                    </td>
                     <td className="adm-nq">{data(a.desde)}</td>
                   </tr>
                 ))}

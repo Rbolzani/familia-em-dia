@@ -26,6 +26,8 @@ export interface LinhaAssinante {
   nome: string; email: string; plano: string; lancamento: boolean
   periodo: 'Mensal' | 'Anual'; centavos: number
   proximaCobranca: string | null; desde: string; cancelaNoFim: boolean
+  /** Contratada no teste grátis: cartão salvo, nada cobrado ainda. `proximaCobranca` é a primeira. */
+  aguardandoPrimeiraCobranca: boolean
 }
 export interface LinhaCancelamento {
   nome: string; plano: string; canceladoEm: string; dias: number
@@ -42,6 +44,8 @@ export interface PainelNegocio {
   resumo: {
     cadastros: number; emTeste: number; assinantes: number; gratuito: number; cancelaram: number
     receitaMensalCentavos: number; vagasUsadas: number; vagasTotal: number
+    /** Pagantes + contratadas no teste que ainda não tiveram a primeira cobrança. */
+    contratadas: number; aguardandoCobranca: number; receitaPrevistaCentavos: number
     cortesia: number; convidados: number; incompletos: number; semUso: number
     pagantesFamilia: number; pagantesPlus: number
   }
@@ -171,25 +175,33 @@ export async function montarPainel(): Promise<PainelNegocio> {
   }
 
   const pagas = stripeSubs.filter(s => s.status === 'active' || s.status === 'past_due')
+  // Contratadas durante o teste grátis: passaram pelo pagamento e deixaram o
+  // cartão, mas a primeira cobrança só acontece quando o teste terminar. Não
+  // são pagantes ainda. Quem já pediu o cancelamento não será cobrado: fica fora.
+  const aguardando = stripeSubs.filter(s => s.status === 'trialing' && !s.cancel_at_period_end)
   const canceladas = stripeSubs.filter(s => s.status === 'canceled')
   const jaAssinaram = stripeSubs.filter(s => s.status !== 'incomplete' && s.status !== 'incomplete_expired' && s.status !== 'trialing')
 
-  const assinantes: LinhaAssinante[] = pagas
+  const assinantes: LinhaAssinante[] = [...pagas, ...aguardando]
     .map(s => {
+      const noTeste = s.status === 'trialing'
       const d = descreve(s), q = quem(s)
       const fimPeriodo = (d.item as unknown as { current_period_end?: number } | undefined)?.current_period_end
       return {
         nome: q.nome, email: q.email, plano: d.plano, lancamento: d.lancamento, periodo: d.periodo,
         centavos: d.centavos, cancelaNoFim: s.cancel_at_period_end,
-        proximaCobranca: s.cancel_at_period_end ? null : iso(fimPeriodo),
+        proximaCobranca: s.cancel_at_period_end ? null : iso(noTeste ? (s.trial_end ?? fimPeriodo) : fimPeriodo),
         desde: iso(s.start_date) as string,
+        aguardandoPrimeiraCobranca: noTeste,
       }
     })
     .sort((a, b) => b.desde.localeCompare(a.desde))
 
-  const receitaMensalCentavos = pagas
-    .filter(s => !s.cancel_at_period_end)
+  const porMes = (lista: Stripe.Subscription[]) => lista
     .reduce((soma, s) => { const d = descreve(s); return soma + (d.periodo === 'Anual' ? Math.round(d.centavos / 12) : d.centavos) }, 0)
+  const receitaMensalCentavos = porMes(pagas.filter(s => !s.cancel_at_period_end))
+  // O que passa a entrar por mês se todas as contratadas no teste forem cobradas.
+  const receitaPrevistaCentavos = porMes(aguardando)
 
   const clientesPagantes = new Set(pagas.map(s => idDe(s.customer)))
   const cancelamentos: LinhaCancelamento[] = canceladas
@@ -335,6 +347,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
     resumo: {
       cadastros: usuarios.length, emTeste: emTeste.length, assinantes: pagas.length, gratuito, cancelaram,
       receitaMensalCentavos, vagasUsadas: Number(vagasRes.data ?? 0), vagasTotal: VAGAS_LANCAMENTO,
+      contratadas: pagas.length + aguardando.length, aguardandoCobranca: aguardando.length, receitaPrevistaCentavos,
       cortesia, convidados: nConvidados, incompletos, semUso: semUso.length, pagantesFamilia, pagantesPlus,
     },
     funil: {
