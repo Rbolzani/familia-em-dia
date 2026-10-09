@@ -118,6 +118,7 @@ export default async function AdminPage() {
                 <tr><td>Passaram dos 14 dias e estão no gratuito</td><td className="adm-n"><b>{rt.ficouGratis}</b></td></tr>
                 <tr><td>Passaram dos 14 dias e pagam um plano hoje</td><td className="adm-n"><b>{rt.pagandoApos}</b></td></tr>
                 <tr><td>Cancelaram a assinatura depois dos 14 dias</td><td className="adm-n"><b>{rt.cancelouApos}</b></td></tr>
+                <tr><td>Cancelaram a conta depois dos 14 dias</td><td className="adm-n"><b>{rt.excluiuApos}</b></td></tr>
               </tbody>
             </table>
           </div>

@@ -47,7 +47,7 @@ export interface PainelNegocio {
   }
   funil: { criaram: number; concluiram: number; comFilho: number; usaramIa: number; assinaram: number; cancelaram: number }
   /** O que aconteceu em relação aos 14 dias de teste. Grupos sem sobreposição. */
-  retencao: { excluiuNoTeste: number; ficouGratis: number; pagandoApos: number; cancelouApos: number }
+  retencao: { excluiuNoTeste: number; ficouGratis: number; pagandoApos: number; cancelouApos: number; excluiuApos: number }
   /** Há quanto tempo estão na base: cadastros (pela criação da conta) e pagantes (pelo início da assinatura). */
   tempoDeBase: LinhaTempo[]
   emTeste: LinhaTeste[]
@@ -221,9 +221,11 @@ export async function montarPainel(): Promise<PainelNegocio> {
   // "Cancelou a conta no teste" vem do registro anônimo de exclusões: quem
   // apaga a conta some de todo o resto, então é o único lugar onde ela ainda
   // conta. Convidado não tem teste próprio; cortesia é dos administradores.
+  const exclusoes = excluidas.filter(e => !e.convidado && e.situacao !== 'cortesia')
   const retencao = {
-    excluiuNoTeste: excluidas.filter(e => !e.convidado && e.situacao !== 'cortesia' && e.dias_de_conta <= DIAS_TESTE).length,
+    excluiuNoTeste: exclusoes.filter(e => e.dias_de_conta <= DIAS_TESTE).length,
     ficouGratis: 0, pagandoApos: 0, cancelouApos: 0,
+    excluiuApos: exclusoes.filter(e => e.dias_de_conta > DIAS_TESTE).length,
   }
   const jaContado = new Set<string>()
   // Quem cancelou e não paga hoje: uma vez por cliente, pelo cancelamento mais recente.
