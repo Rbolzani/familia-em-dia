@@ -4,6 +4,7 @@ import { isValidCPF, isValidPhoneBR, onlyDigits } from '@/lib/cpf'
 import { LEGAL_VERSION } from '@/lib/legal'
 import { ADDRESS_COLUMNS, addressError, addressFromRow, addressToRow, normalizeAddress, type Address } from '@/lib/address'
 import { sincronizarClienteStripe } from '@/lib/stripe-customer'
+import { ativarResumoPadrao } from '@/lib/cadastro'
 
 // Dados para a assinatura: o que já existe, para a tela pré-preencher.
 export async function GET() {
@@ -131,6 +132,10 @@ export async function POST(request: Request) {
     // A mensagem do PostgREST descreve o schema; fica no log, não na resposta.
     return NextResponse.json({ error: 'Não foi possível salvar seus dados.' }, { status: 500 })
   }
+
+  // Primeira conclusão (conta antiga, pelo formulário curto): mesmo padrão das
+  // contas novas — resumo diário ligado às 7h.
+  if (!existing?.profile_completed_at) await ativarResumoPadrao(user.id, phone)
 
   // Quem já é cliente no Stripe tem o nome/endereço atualizados lá também,
   // para a próxima nota sair com o dado novo.

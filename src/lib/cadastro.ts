@@ -14,12 +14,32 @@
 
 import type { User } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/server'
-import { isValidPhoneBR, onlyDigits } from '@/lib/cpf'
+import { isValidPhoneBR, onlyDigits, toWhatsAppNumber } from '@/lib/cpf'
 import { LEGAL_VERSION } from '@/lib/legal'
 
 /** Token do convite guardado pelo proxy no primeiro toque, se houver e for bem formado. */
 export function conviteGuardado(valor: string | undefined): string | null {
   return valor && /^[0-9a-fA-F-]{36}$/.test(valor) ? valor : null
+}
+
+/**
+ * Liga o resumo diário no WhatsApp para a conta recém-concluída: 7h, no
+ * celular do cadastro. A tela de criar conta avisa disso e a pessoa desliga ou
+ * muda o horário em Alertas.
+ *
+ * Só CRIA a configuração — `ignoreDuplicates` garante que nunca sobrescreve a
+ * escolha de quem já mexeu em Alertas. Falhar aqui não impede o cadastro.
+ * (O resumo é recurso pago: depois do teste, quem não assina para de receber
+ * sozinho — a regra está no cron, não aqui.)
+ */
+export async function ativarResumoPadrao(userId: string, celular: string): Promise<void> {
+  const numero = toWhatsAppNumber(celular)
+  if (!numero) return
+  const { error } = await createAdminClient().from('notification_settings').upsert(
+    { user_id: userId, whatsapp_number: numero, daily_summary_enabled: true, summary_time: '07:00' },
+    { onConflict: 'user_id', ignoreDuplicates: true },
+  )
+  if (error) console.error('[cadastro] erro ao ligar o resumo padrão', { code: error.code })
 }
 
 /**
@@ -59,5 +79,6 @@ export async function concluirCadastroPelosMetadados(user: User): Promise<boolea
     console.error('[cadastro] erro ao concluir pelos metadados', { code: error.code })
     return false
   }
+  await ativarResumoPadrao(user.id, celular)
   return true
 }

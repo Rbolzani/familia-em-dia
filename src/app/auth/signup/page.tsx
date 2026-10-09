@@ -231,7 +231,7 @@ export default function SignupPage() {
 
               <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: '#8585A8' }}>Celular</label>
-                <p className="text-xs mb-2" style={{ color: '#C0BFD5' }}>Para receber o resumo diário no WhatsApp</p>
+                <p className="text-xs mb-2" style={{ color: '#C0BFD5' }}>Você receberá o resumo diário no WhatsApp deste número. Dá para desligar quando quiser.</p>
                 <input type="tel" inputMode="numeric" autoComplete="tel-national" required value={phone}
                   onChange={e => setPhone(formatPhoneBR(e.target.value))}
                   placeholder="(11) 90000-0000" className="input-field" />

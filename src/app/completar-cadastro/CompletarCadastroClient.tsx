@@ -99,7 +99,7 @@ export default function CompletarCadastroClient({ email, initialName, inviteToke
 
             <div>
               <label className="block text-xs font-semibold mb-1" style={{ color: 'rgba(26,43,28,0.55)' }}>Celular</label>
-              <p className="text-xs mb-2" style={{ color: 'rgba(26,43,28,0.40)' }}>Para receber o resumo diário no WhatsApp</p>
+              <p className="text-xs mb-2" style={{ color: 'rgba(26,43,28,0.40)' }}>Você receberá o resumo diário no WhatsApp deste número. Dá para desligar quando quiser.</p>
               <input type="tel" inputMode="numeric" required value={phone}
                 onChange={e => setPhone(formatPhoneBR(e.target.value))}
                 placeholder="(11) 90000-0000" className="input-field"
