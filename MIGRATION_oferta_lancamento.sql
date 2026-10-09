@@ -103,3 +103,17 @@ revoke all on function public.vagas_lancamento_usadas()                from publ
 grant execute on function public.reservar_vaga_lancamento(uuid, int, int) to service_role;
 grant execute on function public.confirmar_vaga_lancamento(uuid)          to service_role;
 grant execute on function public.vagas_lancamento_usadas()                to service_role;
+
+-- 09/10/2026 — Exceção à regra "vaga confirmada nunca volta": quem cancela
+-- ainda no teste grátis nunca foi cobrado, e a vaga volta para a fila
+-- (chamada por syncSubscriptionToDb em stripe-sync.ts).
+create or replace function public.liberar_vaga_lancamento(p_user uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from oferta_lancamento_vagas where user_id = p_user;
+$$;
+revoke all on function public.liberar_vaga_lancamento(uuid) from public, anon, authenticated;
+grant execute on function public.liberar_vaga_lancamento(uuid) to service_role;

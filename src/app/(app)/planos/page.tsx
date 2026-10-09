@@ -66,7 +66,9 @@ export default async function PlanosPage() {
         const vivas = await stripe.subscriptions.list({ customer: cus, status: 'all', limit: 20 })
         const vigentes = vivas.data.filter(s => s.status === 'active' || s.status === 'trialing')
         const ids = vigentes.map(s => s.id)
-        precoLancamento = vigentes.some(s => ehPrecoLancamento(s.items.data[0]?.price))
+        // Cancelada no teste: a vaga voltou para a fila, o preço não está mais garantido.
+        precoLancamento = vigentes.some(s => ehPrecoLancamento(s.items.data[0]?.price)
+          && !(s.status === 'trialing' && (s.cancel_at_period_end || !!s.cancel_at)))
         const j = await janelaArrependimento(cus, ids)
         if (j.dentro) arrependimentoAte = j.prazo
       }

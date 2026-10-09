@@ -155,11 +155,23 @@ export async function syncSubscriptionToDb(
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
 
-  // Assinatura viva com preço de lançamento: a vaga deixa de ser reserva e
-  // passa a ser definitiva (não volta nem se a pessoa cancelar depois).
-  if (!isEnded && ehPrecoLancamento(price)) {
-    const { error } = await admin.rpc('confirmar_vaga_lancamento', { p_user: userId })
-    if (error) console.error('[stripe-sync] confirmar vaga de lançamento falhou:', error.message)
+  // Vaga de lançamento.
+  //  · Assinatura viva com preço de lançamento → a vaga é definitiva, e não
+  //    volta nem se a pessoa cancelar depois de ter sido cobrada.
+  //  · EXCEÇÃO: quem cancela ainda no teste grátis nunca pagou. Segurar uma
+  //    das 20 vagas para quem desistiu antes da primeira cobrança tiraria o
+  //    desconto de um cliente de verdade — a vaga volta para a fila. Se a
+  //    pessoa reativar, `garantirVagaParaReativar` pega outra (se houver).
+  if (ehPrecoLancamento(price)) {
+    const saindo = (sub.cancel_at_period_end ?? false) || !!sub.cancel_at
+    const encerradaNoTeste = isEnded && !!sub.trial_end && !!sub.ended_at && sub.ended_at <= sub.trial_end
+    if ((sub.status === 'trialing' && saindo) || encerradaNoTeste) {
+      const { error } = await admin.rpc('liberar_vaga_lancamento', { p_user: userId })
+      if (error) console.error('[stripe-sync] liberar vaga de lançamento falhou:', error.message)
+    } else if (!isEnded) {
+      const { error } = await admin.rpc('confirmar_vaga_lancamento', { p_user: userId })
+      if (error) console.error('[stripe-sync] confirmar vaga de lançamento falhou:', error.message)
+    }
   }
 }
 

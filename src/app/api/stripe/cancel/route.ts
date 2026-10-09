@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
 import { janelaArrependimento, reembolsarEEncerrar, agendarFimDaAssinatura, reativarAssinatura } from '@/lib/stripe-arrependimento'
+import { garantirVagaParaReativar } from '@/lib/oferta-lancamento'
 
 // Cancela (ou reativa) a assinatura vigente do usuário direto via API do Stripe.
 // Não depende do portal externo — controle total dentro do app.
@@ -87,7 +88,10 @@ export async function POST(request: Request) {
     // `subscription_schedule` recusa alteração de cancelamento feita direto —
     // era o que derrubava este endpoint em 500, sem o botão fazer nada.
     for (const s of liveSubs) {
-      if (reactivate) await reativarAssinatura(s)
+      if (reactivate) {
+        await garantirVagaParaReativar(s, user.id)
+        await reativarAssinatura(s)
+      }
       else await agendarFimDaAssinatura(s)
     }
 

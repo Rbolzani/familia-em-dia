@@ -3,7 +3,7 @@ import type Stripe from 'stripe'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripe, planToPrice, ehPrecoLancamento, type PlanId, type BillingInterval } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
-import { reservarVaga, precoLancamentoId, CHECKOUT_LANCAMENTO_SEGUNDOS } from '@/lib/oferta-lancamento'
+import { reservarVaga, precoLancamentoId, garantirVagaParaReativar, CHECKOUT_LANCAMENTO_SEGUNDOS } from '@/lib/oferta-lancamento'
 import { dadosFiscais, camposDoCliente, sincronizarClienteStripe, nomeCompleto } from '@/lib/stripe-customer'
 
 export async function POST(request: Request) {
@@ -129,7 +129,9 @@ export async function POST(request: Request) {
 
         // 4c. Mesmo preço mas estava cancelando → reativar.
         if (currentPriceId === alvoId && current.cancel_at_period_end) {
+          await garantirVagaParaReativar(current, user.id)
           await stripe.subscriptions.update(current.id, { cancel_at_period_end: false })
+          await reconcileUserFromStripe(user.id)
           return NextResponse.json({ url: `${baseUrl}/planos?billing=reativado` })
         }
       }

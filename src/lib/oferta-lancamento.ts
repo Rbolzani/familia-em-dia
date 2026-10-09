@@ -1,4 +1,5 @@
-import { stripe, planToPrice, PRECOS_LANCAMENTO, type PlanId, type BillingInterval } from '@/lib/stripe'
+import type Stripe from 'stripe'
+import { stripe, planToPrice, planoDoPreco, ehPrecoLancamento, PRECOS_LANCAMENTO, type PlanId, type BillingInterval } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/server'
 
 // Oferta de lançamento: os 20 primeiros assinantes têm ~25% de desconto para
@@ -9,7 +10,8 @@ import { createAdminClient } from '@/lib/supabase/server'
 // R$ 29,92. Por isso as vagas são contadas no banco
 // (MIGRATION_oferta_lancamento.sql): reservadas ao abrir o checkout,
 // confirmadas quando a assinatura nasce, devolvidas sozinhas se o checkout
-// for abandonado.
+// for abandonado — ou se a pessoa cancelar ainda no teste grátis, antes de
+// qualquer cobrança. Depois da primeira cobrança a vaga não volta mais.
 export const VAGAS_LANCAMENTO = 20
 export const DESCONTO_LANCAMENTO_PCT = 25
 // Um pouco mais que a validade do checkout (31 min), para a reserva não
@@ -78,6 +80,30 @@ export async function reservarVaga(userId: string): Promise<ResultadoReserva | n
   })
   if (error) { console.error('[oferta-lancamento] reserva falhou:', error.message); return null }
   return data as ResultadoReserva
+}
+
+/**
+ * Antes de reativar uma assinatura cancelada NO TESTE: a vaga dela voltou para
+ * a fila no cancelamento (ver stripe-sync.ts), então precisa de outra. Se as 20
+ * já foram tomadas nesse meio-tempo, a assinatura passa para o preço regular —
+ * e ainda não houve cobrança nenhuma, então nada precisa ser acertado.
+ *
+ * Nunca impede a reativação: falha de banco ou do Stripe aqui só mantém o
+ * preço como está.
+ */
+export async function garantirVagaParaReativar(sub: Stripe.Subscription, userId: string): Promise<void> {
+  const item = sub.items.data[0]
+  if (sub.status !== 'trialing' || !item || !ehPrecoLancamento(item.price)) return
+  try {
+    if ((await reservarVaga(userId)) !== 'esgotada') return
+    const info = planoDoPreco(item.price)
+    const regular = info ? planToPrice(info.plan, info.interval) : null
+    if (!regular) return
+    await stripe.subscriptions.update(sub.id, { items: [{ id: item.id, price: regular }], proration_behavior: 'none' })
+    console.warn('[oferta-lancamento] reativação sem vaga: assinatura %s foi para o preço regular', sub.id)
+  } catch (e) {
+    console.error('[oferta-lancamento] vaga na reativação falhou:', (e as { code?: string })?.code)
+  }
 }
 
 /** Situação da vaga de uma pessoa: já é dela (confirmada), reservada agora, ou nenhuma. */
