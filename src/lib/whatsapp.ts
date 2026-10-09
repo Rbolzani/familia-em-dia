@@ -332,7 +332,7 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
 
   // Conta que ainda não tem NENHUMA atividade (nem lembrete): o resumo segue
   // saindo todo dia — é a demonstração do produto durante o teste —, mas dizer
-  // "nenhuma atividade" oito vezes não ensina nada. Duas seções passam a dizer
+  // "nenhuma atividade" oito vezes não ensina nada. Três seções passam a dizer
   // o que fazer. Quem já usa o app continua vendo "Aproveite!" num dia livre.
   // Se a contagem falhar (`count` nulo), vale o texto de sempre.
   const totalQuery = admin.from('activities').select('id', { count: 'exact', head: true })
@@ -352,7 +352,9 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   const classList = (rawClasses ?? []) as unknown as Array<{ title: string; time: string | null; child: { name: string } | null }>
   const classChildren = new Set(classList.map(c => c.child?.name).filter(Boolean))
   const MAX_CLASSES = 14
-  let aulasParam = 'Nenhuma aula hoje 🎒'
+  let aulasParam = contaVazia
+    ? 'Tire uma foto do calendário semanal de aulas que a IA organiza para você.'
+    : 'Nenhuma aula hoje 🎒'
   if (classList.length > 0) {
     const items = classList.slice(0, MAX_CLASSES).map(c => {
       const hora = c.time ? `${c.time.slice(0, 5)} ` : ''
@@ -379,7 +381,7 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     hojeParam = items.join(' | ')
   } else {
     hojeParam = contaVazia
-      ? 'Sua agenda ainda está vazia. Tire uma foto do bilhete ou da agenda da escola e a IA organiza para você. 📸'
+      ? 'Tire uma foto da agenda ou grave um áudio que a IA organiza para você.'
       : 'Nenhuma atividade hoje. Aproveite! 💚'
   }
 
