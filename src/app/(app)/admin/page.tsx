@@ -72,6 +72,7 @@ export default async function AdminPage() {
           <div className="adm-num"><b>{r.cadastros}</b><span>cadastros no total</span></div>
           <div className="adm-num"><b>{r.emTeste}</b><span>em teste grátis</span></div>
           <div className="adm-num"><b>{r.semUso}</b><span>cadastraram e não usaram</span></div>
+          <div className="adm-num"><b>{r.semAtividade72h}</b><span>com filho e sem atividade há mais de 72h</span></div>
           <div className="adm-num"><b>{r.contratadas}</b><span>assinaturas contratadas</span></div>
           <div className="adm-num"><b>{r.assinantes}</b><span>assinantes pagantes</span></div>
           <div className="adm-num">
@@ -209,6 +210,33 @@ export default async function AdminPage() {
           </div>
         )}
         <p className="adm-ver">Sem filho cadastrado o app fica vazio, então é o sinal de que a pessoa ainda não começou. O lembrete sai uma única vez, por volta das 10h, para quem criou a conta há mais de 24 horas, confirmou o e-mail e ainda está no teste grátis. Quem está no teste aparece também em &quot;Em teste grátis&quot;. Convidados por link e contas cortesia ficam de fora.</p>
+      </section>
+
+      <section className="adm-cartao">
+        <div className="adm-cab">
+          <h2>Cadastraram filho e não lançaram atividade</h2>
+          <small>{p.semAtividade.length} {p.semAtividade.length === 1 ? 'conta' : 'contas'} · {r.semAtividade72h} há mais de 72 horas · as mais antigas primeiro</small>
+        </div>
+        {p.semAtividade.length === 0 ? <p className="adm-vazio">Toda conta com filho cadastrado já tem pelo menos uma atividade.</p> : (
+          <div className="adm-rolar">
+            <table>
+              <thead><tr><th>Quem</th><th>Celular</th><th>Filho cadastrado</th><th>Sem atividade</th><th>Teste termina</th><th>Último acesso</th></tr></thead>
+              <tbody>
+                {p.semAtividade.map(i => (
+                  <tr key={i.email}>
+                    <td className="adm-quem"><b>{i.nome || '—'}</b><span>{i.email}</span></td>
+                    <td className="adm-nq">{i.celular ? formatPhoneBR(i.celular) : '—'}</td>
+                    <td className="adm-nq">{data(i.filhoEm)}<span className="adm-data">{haQuanto(i.filhoEm)}</span></td>
+                    <td className="adm-nq"><span className={`adm-p ${i.passou72h ? 'adm-amb' : 'adm-cin'}`}>{i.passou72h ? 'há mais de 72h' : 'menos de 72h'}</span></td>
+                    <td className="adm-nq">{i.fimDoTeste ? data(i.fimDoTeste) : '—'}</td>
+                    <td className="adm-nq">{haQuanto(i.ultimoAcesso)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="adm-ver">As 72 horas contam do cadastro do primeiro filho. Atividade aqui inclui lembrete. Essas contas recebem o resumo diário no WhatsApp com a orientação de como começar. Convidados por link e contas cortesia ficam de fora.</p>
       </section>
 
       <section className="adm-cartao">

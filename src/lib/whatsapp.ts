@@ -330,6 +330,17 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   // em dias com atividade, nunca em dias tranquilos).
   if (!familyIsPaid) return null
 
+  // Conta que ainda não tem NENHUMA atividade (nem lembrete): o resumo segue
+  // saindo todo dia — é a demonstração do produto durante o teste —, mas dizer
+  // "nenhuma atividade" oito vezes não ensina nada. Duas seções passam a dizer
+  // o que fazer. Quem já usa o app continua vendo "Aproveite!" num dia livre.
+  // Se a contagem falhar (`count` nulo), vale o texto de sempre.
+  const totalQuery = admin.from('activities').select('id', { count: 'exact', head: true })
+  const { count: totalAtividades } = familyIds.length > 0
+    ? await totalQuery.in('family_id', familyIds)
+    : await totalQuery.eq('user_id', userId)
+  const contaVazia = totalAtividades === 0
+
   // Cada seção vira uma linha própria no WhatsApp: no template, o texto fixo
   // já tem a quebra de linha entre seções — aqui só juntamos os itens DENTRO
   // de cada seção com " | " (o parâmetro do template não pode ter \n real).
@@ -367,10 +378,14 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     })
     hojeParam = items.join(' | ')
   } else {
-    hojeParam = 'Nenhuma atividade hoje. Aproveite! 💚'
+    hojeParam = contaVazia
+      ? 'Sua agenda ainda está vazia. Tire uma foto do bilhete ou da agenda da escola e a IA organiza para você. 📸'
+      : 'Nenhuma atividade hoje. Aproveite! 💚'
   }
 
-  let proximosParam = 'Nenhuma atividade nos próximos 7 dias.'
+  let proximosParam = contaVazia
+    ? 'Cadastre a primeira atividade em familiaemdia.com.br e ela aparece aqui todo dia.'
+    : 'Nenhuma atividade nos próximos 7 dias.'
   if (nextActs.length > 0) {
     const items = nextActs.slice(0, 8).map(a => {
       const childName = a.child?.name ? ` (${a.child.name})` : ''

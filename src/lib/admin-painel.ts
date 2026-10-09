@@ -24,6 +24,13 @@ export interface LinhaSemUso {
   criadoEm: string; emailConfirmado: boolean; cadastroConcluido: boolean
   fimDoTeste: string | null; ultimoAcesso: string | null; lembreteEm: string | null
 }
+/** Cadastrou filho e ainda não lançou nenhuma atividade (nem lembrete). */
+export interface LinhaSemAtividade {
+  nome: string | null; email: string; celular: string | null
+  /** Quando o primeiro filho foi cadastrado — o relógio das 72 horas começa aqui. */
+  filhoEm: string; passou72h: boolean
+  fimDoTeste: string | null; ultimoAcesso: string | null
+}
 export interface LinhaAssinante {
   nome: string; email: string; plano: string; lancamento: boolean
   periodo: 'Mensal' | 'Anual'; centavos: number
@@ -51,6 +58,8 @@ export interface PainelNegocio {
     /** Pagantes + contratadas no teste que ainda não tiveram a primeira cobrança. */
     contratadas: number; aguardandoCobranca: number; receitaPrevistaCentavos: number
     cortesia: number; convidados: number; incompletos: number; semUso: number
+    /** Com filho cadastrado há mais de 72 horas e nenhuma atividade. */
+    semAtividade72h: number
     pagantesFamilia: number; pagantesPlus: number
   }
   funil: { criaram: number; concluiram: number; comFilho: number; usaramIa: number; assinaram: number; cancelaram: number }
@@ -60,6 +69,7 @@ export interface PainelNegocio {
   tempoDeBase: LinhaTempo[]
   emTeste: LinhaTeste[]
   semUso: LinhaSemUso[]
+  semAtividade: LinhaSemAtividade[]
   assinantes: LinhaAssinante[]
   cancelamentos: LinhaCancelamento[]
   origem: LinhaOrigem[]
@@ -118,19 +128,26 @@ export async function montarPainel(): Promise<PainelNegocio> {
   type Membro = { user_id: string; role: string | null }
   type Uso = { user_id: string; filhos: number; atividades: number; usou_ia: boolean }
 
-  const [usuarios, perfis, subs, membros, lembretes, excluidas, usoRes, vagasRes] = await Promise.all([
+  const [usuarios, perfis, subs, membros, lembretes, excluidas, filhosDatas, usoRes, vagasRes] = await Promise.all([
     todosUsuarios(),
     todas<Perfil>('profiles', 'user_id, full_name, phone, acquisition_source, profile_completed_at, signup_attribution'),
     todas<Sub>('subscriptions', 'user_id, plan, status, trial_ends_at, stripe_customer_id, stripe_subscription_id'),
     todas<Membro>('family_members', 'user_id, role'),
     todas<{ user_id: string; enviado_em: string }>('cadastro_lembretes', 'user_id, enviado_em'),
     todas<{ dias_de_conta: number; convidado: boolean; situacao: string }>('contas_excluidas', 'dias_de_conta, convidado, situacao'),
+    // Só as datas: o painel nunca lê nome nem dados dos filhos.
+    todas<{ user_id: string; created_at: string }>('children', 'user_id, created_at'),
     admin.rpc('admin_uso_por_usuario'),
     admin.rpc('vagas_lancamento_usadas'),
   ])
   if (usoRes.error) avisos.push('Não consegui ler as contagens de uso.')
   if (!process.env.RESEND_API_KEY) avisos.push('O lembrete por e-mail para quem cadastrou e não usou está parado: falta a chave RESEND_API_KEY na Vercel.')
   const lembreteDe = new Map(lembretes.map(l => [l.user_id, l.enviado_em]))
+  const primeiroFilhoDe = new Map<string, string>()
+  for (const f of filhosDatas) {
+    const atual = primeiroFilhoDe.get(f.user_id)
+    if (!atual || f.created_at < atual) primeiroFilhoDe.set(f.user_id, f.created_at)
+  }
 
   const perfilDe = new Map(perfis.map(p => [p.user_id, p]))
   const subDe = new Map(subs.map(s => [s.user_id, s]))
@@ -285,6 +302,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   const usuariosQueAssinaram = new Set(jaAssinaram.map(s => s.metadata?.user_id).filter(Boolean) as string[])
   const emTeste: LinhaTeste[] = []
   const semUso: LinhaSemUso[] = []
+  const semAtividade: LinhaSemAtividade[] = []
   const cadastrosEm: number[] = []
   let gratuito = 0, cortesia = 0, incompletos = 0, nConvidados = 0, concluiram = 0, comFilho = 0, usaramIa = 0
   const porOrigem = new Map<string, LinhaOrigem>()
@@ -346,6 +364,16 @@ export async function montarPainel(): Promise<PainelNegocio> {
         ultimoAcesso: u.ultimoAcesso, lembreteEm: lembreteDe.get(u.id) ?? null,
       })
     }
+    // Deu o primeiro passo (filho) e parou antes do segundo (atividade).
+    const filhoEm = primeiroFilhoDe.get(u.id)
+    if (!ehConvidado && !ehCortesia && filhoEm && (uso?.atividades ?? 0) === 0) {
+      semAtividade.push({
+        nome: p?.full_name ?? null, email: u.email, celular: p?.phone ?? null,
+        filhoEm, passou72h: agora - new Date(filhoEm).getTime() > 72 * 3_600_000,
+        fimDoTeste: s?.status === 'trialing' && fimTeste > agora ? s.trial_ends_at : null,
+        ultimoAcesso: u.ultimoAcesso,
+      })
+    }
   }
 
   const MES = 30 * DIA
@@ -359,6 +387,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   }))
   emTeste.sort((a, b) => a.fimDoTeste.localeCompare(b.fimDoTeste))
   semUso.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+  semAtividade.sort((a, b) => a.filhoEm.localeCompare(b.filhoEm))
   const ordena = (m: Map<string, LinhaOrigem>) => [...m.values()].sort((a, b) => b.cadastros - a.cadastros)
 
   return {
@@ -367,6 +396,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
       receitaMensalCentavos, vagasUsadas: Number(vagasRes.data ?? 0), vagasTotal: VAGAS_LANCAMENTO,
       contratadas: pagas.length + aguardando.length, aguardandoCobranca: aguardando.length, receitaPrevistaCentavos,
       cortesia, convidados: nConvidados, incompletos, semUso: semUso.length, pagantesFamilia, pagantesPlus,
+      semAtividade72h: semAtividade.filter(l => l.passou72h).length,
     },
     funil: {
       criaram: usuarios.length, concluiram, comFilho, usaramIa,
@@ -374,6 +404,6 @@ export async function montarPainel(): Promise<PainelNegocio> {
       cancelaram,
     },
     retencao, tempoDeBase,
-    emTeste, semUso, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
+    emTeste, semUso, semAtividade, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
   }
 }
