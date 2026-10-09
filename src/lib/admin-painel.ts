@@ -14,6 +14,8 @@ const DIA = 86_400_000
 export interface LinhaTeste {
   nome: string; email: string; celular: string | null
   fimDoTeste: string; diasRestantes: number; deixouCartao: boolean
+  /** Assinou durante o teste e já cancelou: nada será cobrado. */
+  cancelouAssinatura: boolean
   origem: string; filhos: number; atividades: number; ultimoAcesso: string | null
 }
 /** Criou a conta e ainda não cadastrou nenhum filho — ou seja, não começou a usar. */
@@ -32,6 +34,8 @@ export interface LinhaAssinante {
 export interface LinhaCancelamento {
   nome: string; plano: string; canceladoEm: string; dias: number
   motivo: string | null; comentario: string | null; reembolsado: boolean
+  /** Cancelada ainda no teste grátis: nunca houve cobrança, e o acesso segue até o fim do teste. */
+  noTeste: boolean
 }
 export interface LinhaOrigem { origem: string; cadastros: number; assinaram: number }
 export interface LinhaTempo { faixa: string; cadastros: number; pagantes: number }
@@ -178,9 +182,16 @@ export async function montarPainel(): Promise<PainelNegocio> {
   // Contratadas durante o teste grátis: passaram pelo pagamento e deixaram o
   // cartão, mas a primeira cobrança só acontece quando o teste terminar. Não
   // são pagantes ainda. Quem já pediu o cancelamento não será cobrado: fica fora.
-  const aguardando = stripeSubs.filter(s => s.status === 'trialing' && !s.cancel_at_period_end)
+  // No Stripe, cancelar no teste NÃO muda a situação para "cancelada": a
+  // assinatura segue "em teste" com o fim agendado (`cancel_at`) e só vira
+  // "cancelada" quando o teste acaba. Sem olhar para isso, o cancelamento só
+  // apareceria no painel duas semanas depois.
+  const saindo = (s: Stripe.Subscription) => !!s.cancel_at_period_end || !!s.cancel_at
+  const aguardando = stripeSubs.filter(s => s.status === 'trialing' && !saindo(s))
+  const canceladasNoTeste = stripeSubs.filter(s => s.status === 'trialing' && saindo(s))
   const canceladas = stripeSubs.filter(s => s.status === 'canceled')
-  const jaAssinaram = stripeSubs.filter(s => s.status !== 'incomplete' && s.status !== 'incomplete_expired' && s.status !== 'trialing')
+  // Quem contratou no teste também assinou (passou pelo pagamento e deixou o cartão).
+  const jaAssinaram = stripeSubs.filter(s => s.status !== 'incomplete' && s.status !== 'incomplete_expired')
 
   const assinantes: LinhaAssinante[] = [...pagas, ...aguardando]
     .map(s => {
@@ -204,7 +215,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   const receitaPrevistaCentavos = porMes(aguardando)
 
   const clientesPagantes = new Set(pagas.map(s => idDe(s.customer)))
-  const cancelamentos: LinhaCancelamento[] = canceladas
+  const cancelamentos: LinhaCancelamento[] = [...canceladas, ...canceladasNoTeste]
     .map(s => {
       const d = descreve(s), q = quem(s)
       const fim = s.ended_at ?? s.canceled_at ?? s.start_date
@@ -216,10 +227,14 @@ export async function montarPainel(): Promise<PainelNegocio> {
         motivo: fb ? (MOTIVOS[fb] ?? fb) : null,
         comentario: s.cancellation_details?.comment ?? null,
         reembolsado: clientesReembolsados.has(idDe(s.customer)),
+        noTeste: s.status === 'trialing',
       }
     })
     .sort((a, b) => b.canceladoEm.localeCompare(a.canceladoEm))
-  const cancelaram = new Set(canceladas.map(s => idDe(s.customer)).filter(c => !clientesPagantes.has(c))).size
+  const clientesContratados = new Set(aguardando.map(s => idDe(s.customer)))
+  const cancelaram = new Set([...canceladas, ...canceladasNoTeste].map(s => idDe(s.customer))
+    .filter(c => !clientesPagantes.has(c) && !clientesContratados.has(c))).size
+  const usuariosQueCancelaramNoTeste = new Set(canceladasNoTeste.map(s => s.metadata?.user_id).filter(Boolean) as string[])
 
   // ── Em relação aos 14 dias de teste ───────────────────────────────────
   // O marco é a criação da conta (quando o teste começa). Se a conta já foi
@@ -245,7 +260,9 @@ export async function montarPainel(): Promise<PainelNegocio> {
     const cli = idDe(s.customer)
     if (clientesPagantes.has(cli) || jaContado.has(cli)) continue
     jaContado.add(cli)
-    const fim = ((s.ended_at ?? s.canceled_at ?? s.start_date) as number) * 1000
+    // Vale o momento em que a pessoa PEDIU o cancelamento: quem cancela no
+    // teste só tem a assinatura encerrada no 14º dia, e contaria como "depois".
+    const fim = ((s.canceled_at ?? s.ended_at ?? s.start_date) as number) * 1000
     // Só a assinatura cancelada DEPOIS do teste entra aqui; cancelar a
     // assinatura dentro dos 14 dias devolve a pessoa ao teste/gratuito.
     if (fim - inicioDe(s) > DIAS_TESTE * DIA) retencao.cancelouApos++
@@ -303,7 +320,8 @@ export async function montarPainel(): Promise<PainelNegocio> {
         nome: p.full_name || '—', email: u.email, celular: p.phone,
         fimDoTeste: s.trial_ends_at as string,
         diasRestantes: Math.max(0, Math.ceil((fimTeste - agora) / DIA)),
-        deixouCartao: !!s.stripe_subscription_id,
+        deixouCartao: !!s.stripe_subscription_id && !usuariosQueCancelaramNoTeste.has(u.id),
+        cancelouAssinatura: usuariosQueCancelaramNoTeste.has(u.id),
         origem: p.acquisition_source || 'Não informou',
         filhos: uso?.filhos ?? 0, atividades: uso?.atividades ?? 0, ultimoAcesso: u.ultimoAcesso,
       })

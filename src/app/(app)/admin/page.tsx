@@ -157,6 +157,7 @@ export default async function AdminPage() {
                     <td className="adm-quem">
                       <b>{t.nome}</b><span>{t.email}</span>
                       {t.deixouCartao && <span className="adm-p adm-az" style={{ marginTop: 4 }}>já deixou o cartão</span>}
+                      {t.cancelouAssinatura && <span className="adm-p adm-amb" style={{ marginTop: 4 }}>assinou e cancelou</span>}
                     </td>
                     <td className="adm-nq">{t.celular ? formatPhoneBR(t.celular) : '—'}</td>
                     <td>
@@ -283,6 +284,7 @@ export default async function AdminPage() {
             <div className="adm-motivo" key={c.nome + c.canceladoEm + i}>
               <b>{c.nome}</b> <span className="adm-p adm-cin">{c.plano}</span>{' '}
               {c.reembolsado && <span className="adm-p adm-ok">reembolsado</span>}
+              {c.noTeste && <span className="adm-p adm-az">no teste, sem cobrança</span>}
               <span className="adm-linha2">
                 cancelou em {data(c.canceladoEm)} · assinou por {c.dias} {c.dias === 1 ? 'dia' : 'dias'}
                 {c.motivo && <> · motivo: {c.motivo}</>}
