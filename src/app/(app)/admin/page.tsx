@@ -114,14 +114,14 @@ export default async function AdminPage() {
           <div className="adm-rolar">
             <table style={{ minWidth: 280 }}>
               <tbody>
-                <tr><td>Cancelaram a assinatura ainda nos 14 dias</td><td className="adm-n"><b>{rt.cancelouNoTeste}</b></td></tr>
+                <tr><td>Cancelaram a conta ainda nos 14 dias de teste</td><td className="adm-n"><b>{rt.excluiuNoTeste}</b></td></tr>
                 <tr><td>Passaram dos 14 dias e estão no gratuito</td><td className="adm-n"><b>{rt.ficouGratis}</b></td></tr>
                 <tr><td>Passaram dos 14 dias e pagam um plano hoje</td><td className="adm-n"><b>{rt.pagandoApos}</b></td></tr>
                 <tr><td>Cancelaram a assinatura depois dos 14 dias</td><td className="adm-n"><b>{rt.cancelouApos}</b></td></tr>
               </tbody>
             </table>
           </div>
-          <p className="adm-ver">Os 14 dias contam da criação da conta. Cada pessoa entra em um grupo só. Ficam de fora quem ainda está no teste, contas cortesia, convidados e cadastros antigos não concluídos.</p>
+          <p className="adm-ver">Os 14 dias contam da criação da conta. Cada pessoa entra em um grupo só. &quot;Cancelaram a conta&quot; são as que excluíram a conta: os dados são apagados e fica só esta contagem, sem identificar ninguém. Ficam de fora quem ainda está no teste, contas cortesia, convidados e cadastros antigos não concluídos.</p>
         </section>
 
         <section className="adm-cartao">

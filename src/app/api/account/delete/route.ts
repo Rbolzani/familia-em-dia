@@ -57,6 +57,30 @@ async function encerrarCobranca(
   console.warn('[delete-account] %d assinatura(s) canceladas no Stripe', vivas.length)
 }
 
+/**
+ * O que o Painel do negócio guarda de uma conta excluída: só números, nada que
+ * identifique a pessoa (ver MIGRATION_contas_excluidas.sql). Lido ANTES da
+ * limpeza — depois dela não sobra de onde tirar.
+ */
+async function retratoDaConta(admin: ReturnType<typeof createAdminClient>, userId: string, criadaEm: string) {
+  const [{ data: sub }, { data: perfil }, { count: filhos }, { data: papeis }] = await Promise.all([
+    admin.from('subscriptions').select('plan, status, trial_ends_at, stripe_customer_id').eq('user_id', userId).maybeSingle(),
+    admin.from('profiles').select('acquisition_source').eq('user_id', userId).maybeSingle(),
+    admin.from('children').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+    admin.from('family_members').select('role').eq('user_id', userId),
+  ])
+  const pago = sub?.status === 'active' && !!sub.plan && sub.plan !== 'free'
+  const emTeste = sub?.status === 'trialing' && !!sub.trial_ends_at && new Date(sub.trial_ends_at as string).getTime() > Date.now()
+  const lista = papeis ?? []
+  return {
+    dias_de_conta: Math.max(0, Math.floor((Date.now() - new Date(criadaEm).getTime()) / 86_400_000)),
+    situacao: pago ? (sub?.stripe_customer_id ? 'pagante' : 'cortesia') : emTeste ? 'teste' : 'gratuito',
+    tinha_filho: (filhos ?? 0) > 0,
+    convidado: lista.length > 0 && !lista.some(p => p.role === 'owner'),
+    origem: (perfil?.acquisition_source as string | null | undefined) ?? null,
+  }
+}
+
 export async function POST(request: Request) {
   // 1. Verificar sessão
   const supabase = await createClient()
@@ -78,6 +102,9 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
 
   try {
+    // Falhar ao montar o retrato não pode impedir a exclusão: é só estatística.
+    const retrato = await retratoDaConta(admin, user.id, user.created_at).catch(() => null)
+
     // 3. Coletar caminhos de Storage ANTES da limpeza (famílias solo apenas)
     const { data: myFamilies } = await admin
       .from('families')
@@ -178,6 +205,12 @@ export async function POST(request: Request) {
     if (authErr) {
       console.error('[delete-account] auth delete error:', authErr)
       throw new Error(authErr.message)
+    }
+
+    // 7. Registro anônimo para o Painel do negócio (melhor esforço).
+    if (retrato) {
+      const { error: regErr } = await admin.from('contas_excluidas').insert(retrato)
+      if (regErr) console.error('[delete-account] registro da exclusão falhou:', regErr.code)
     }
 
     return NextResponse.json({ ok: true })

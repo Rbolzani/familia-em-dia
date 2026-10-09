@@ -121,7 +121,8 @@ export default function PrivacidadePage() {
         &quot;Minha Conta&quot;. A exclusão elimina os dados de cadastro, os filhos, as atividades, as
         mensalidades e <strong>também os arquivos guardados</strong> — documentos do cofre e fotos —,
         além de encerrar a assinatura. Permanecem apenas os registros que a lei exija reter, como os
-        dados fiscais das cobranças já realizadas, mantidos pelo operador de pagamento.
+        dados fiscais das cobranças já realizadas, mantidos pelo operador de pagamento, e um registro
+        estatístico anônimo da exclusão (data, tempo de conta e tipo de plano), que não identifica o titular.
       </P>
 
       <H>10. Direitos do titular</H>

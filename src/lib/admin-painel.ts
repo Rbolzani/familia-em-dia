@@ -47,7 +47,7 @@ export interface PainelNegocio {
   }
   funil: { criaram: number; concluiram: number; comFilho: number; usaramIa: number; assinaram: number; cancelaram: number }
   /** O que aconteceu em relação aos 14 dias de teste. Grupos sem sobreposição. */
-  retencao: { cancelouNoTeste: number; ficouGratis: number; pagandoApos: number; cancelouApos: number }
+  retencao: { excluiuNoTeste: number; ficouGratis: number; pagandoApos: number; cancelouApos: number }
   /** Há quanto tempo estão na base: cadastros (pela criação da conta) e pagantes (pelo início da assinatura). */
   tempoDeBase: LinhaTempo[]
   emTeste: LinhaTeste[]
@@ -110,12 +110,13 @@ export async function montarPainel(): Promise<PainelNegocio> {
   type Membro = { user_id: string; role: string | null }
   type Uso = { user_id: string; filhos: number; atividades: number; usou_ia: boolean }
 
-  const [usuarios, perfis, subs, membros, lembretes, usoRes, vagasRes] = await Promise.all([
+  const [usuarios, perfis, subs, membros, lembretes, excluidas, usoRes, vagasRes] = await Promise.all([
     todosUsuarios(),
     todas<Perfil>('profiles', 'user_id, full_name, phone, acquisition_source, profile_completed_at, signup_attribution'),
     todas<Sub>('subscriptions', 'user_id, plan, status, trial_ends_at, stripe_customer_id, stripe_subscription_id'),
     todas<Membro>('family_members', 'user_id, role'),
     todas<{ user_id: string; enviado_em: string }>('cadastro_lembretes', 'user_id, enviado_em'),
+    todas<{ dias_de_conta: number; convidado: boolean; situacao: string }>('contas_excluidas', 'dias_de_conta, convidado, situacao'),
     admin.rpc('admin_uso_por_usuario'),
     admin.rpc('vagas_lancamento_usadas'),
   ])
@@ -217,7 +218,13 @@ export async function montarPainel(): Promise<PainelNegocio> {
     const c = clienteVivo(s.customer)
     return ((c?.created ?? s.start_date) as number) * 1000
   }
-  const retencao = { cancelouNoTeste: 0, ficouGratis: 0, pagandoApos: 0, cancelouApos: 0 }
+  // "Cancelou a conta no teste" vem do registro anônimo de exclusões: quem
+  // apaga a conta some de todo o resto, então é o único lugar onde ela ainda
+  // conta. Convidado não tem teste próprio; cortesia é dos administradores.
+  const retencao = {
+    excluiuNoTeste: excluidas.filter(e => !e.convidado && e.situacao !== 'cortesia' && e.dias_de_conta <= DIAS_TESTE).length,
+    ficouGratis: 0, pagandoApos: 0, cancelouApos: 0,
+  }
   const jaContado = new Set<string>()
   // Quem cancelou e não paga hoje: uma vez por cliente, pelo cancelamento mais recente.
   for (const s of [...canceladas].sort((a, b) => (b.ended_at ?? 0) - (a.ended_at ?? 0))) {
@@ -225,8 +232,9 @@ export async function montarPainel(): Promise<PainelNegocio> {
     if (clientesPagantes.has(cli) || jaContado.has(cli)) continue
     jaContado.add(cli)
     const fim = ((s.ended_at ?? s.canceled_at ?? s.start_date) as number) * 1000
-    if (fim - inicioDe(s) <= DIAS_TESTE * DIA) retencao.cancelouNoTeste++
-    else retencao.cancelouApos++
+    // Só a assinatura cancelada DEPOIS do teste entra aqui; cancelar a
+    // assinatura dentro dos 14 dias devolve a pessoa ao teste/gratuito.
+    if (fim - inicioDe(s) > DIAS_TESTE * DIA) retencao.cancelouApos++
   }
   const pagantesContados = new Set<string>()
   let pagantesFamilia = 0, pagantesPlus = 0
