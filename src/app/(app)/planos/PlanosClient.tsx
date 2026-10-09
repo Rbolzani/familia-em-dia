@@ -133,6 +133,9 @@ export default function PlanosClient({
   const trialDone   = isFree && status === 'free'
   // Assinante pagante ativo — trocar de plano é upgrade/downgrade, nunca tem trial
   const isPaidActive = currentPlan !== 'free' && status === 'active'
+  // Assinou durante o teste e depois cancelou: nada será cobrado, o teste
+  // segue até o fim e a assinatura pode ser reativada até lá.
+  const canceladaNoTeste = isTrialing && assinouNoTeste && cancelAtPeriodEnd
 
   // Oferta de lançamento. Quem já tem o preço de lançamento leva o desconto
   // para qualquer plano. Fora isso, ela só entra no checkout — quem já paga
@@ -296,12 +299,17 @@ export default function PlanosClient({
                       : 'rgba(61,102,65,0.10)',
                   color: isTrialing ? '#92400E' : cancelAtPeriodEnd ? '#DC2626' : '#2C4A2E',
                 }}>
-                  {isTrialing ? (assinouNoTeste ? 'Assinado' : 'Em teste') : cancelAtPeriodEnd ? 'Cancelando' : 'Ativo'}
+                  {isTrialing ? (assinouNoTeste && !canceladaNoTeste ? 'Assinado' : 'Em teste') : cancelAtPeriodEnd ? 'Cancelando' : 'Ativo'}
                 </span>
               </div>
               {isTrialing && trialEndsAt && (
                 <p className="text-xs mt-1" style={{ color: 'rgba(26,43,28,0.50)' }}>
-                  {assinouNoTeste ? (
+                  {canceladaNoTeste ? (
+                    <>
+                      <strong style={{ color: '#2C4A2E' }}>Assinatura cancelada, nada será cobrado.</strong>{' '}
+                      Seu teste gratuito continua até {fmtDate(trialEndsAt)}.
+                    </>
+                  ) : assinouNoTeste ? (
                     <>
                       <strong style={{ color: '#2C4A2E' }}>Assinatura confirmada.</strong>{' '}
                       Grátis até {fmtDate(trialEndsAt)} — a cobrança começa nessa data.
@@ -334,7 +342,10 @@ export default function PlanosClient({
                     : <ExternalLink size={14} />}
                   Faturas e pagamento
                 </button>
-                {!isTrialing && (cancelAtPeriodEnd ? (
+                {/* Quem assinou no teste também precisa poder cancelar: o portal
+                    do Stripe tem o cancelamento desligado, então este é o único
+                    caminho. Só o teste sem assinatura não tem o que cancelar. */}
+                {(!isTrialing || assinouNoTeste) && (cancelAtPeriodEnd ? (
                   <button onClick={handleReactivate} disabled={!!loading}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:brightness-105 disabled:opacity-60"
                     style={{ background: 'linear-gradient(140deg,#FF8A6E,#FF6B5C)', color: 'white', border: 'none', cursor: 'pointer' }}>
@@ -521,7 +532,7 @@ export default function PlanosClient({
                   <div className="flex items-center justify-center gap-2 py-3 rounded-[13px] text-sm font-bold"
                     style={{ background: 'rgba(61,102,65,0.08)', color: '#3D6641' }}>
                     <Check size={15} strokeWidth={2.5} />
-                    {isTrialing ? (assinouNoTeste ? 'Assinado · cobra em ' + fmtDateShort(trialEndsAt) : 'Em teste agora') : 'Plano atual'}
+                    {isTrialing ? (assinouNoTeste && !canceladaNoTeste ? 'Assinado · cobra em ' + fmtDateShort(trialEndsAt) : 'Em teste agora') : 'Plano atual'}
                   </div>
                 ) : (
                   <button onClick={() => handleCheckout(plan.id)}
@@ -603,6 +614,12 @@ export default function PlanosClient({
                 Cancelando agora, o valor pago é <strong>devolvido integralmente</strong> e a
                 assinatura se encerra na hora — o estorno aparece na fatura do cartão em alguns
                 dias, conforme o banco. O prazo vai até <strong>{fmtDate(arrependimentoAte)}</strong>.
+              </>
+            ) : isTrialing ? (
+              <>
+                <strong>Nada foi cobrado e nada será.</strong> Seu teste gratuito continua até{' '}
+                <strong>{fmtDate(trialEndsAt)}</strong>; depois dessa data a conta passa para o plano
+                gratuito. Você pode reativar a assinatura a qualquer momento antes disso.
               </>
             ) : (
               <>
