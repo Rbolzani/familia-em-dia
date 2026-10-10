@@ -498,7 +498,57 @@ function expandRecurring(activities: ExtractedActivity[]): ExtractedActivity[] {
   return result
 }
 
+// Sinal de vida. A análise de uma grade densa leva minutos, e nesse tempo a
+// resposta não trafegava um byte: a conexão do celular caía e a tela mostrava
+// "Failed to fetch", embora o servidor concluísse com 200 (visto em produção
+// em 09/10/2026: 7 tentativas, 7 respostas 200, 1 entregue).
+//
+// O que responde rápido (sem sessão, limite do plano, arquivo inválido) sai
+// como sempre, com o status HTTP certo. Só quando a análise passa de alguns
+// segundos a resposta vira um fluxo: espaços em branco a cada poucos segundos
+// e, no fim, o JSON de sempre com o status real em `_status` (o HTTP já foi
+// enviado como 200). Espaço antes do JSON não atrapalha o `res.json()`.
+const ESPERA_ANTES_DO_FLUXO_MS = 3000
+const INTERVALO_SINAL_MS = 5000
+
 export async function POST(req: NextRequest) {
+  const trabalho = processar(req)
+  const rapido = await Promise.race([
+    trabalho,
+    new Promise<null>(ok => setTimeout(() => ok(null), ESPERA_ANTES_DO_FLUXO_MS)),
+  ])
+  if (rapido) return rapido
+
+  const enc = new TextEncoder()
+  const sinal = enc.encode(' '.repeat(256) + '\n')
+  const fluxo = new ReadableStream<Uint8Array>({
+    async start(controle) {
+      controle.enqueue(sinal)
+      const relogio = setInterval(() => { try { controle.enqueue(sinal) } catch { /* fluxo já fechado */ } }, INTERVALO_SINAL_MS)
+      try {
+        const res = await trabalho
+        const corpo = await res.json()
+        controle.enqueue(enc.encode(JSON.stringify({ ...corpo, _status: res.status })))
+      } catch (e) {
+        console.error('AI extract stream error:', e)
+        controle.enqueue(enc.encode(JSON.stringify({ error: 'Não foi possível processar. Tente novamente.', _status: 500 })))
+      } finally {
+        clearInterval(relogio)
+        try { controle.close() } catch { /* já fechado pelo cliente */ }
+      }
+    },
+  })
+  return new Response(fluxo, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, no-transform',
+      'X-Accel-Buffering': 'no',
+    },
+  })
+}
+
+async function processar(req: NextRequest): Promise<NextResponse> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

@@ -355,6 +355,8 @@ export default function OnboardingClient({ firstName }: { firstName: string }) {
       const res = await fetch('/api/ai-extract', { method: 'POST', headers, body: body as BodyInit })
       if (!res.ok) throw new Error('Erro na análise. Tente novamente.')
       const json = await res.json()
+      // Análise demorada: o status real vem no corpo (ver api/ai-extract).
+      if (typeof json._status === 'number' && json._status !== 200) throw new Error('Erro na análise. Tente novamente.')
       setAiResult(json)
     } catch (e: unknown) {
       setAiError(e instanceof Error ? e.message : 'Erro desconhecido.')

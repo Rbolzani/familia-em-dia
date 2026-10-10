@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { formatBRL } from '@/lib/payments'
 import { useAccess } from '@/components/access/AccessContext'
 import { VoiceInputButton } from '@/components/ui/VoiceInputButton'
+import { chamarExtracaoIa, prepararImagem } from '@/lib/ia-cliente'
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const NOISE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`
@@ -260,14 +261,14 @@ export default function IAPage() {
         if (!images.length) { setError('Adicione pelo menos uma imagem.'); setLoading(false); return }
         for (const img of images) {
           const fd = new FormData()
-          fd.append('image', img)
-          const res  = await fetch('/api/ai-extract', { method: 'POST', body: fd })
-          const data = await res.json()
-          if (res.status === 402) {
+          fd.append('image', await prepararImagem(img))
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { status, data } = await chamarExtracaoIa(fd) as { status: number; data: any }
+          if (status === 402) {
             setAiUsed(data.used ?? aiLimit ?? 5)
             throw new Error(`Limite de ${data.limit} capturas por mês atingido. Faça upgrade para continuar.`)
           }
-          if (!res.ok) throw new Error(data.error || 'Erro ao processar imagem')
+          if (status !== 200) throw new Error(data.error || 'Erro ao processar imagem')
           allActs = [...allActs, ...(data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds, school_kind: kindPadrao(a) }))]
           allRems = [...allRems, ...(data.reminders  ?? []).map((r: any) => ({ ...r, selected: true, child_ids: selectedChildIds }))]
           allDocs = [...allDocs, ...(data.documents  ?? []).map((d: any) => ({ ...d, selected: true, child_ids: selectedChildIds }))]
@@ -277,13 +278,13 @@ export default function IAPage() {
         if (!text.trim()) { setError('Digite algo para analisar.'); setLoading(false); return }
         const fd = new FormData()
         fd.append('text', text)
-        const res  = await fetch('/api/ai-extract', { method: 'POST', body: fd })
-        const data = await res.json()
-        if (res.status === 402) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { status, data } = await chamarExtracaoIa(fd) as { status: number; data: any }
+        if (status === 402) {
           setAiUsed(data.used ?? aiLimit ?? 5)
           throw new Error(`Limite de ${data.limit} capturas por mês atingido. Faça upgrade para continuar.`)
         }
-        if (!res.ok) throw new Error(data.error || 'Erro desconhecido')
+        if (status !== 200) throw new Error(data.error || 'Erro desconhecido')
         allActs = (data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds, school_kind: kindPadrao(a) }))
         allRems = (data.reminders  ?? []).map((r: any) => ({ ...r, selected: true, child_ids: selectedChildIds }))
         allDocs = (data.documents  ?? []).map((d: any) => ({ ...d, selected: true, child_ids: selectedChildIds }))
