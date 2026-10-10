@@ -13,6 +13,9 @@ const ALVO: Record<string, Rect> = {
   'topo-ia':           { x: 0.6984, y: 0.0122, w: 0.2709, h: 0.0462 },
   'menu-inicio':       { x: 0, y: 0.1013, w: LARG_MENU, h: 0.0615 },
   'menu-agenda':       { x: 0, y: 0.1628, w: LARG_MENU, h: 0.0615 },
+  // Início e Agenda são vizinhos: um contorno só, para não parecer duplicado.
+  'menu-inicio-agenda': { x: 0, y: 0.1013, w: LARG_MENU, h: 0.123 },
+  'menu-documentos':   { x: 0, y: 0.504, w: LARG_MENU, h: 0.0615 },
   'menu-logistica':    { x: 0, y: 0.2244, w: LARG_MENU, h: 0.0615 },
   'menu-escola':       { x: 0, y: 0.3026, w: LARG_MENU, h: 0.0615 },
   'menu-filhos':       { x: 0, y: 0.6436, w: LARG_MENU, h: 0.0615 },
@@ -29,6 +32,9 @@ const ALVO: Record<string, Rect> = {
   'ia-tipos':          { x: 0.051, y: 0.157, w: 0.897, h: 0.258 },
   'escola':            { x: 0.041, y: 0.2479, w: 0.4317, h: 0.0453 },
   'logistica':         { x: 0.45, y: 0.716, w: 0.302, h: 0.044 },
+  'doc-analisar':      { x: 0.0513, y: 0.887, w: 0.8974, h: 0.0718 },
+  'doc-resultado':     { x: 0.045, y: 0.606, w: 0.85, h: 0.045 },
+  'cofre-gaveta':      { x: 0.041, y: 0.4907, w: 0.9179, h: 0.0897 },
 }
 
 /** Recorte de uma foto real: janela [y0,y1] × [x0,x1] da tela, com contornos. */
@@ -68,7 +74,7 @@ const Menu = ({ itens }: { itens: string[] }) =>
 
 const B = ({ children }: { children: ReactNode }) => <b style={{ color: '#2C4A2E' }}>{children}</b>
 
-export type PassoId = 'filhos' | 'alertas' | 'compartilhar' | 'ia' | 'escola' | 'agenda' | 'logistica'
+export type PassoId = 'filhos' | 'alertas' | 'compartilhar' | 'ia' | 'escola' | 'agenda' | 'logistica' | 'documentos'
 
 export interface Passo {
   id: PassoId
@@ -174,7 +180,7 @@ export const PASSOS: Passo[] = [
   {
     id: 'agenda', titulo: 'Confira no Início e na Agenda', onde: ['☰ Menu', 'Início', 'e', 'Agenda'],
     guia: {
-      img: <Menu itens={['menu-inicio', 'menu-agenda']} />,
+      img: <Menu itens={['menu-inicio-agenda']} />,
       celular: <><B>Início</B> e <B>Agenda</B> são os dois primeiros itens do menu <B>☰</B>.</>,
       computador: <><B>Início</B> e <B>Agenda</B> são os dois primeiros itens do menu à esquerda.</>,
     },
@@ -202,5 +208,26 @@ export const PASSOS: Passo[] = [
     ],
     dica: 'As mesmas fichas aparecem no Início, em Escola, Saúde e Atividades.',
     ir: { rotulo: 'Ir para Logística', href: '/logistica' },
+  },
+  {
+    id: 'documentos', titulo: 'Guarde documentos pela IA', onde: ['✨ Captura IA', 'e', '☰ Menu', 'Documentos'], exige: 'editar',
+    pago: 'O envio de arquivos ao cofre de documentos está disponível somente nos planos pagos.',
+    guia: {
+      img: <Menu itens={['menu-documentos']} />,
+      celular: <>Você envia o documento pela <B>Captura IA</B> (botão coral no topo) e ele fica guardado em <B>Documentos</B>, no menu <B>☰</B>.</>,
+      computador: <>Você envia o documento pela <B>Captura IA</B> (botão coral no topo) e ele fica guardado em <B>Documentos</B>, no menu à esquerda.</>,
+    },
+    quadros: [
+      { txt: <>Na Captura IA, fotografe ou envie a imagem do documento (RG, carteirinha, contrato, receita) e toque em <B>Analisar e classificar com IA</B>.</>,
+        img: <Foto arq="doc-anexado" y0={0.68} alvos={['doc-analisar']} alt="Captura por IA com a foto de uma carteirinha anexada e o botão Analisar e classificar com IA contornado" /> },
+      { txt: <>A IA <B>identifica o tipo</B> do documento, lê os dados e já escolhe a <B>gaveta certa</B> (aqui, Carteirinhas). A imagem vai anexada. Confira e toque em <B>Salvar</B>.</>,
+        img: <Foto arq="doc-resultado" y0={0.58} y1={0.775} alvos={['doc-resultado']} alt="Resultado da análise: um documento identificado como carteirinha, com a imagem anexada" /> },
+      { txt: <>Em <B>Documentos</B>, ele aparece na gaveta escolhida pela IA.</>,
+        img: <Foto arq="cofre-gaveta" y0={0.17} y1={0.61} alvos={['cofre-gaveta']} alt="Tela Documentos, com a gaveta Carteirinhas contornada mostrando um documento" /> },
+      { txt: <>Abra o documento para ver, baixar ou trocar o arquivo. Ele fica em <B>armazenamento privado e criptografado</B>: só quem tem acesso à sua família consegue abrir.</>,
+        img: <Foto arq="documento" y0={0.615} y1={0.79} alt="Documento aberto, com o arquivo guardado e os botões de ver e baixar" /> },
+    ],
+    dica: 'Com a data de validade preenchida, o app avisa antes de o documento vencer.',
+    ir: { rotulo: 'Ir para Documentos', href: '/vault' },
   },
 ]

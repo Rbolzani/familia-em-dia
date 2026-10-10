@@ -14,7 +14,7 @@ export async function GET() {
   const existe = async (q: PromiseLike<{ count: number | null }>) => ((await q).count ?? 0) > 0
   const atividades = () => supabase.from('activities').select('id', { count: 'exact', head: true })
 
-  const [plano, filhos, alerta, parceiros, convites, ia, escola, logistica] = await Promise.all([
+  const [plano, filhos, alerta, parceiros, convites, ia, escola, logistica, documentos] = await Promise.all([
     getFamilyPlan(),
     existe(supabase.from('children').select('id', { count: 'exact', head: true })),
     supabase.from('notification_settings').select('whatsapp_number, daily_summary_enabled').eq('user_id', user.id).maybeSingle(),
@@ -23,6 +23,7 @@ export async function GET() {
     existe(atividades().eq('ai_generated', true)),
     existe(atividades().eq('category', 'escola')),
     existe(atividades().or('takes_user_id.not.is.null,picks_user_id.not.is.null')),
+    existe(supabase.from('documents').select('id', { count: 'exact', head: true })),
   ])
 
   return NextResponse.json({
@@ -34,6 +35,7 @@ export async function GET() {
       ia,
       escola,
       logistica,
+      documentos,
     },
   })
 }

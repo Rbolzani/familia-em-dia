@@ -46,7 +46,7 @@ export default function Tutorial({ userId }: { userId: string }) {
   const viuAgenda = useGuardado(`fed-tutorial-agenda-${userId}`, null) === '1'
   const guardado = Number(useGuardado(`fed-tutorial-passo-${userId}`, '0') ?? 0)
 
-  // Todos veem os 7 passos. Quem entrou por convite e não pode executar um
+  // Todos veem todos os passos. Quem entrou por convite e não pode executar um
   // deles recebe só um aviso de que a ação depende do nível de acesso.
   const passos = PASSOS
   const semPermissao = (exige: (typeof PASSOS)[number]['exige']) =>
