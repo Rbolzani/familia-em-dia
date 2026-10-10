@@ -188,6 +188,13 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 - Banners (`TrialBanner`/`GraceBanner`) para owner e parceiro; aviso de grace também via WhatsApp
 - Fichas de logística do ex-parceiro permanecem; slot órfão volta a ser editável (`LogChip.tsx`)
 
+
+### 10. Tutorial "Primeiros passos" (bolinha "?")
+- `components/tutorial/Tutorial.tsx` (bolinha fixa no canto inferior direito + carrossel de 7 passos) e `passos.tsx` (conteúdo). Substituiu o tour de primeiro acesso (`components/tour`, removido).
+- Não abre sozinho: no primeiro acesso a bolinha pulsa e mostra um balão; preferências em `localStorage` (`fed-tutorial-*-<userId>`).
+- As imagens em `public/tutorial/*.jpg` são **fotos das telas reais** (celular, tema Floresta, conta de demonstração). Os contornos usam frações da tela em `ALVO` — **se uma tela mudar, refazer a foto e o retângulo**.
+- `/api/tutorial` (chamado só ao abrir) devolve plano gratuito e passos já feitos (✓). Convidados veem só os passos que podem executar; no gratuito, recursos pagos aparecem com aviso "somente nos planos pagos".
+
 ---
 
 ## Módulo de Voz — Implementado

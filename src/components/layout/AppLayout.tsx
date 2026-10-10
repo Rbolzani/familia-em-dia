@@ -12,8 +12,7 @@ import {
 import { ChildAvatar } from '@/app/(app)/children/ChildrenClient'
 import { createClient } from '@/lib/supabase/client'
 import { Toaster } from '@/components/ui/Toast'
-import TourOverlay from '@/components/tour/TourOverlay'
-import { useTour } from '@/components/tour/TourContext'
+import Tutorial from '@/components/tutorial/Tutorial'
 
 // ── Types ──────────────────────────────────────────────────────────────
 interface SidebarChild {
@@ -31,6 +30,8 @@ interface Props {
   activeFamilyId?: string | null
   /** Fundador: mostra a seção Admin em Configurações. Decidido no servidor. */
   isAdmin?: boolean
+  /** Usuário logado: chave das preferências do tutorial neste navegador. */
+  userId?: string
 }
 
 // ── Palettes ───────────────────────────────────────────────────────────
@@ -44,10 +45,9 @@ const PALETTES = [
 
 
 // ── Component ──────────────────────────────────────────────────────────
-export default function AppLayout({ children, sidebarChildren: initial, activeFamilyId, isAdmin = false }: Props) {
+export default function AppLayout({ children, sidebarChildren: initial, activeFamilyId, isAdmin = false, userId = '' }: Props) {
   const pathname = usePathname()
   const router   = useRouter()
-  const { isActive: tourActive } = useTour()
 
   // A lista vem pronta do Server Component; basta reidratar quando a prop
   // muda (navegação / router.refresh do RealtimeSync). Antes havia um SELECT
@@ -180,15 +180,8 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
   // Close sidebar + cfg panel on navigation
   useEffect(() => {
     setCfgPanelOpen(false)
-    if (!tourActive) setMobileSidebarOpen(false)
-  }, [pathname, tourActive])
-
-  // Durante o tour no mobile, força a sidebar verde aberta.
-  useEffect(() => {
-    if (tourActive && typeof window !== 'undefined' && window.innerWidth < 768) {
-      setMobileSidebarOpen(true)
-    }
-  }, [tourActive, pathname, mobileSidebarOpen])
+    setMobileSidebarOpen(false)
+  }, [pathname])
 
   function cfgEnter() {
     if (cfgLeaveTimer.current) clearTimeout(cfgLeaveTimer.current)
@@ -268,7 +261,7 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
       : (active ? '#FFFFFF'   : 'rgba(231,241,238,0.62)')
     const iconColor = active ? '#FF6B5C' : color
     return (
-      <Link href={href} onClick={() => { if (!tourActive) setMobileSidebarOpen(false) }}
+      <Link href={href} onClick={() => setMobileSidebarOpen(false)}
         data-tour={tourId}
         style={{ display:'flex', flexDirection:'row', alignItems:'center',
           gap:12, height:48, padding:'0 16px', position:'relative',
@@ -852,8 +845,8 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
         </>
       )}
 
-      {/* ── Tour overlay — guia onboarding ── */}
-      <TourOverlay />
+      {/* ── Tutorial "Primeiros passos" (bolinha "?"), fora do app-wrap: cores fiéis em qualquer tema ── */}
+      <Tutorial userId={userId} />
 
     </div>
   )
