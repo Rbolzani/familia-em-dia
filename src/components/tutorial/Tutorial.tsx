@@ -46,12 +46,14 @@ export default function Tutorial({ userId }: { userId: string }) {
   const viuAgenda = useGuardado(`fed-tutorial-agenda-${userId}`, null) === '1'
   const guardado = Number(useGuardado(`fed-tutorial-passo-${userId}`, '0') ?? 0)
 
-  // Convidados só veem os passos que podem executar.
-  const passos = PASSOS.filter(p =>
-    p.exige === 'dono' ? access.isOwner
-    : p.exige === 'editar' ? access.canEdit
-    : p.exige === 'logistica' ? access.canLogistics
-    : true)
+  // Todos veem os 7 passos. Quem entrou por convite e não pode executar um
+  // deles recebe só um aviso de que a ação depende do nível de acesso.
+  const passos = PASSOS
+  const semPermissao = (exige: (typeof PASSOS)[number]['exige']) =>
+    exige === 'dono' ? !access.isOwner
+    : exige === 'editar' ? !access.canEdit
+    : exige === 'logistica' ? !access.canLogistics
+    : false
   const atual = Math.max(0, Math.min(passos.length - 1, Number.isFinite(guardado) ? guardado : 0))
 
   // "Conferir na Agenda" não deixa rastro no banco: vale ter aberto a Agenda.
@@ -166,6 +168,11 @@ export default function Tutorial({ userId }: { userId: string }) {
                   </div>
 
                   {estado?.gratuito && p.pago && avisoPago(p.pago)}
+                  {semPermissao(p.exige) && (
+                    <div style={{ fontSize: 12, lineHeight: 1.4, color: 'rgba(26,43,28,0.72)', background: 'rgba(61,102,65,0.09)', border: '1px solid rgba(61,102,65,0.18)', borderRadius: 10, padding: '7px 10px' }}>
+                      👀 Seu acesso a esta família não inclui esta ação. Quem convidou você pode fazer isso ou ampliar o seu acesso.
+                    </div>
+                  )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: p.guia.largo ? '1fr' : '42% 1fr', gap: 12, alignItems: 'start', background: '#FBF8F1', border: '1px solid rgba(61,102,65,0.18)', borderRadius: 14, padding: 10 }}>
                     {p.guia.img}
