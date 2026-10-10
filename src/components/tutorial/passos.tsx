@@ -16,6 +16,7 @@ const ALVO: Record<string, Rect> = {
   // Início e Agenda são vizinhos: um contorno só, para não parecer duplicado.
   'menu-inicio-agenda': { x: 0, y: 0.1013, w: LARG_MENU, h: 0.123 },
   'menu-documentos':   { x: 0, y: 0.504, w: LARG_MENU, h: 0.0615 },
+  'menu-mensalidades': { x: 0, y: 0.5655, w: LARG_MENU, h: 0.0615 },
   'menu-logistica':    { x: 0, y: 0.2244, w: LARG_MENU, h: 0.0615 },
   'menu-escola':       { x: 0, y: 0.3026, w: LARG_MENU, h: 0.0615 },
   'menu-filhos':       { x: 0, y: 0.6436, w: LARG_MENU, h: 0.0615 },
@@ -35,6 +36,8 @@ const ALVO: Record<string, Rect> = {
   'doc-analisar':      { x: 0.0513, y: 0.887, w: 0.8974, h: 0.0718 },
   'doc-resultado':     { x: 0.045, y: 0.606, w: 0.85, h: 0.045 },
   'cofre-gaveta':      { x: 0.041, y: 0.4907, w: 0.9179, h: 0.0897 },
+  'mens-nova':         { x: 0.7227, y: 0.0974, w: 0.2363, h: 0.0538 },
+  'mens-pagar':        { x: 0.0897, y: 0.5709, w: 0.0667, h: 0.0333 },
 }
 
 /** Recorte de uma foto real: janela [y0,y1] × [x0,x1] da tela, com contornos. */
@@ -74,7 +77,7 @@ const Menu = ({ itens }: { itens: string[] }) =>
 
 const B = ({ children }: { children: ReactNode }) => <b style={{ color: '#2C4A2E' }}>{children}</b>
 
-export type PassoId = 'filhos' | 'alertas' | 'compartilhar' | 'ia' | 'escola' | 'agenda' | 'logistica' | 'documentos'
+export type PassoId = 'filhos' | 'alertas' | 'compartilhar' | 'ia' | 'escola' | 'agenda' | 'logistica' | 'documentos' | 'mensalidades'
 
 export interface Passo {
   id: PassoId
@@ -229,5 +232,23 @@ export const PASSOS: Passo[] = [
     ],
     dica: 'Com a data de validade preenchida, o app avisa antes de o documento vencer.',
     ir: { rotulo: 'Ir para Documentos', href: '/vault' },
+  },
+  {
+    id: 'mensalidades', titulo: 'Controle as mensalidades', onde: ['☰ Menu', 'Mensalidades'], exige: 'editar',
+    guia: {
+      img: <Menu itens={['menu-mensalidades']} />,
+      celular: <>Abra o menu <B>☰</B> e toque em <B>Mensalidades</B>: natação, ballet, piano, pedagoga e outros pagamentos que se repetem todo mês.</>,
+      computador: <>No menu à esquerda, clique em <B>Mensalidades</B>: natação, ballet, piano, pedagoga e outros pagamentos que se repetem todo mês.</>,
+    },
+    quadros: [
+      { txt: <>Toque em <B>+ Nova</B> para cadastrar um pagamento recorrente.</>,
+        img: <Foto arq="mensalidades" y0={0.07} y1={0.33} alvos={['mens-nova']} alt="Tela Mensalidades, com o botão Nova contornado" /> },
+      { txt: <>Informe <B>o que é</B>, de <B>qual filho</B>, o <B>valor</B> e o <B>dia do vencimento</B>. Você cadastra uma vez e ela se repete todos os meses.</>,
+        img: <Foto arq="mensalidade-nova" y0={0.13} y1={0.87} alt="Formulário Nova mensalidade, com os campos o que é, de qual filho, valor e dia do vencimento" /> },
+      { txt: <>Pagou? Toque no <B>quadradinho</B> para marcar como pago. A que <B>vence hoje</B> fica em laranja e a <B>vencida</B> em vermelho, até você marcar.</>,
+        img: <Foto arq="mensalidades" y0={0.41} y1={0.94} alvos={['mens-pagar']} alt="Lista de mensalidades do mês, com o quadradinho de marcar como pago contornado" /> },
+    ],
+    dica: 'O alerta aparece no Início no dia do vencimento. As setas ao lado do mês mostram os meses anteriores e os próximos.',
+    ir: { rotulo: 'Ir para Mensalidades', href: '/mensalidades' },
   },
 ]
