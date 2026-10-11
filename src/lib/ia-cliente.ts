@@ -1,18 +1,24 @@
 // Chamada da Captura por IA a partir do navegador.
 //
 // POR QUE EXISTE
-// Uma grade de horários densa leva minutos para ser analisada. Em 09/10/2026
-// uma usuária tentou 7 vezes pelo celular: o servidor respondeu 200 em todas,
-// mas só uma resposta chegou — as outras viraram "Failed to fetch" na tela,
-// porque a conexão do celular cai quando fica muito tempo sem trafegar nada
-// (e mais ainda se a tela apaga ou a pessoa troca de app).
+// Uma grade de horários densa leva mais de um minuto para ser analisada. Em
+// 09 e 10/10/2026 a captura falhou no celular ("Failed to fetch") embora o
+// servidor estivesse saudável: a mesma foto, enviada de um computador para a
+// produção, voltou em 89s. A falha é do lado do aparelho, e há duas causas
+// conhecidas para esse erro no Chrome do Android:
+//   a) a conexão cai durante a espera longa (rede ociosa, tela apagada);
+//   b) o arquivo escolhido deixa de poder ser lido na hora do envio (foto que
+//      vem da galeria/nuvem por um endereço temporário) — o envio morre na
+//      hora, e repetir com o mesmo arquivo falha de novo.
 //
-// Três defesas, todas aqui:
-//  1. A rota manda um "sinal de vida" enquanto trabalha (ver ai-extract), e
-//     por isso o status real pode vir dentro do corpo, em `_status`.
-//  2. A tela fica acesa durante a análise (wake lock, onde o navegador deixa).
-//  3. Se ainda assim a rede cair, a mensagem explica o que fazer em vez de
-//     mostrar o erro cru do navegador.
+// Defesas, todas aqui:
+//  1. `lerParaMemoria` copia a foto para a memória no momento da escolha, e o
+//     envio não depende mais do endereço temporário (causa b).
+//  2. A rota manda um "sinal de vida" enquanto trabalha (ver ai-extract); por
+//     isso o status real pode vir dentro do corpo, em `_status` (causa a).
+//  3. A tela fica acesa durante a análise (wake lock, onde o navegador deixa).
+//  4. Se ainda assim falhar, a mensagem orienta em vez de mostrar o erro cru,
+//     e o navegador relata o que viu para /api/ai-extract/diag.
 
 /** Acima disto a foto é reduzida antes do envio (a Vercel recusa corpo > 4,5 MB). */
 const LIMITE_ENVIO_BYTES = 3.5 * 1024 * 1024
@@ -21,6 +27,22 @@ const QUALIDADE_JPEG = 0.88
 
 export const ERRO_DE_CONEXAO =
   'A conexão caiu enquanto a IA analisava. Toque em Analisar de novo e mantenha o app aberto, com a tela acesa, até o resultado aparecer.'
+export const ERRO_DE_ENVIO =
+  'Não consegui enviar a foto. Remova a foto, escolha de novo (ou tire outra) e toque em Analisar.'
+
+/**
+ * Copia o arquivo escolhido para a memória. Devolve `null` se o navegador não
+ * conseguir ler — melhor avisar na escolha do que falhar no envio.
+ */
+export async function lerParaMemoria(file: File): Promise<File | null> {
+  try {
+    const bytes = await file.arrayBuffer()
+    if (bytes.byteLength === 0) return null
+    return new File([bytes], file.name || 'foto.jpg', { type: file.type, lastModified: file.lastModified })
+  } catch {
+    return null
+  }
+}
 
 /**
  * Foto grande demais para o envio vira JPEG reduzido. Fotos menores seguem
@@ -48,6 +70,17 @@ export async function prepararImagem(file: File): Promise<File> {
   }
 }
 
+function relatar(dados: Record<string, unknown>) {
+  try {
+    const con = (navigator as Navigator & { connection?: { effectiveType?: string; type?: string } }).connection
+    const corpo = JSON.stringify({
+      ...dados, online: navigator.onLine, visivel: document.visibilityState,
+      rede: [con?.type, con?.effectiveType].filter(Boolean).join('/'),
+    })
+    fetch('/api/ai-extract/diag', { method: 'POST', body: corpo, keepalive: true }).catch(() => {})
+  } catch { /* diagnóstico nunca atrapalha a tela */ }
+}
+
 /** POST em /api/ai-extract. Devolve o status REAL (o do corpo, quando houver) e os dados. */
 export async function chamarExtracaoIa(body: FormData): Promise<{ status: number; data: Record<string, unknown> }> {
   let trava: { release: () => Promise<void> } | null = null
@@ -56,19 +89,31 @@ export async function chamarExtracaoIa(body: FormData): Promise<{ status: number
     trava = (await nav.wakeLock?.request('screen')) ?? null
   } catch { /* sem wake lock: segue assim mesmo */ }
 
+  const foto = body.get('image')
+  const sobreFoto = foto instanceof File ? { fotoBytes: foto.size, fotoTipo: foto.type } : {}
+  const t0 = Date.now()
   try {
     let res: Response
-    let data: Record<string, unknown>
     try {
       res = await fetch('/api/ai-extract', { method: 'POST', body })
-      data = await res.json()
-    } catch {
-      // Erro de rede (ou resposta cortada no meio): nunca chega aqui um erro
-      // da nossa rota, que sempre responde JSON.
+    } catch (e) {
+      // Nem os cabeçalhos chegaram. Rápido = o envio não saiu (arquivo
+      // ilegível, sem rede); demorado = a conexão caiu na espera.
+      const ms = Date.now() - t0
+      relatar({ fase: 'envio', ms, erro: (e as Error)?.message, ...sobreFoto })
+      throw new Error(ms < 8000 && foto instanceof File ? ERRO_DE_ENVIO : ERRO_DE_CONEXAO)
+    }
+    let texto = ''
+    try {
+      texto = await res.text()
+      const data = JSON.parse(texto) as Record<string, unknown>
+      const status = typeof data._status === 'number' ? data._status : res.status
+      return { status, data }
+    } catch (e) {
+      // Resposta cortada no meio (ou que não é o JSON da nossa rota).
+      relatar({ fase: 'resposta', ms: Date.now() - t0, erro: (e as Error)?.message, http: res.status, bytesRecebidos: texto.length, ...sobreFoto })
       throw new Error(ERRO_DE_CONEXAO)
     }
-    const status = typeof data._status === 'number' ? data._status : res.status
-    return { status, data }
   } finally {
     trava?.release().catch(() => {})
   }

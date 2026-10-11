@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { formatBRL } from '@/lib/payments'
 import { useAccess } from '@/components/access/AccessContext'
 import { VoiceInputButton } from '@/components/ui/VoiceInputButton'
-import { chamarExtracaoIa, prepararImagem } from '@/lib/ia-cliente'
+import { chamarExtracaoIa, lerParaMemoria, prepararImagem } from '@/lib/ia-cliente'
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const NOISE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`
@@ -222,16 +222,26 @@ export default function IAPage() {
     })
   }
 
-  function addFiles(files: FileList | File[]) {
+  async function addFiles(files: FileList | File[]) {
     // O iOS às vezes entrega `type` vazio numa foto vinda da câmera/Arquivos —
     // aí só a extensão identifica a imagem. O servidor converte HEIC em JPEG.
     const IMG_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif']
     const arr = Array.from(files).filter(f =>
       f.type.startsWith('image/') || IMG_EXTS.includes((f.name.split('.').pop() ?? '').toLowerCase()))
     if (!arr.length) { setError('Selecione apenas imagens (PNG, JPG, WEBP, GIF, HEIC).'); return }
-    setImages(prev => [...prev, ...arr])
-    arr.forEach(f => setPreviews(prev => [...prev, URL.createObjectURL(f)]))
-    setActivities(null); setReminders(null); setDocuments(null); setPayments(null); setError('')
+    // Copia para a memória JÁ: no Android, a foto vinda da galeria ou da nuvem
+    // chega por um endereço temporário que pode não estar mais legível na hora
+    // do envio — e aí a análise falhava com "Failed to fetch" (ver ia-cliente).
+    const lidos = await Promise.all(arr.map(lerParaMemoria))
+    const prontos = lidos.filter((f): f is File => f !== null)
+    if (prontos.length < arr.length) {
+      setError('Não consegui ler a foto escolhida. Tente escolher de novo ou tire a foto pelo botão "Tirar foto".')
+      if (!prontos.length) return
+    }
+    setImages(prev => [...prev, ...prontos])
+    prontos.forEach(f => setPreviews(prev => [...prev, URL.createObjectURL(f)]))
+    setActivities(null); setReminders(null); setDocuments(null); setPayments(null)
+    if (prontos.length === arr.length) setError('')
   }
 
   function removeImage(idx: number) {
