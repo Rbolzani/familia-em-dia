@@ -203,6 +203,7 @@ export default function SignupPage() {
               <h2 style={{ fontFamily: 'var(--font-gilda)', fontSize: 30, color: '#1A1535', lineHeight: 1.2 }}>
                 Crie sua conta
               </h2>
+              <p className="text-sm mt-2" style={{ color: '#8585A8' }}>Sem cartão de crédito.</p>
             </div>
 
             <form onSubmit={handleSubmit} method="POST" className="space-y-4">
