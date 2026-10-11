@@ -2,127 +2,152 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { adminClient, sendWhatsApp } from '@/lib/whatsapp'
 
-// POST /api/logistics-action
-// body: { action: 'suggest' | 'accept' | 'reject', ...params }
+// Sugestões de logística (quem leva / quem busca): avisar, aceitar, recusar.
+//
+// ⚠️ SEGURANÇA (item 2 da auditoria de 11/10/2026)
+// Esta rota grava com a service role, que ignora a RLS — então é ELA quem tem
+// de conferir tudo. Antes confiava no corpo da requisição: `activityId` e
+// `field` iam direto para um UPDATE (qualquer coluna de qualquer atividade,
+// de qualquer família), e `proposedTo`/`proposedBy`/`activityTitle` decidiam
+// quem recebia notificação e WhatsApp, com o texto de quem chamava.
+//
+// Agora o corpo só diz QUAL sugestão (`suggestionId`) e QUAL ação. Atividade,
+// campo, família, remetente, destinatário e título vêm do banco, e cada ação
+// confere o papel de quem chama. Os demais campos que a tela ainda envia são
+// ignorados.
+
+const CAMPOS = ['takes_user_id', 'picks_user_id'] as const
+type Campo = (typeof CAMPOS)[number]
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+interface Sugestao {
+  id: string; activity_id: string; field: string
+  proposed_by: string; proposed_to: string; family_id: string; status: string
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json()
-  const { action } = body
-  const admin = adminClient()
+  const body = await req.json().catch(() => null) as { action?: unknown; suggestionId?: unknown } | null
+  const action = body?.action
+  if (action !== 'suggest' && action !== 'accept' && action !== 'reject') {
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+  }
+  const suggestionId = typeof body?.suggestionId === 'string' && UUID.test(body.suggestionId) ? body.suggestionId : null
 
-  // Helper: get user's whatsapp phone from notification_settings
-  async function getUserPhone(userId: string): Promise<string | null> {
-    const { data } = await admin.from('notification_settings').select('whatsapp_number').eq('user_id', userId).maybeSingle()
+  const admin = adminClient()
+  const negado = () => NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // ── A sugestão, lida do banco ────────────────────────────────────────────
+  let sug: Sugestao | null = null
+  if (suggestionId) {
+    const { data } = await admin.from('logistics_suggestions')
+      .select('id, activity_id, field, proposed_by, proposed_to, family_id, status')
+      .eq('id', suggestionId).maybeSingle()
+    sug = data as Sugestao | null
+  }
+  // A tela, quando não consegue reler a linha que acabou de inserir, manda um
+  // id provisório. Para o aviso de "suggest" vale a sugestão pendente mais
+  // recente de quem chama — nunca um id que não seja dele.
+  if (!sug && action === 'suggest') {
+    const { data } = await admin.from('logistics_suggestions')
+      .select('id, activity_id, field, proposed_by, proposed_to, family_id, status')
+      .eq('proposed_by', user.id).eq('status', 'pending')
+      .gte('created_at', new Date(Date.now() - 2 * 60_000).toISOString())
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    sug = data as Sugestao | null
+  }
+  if (!sug || !CAMPOS.includes(sug.field as Campo)) return negado()
+
+  // ── Tudo tem de pertencer à MESMA família ────────────────────────────────
+  const [{ data: atividade }, { data: familia }, { data: membros }] = await Promise.all([
+    admin.from('activities').select('id, title, date, family_id').eq('id', sug.activity_id).maybeSingle(),
+    admin.from('families').select('created_by').eq('id', sug.family_id).maybeSingle(),
+    admin.from('family_members').select('user_id, role, access_role, display_name')
+      .eq('family_id', sug.family_id).in('user_id', [sug.proposed_by, sug.proposed_to]),
+  ])
+  if (!atividade || !familia || atividade.family_id !== sug.family_id) return negado()
+
+  const membro = (id: string) => (membros ?? []).find(m => m.user_id === id)
+  const naFamilia = (id: string) => familia.created_by === id || !!membro(id)
+  // Marcar leva/busca: dono, acesso completo ou logística. "Apenas leitura" não.
+  const podeLogistica = (id: string) => {
+    if (familia.created_by === id) return true
+    const m = membro(id)
+    return !!m && (m.role === 'owner' || m.access_role === 'full_editor' || m.access_role === 'logistics_editor')
+  }
+  if (!naFamilia(sug.proposed_by) || !naFamilia(sug.proposed_to)) return negado()
+
+  async function nomeDe(id: string): Promise<string> {
+    const m = membro(id)
+    if (m?.display_name) return m.display_name
+    const { data } = await admin.auth.admin.getUserById(id)
+    return data.user?.email ?? 'Parceiro(a)'
+  }
+  async function telefoneDe(id: string): Promise<string | null> {
+    const { data } = await admin.from('notification_settings').select('whatsapp_number').eq('user_id', id).maybeSingle()
     return data?.whatsapp_number ?? null
   }
-
-  // Helper: get user's display name
-  async function getUserName(userId: string, familyId: string): Promise<string> {
-    const { data } = await admin.from('family_members')
-      .select('display_name').eq('user_id', userId).eq('family_id', familyId).maybeSingle()
-    if (data?.display_name) return data.display_name
-    const { data: authUser } = await admin.auth.admin.getUserById(userId)
-    return authUser.user?.email ?? 'Parceiro(a)'
+  async function notificar(id: string, type: string, payload: Record<string, unknown>) {
+    await admin.rpc('create_logistics_notification', { p_user_id: id, p_family_id: sug!.family_id, p_type: type, p_payload: payload })
   }
+  const titulo = (atividade.title as string) || 'Atividade'
 
-  // Helper: create in-app notification via DEFINER function (bypasses RLS for target user)
-  async function createNotification(userId: string, familyId: string, type: string, payload: Record<string, unknown>) {
-    await admin.rpc('create_logistics_notification', {
-      p_user_id: userId,
-      p_family_id: familyId,
-      p_type: type,
-      p_payload: payload,
-    })
-  }
-
-  // ── ACTION: suggest ────────────────────────────────────────────────────
+  // ── suggest: quem propôs avisa o destinatário ────────────────────────────
   if (action === 'suggest') {
-    const { suggestionId, proposedTo, familyId, activityTitle } = body
-
-    const proposerName = await getUserName(user.id, familyId)
-
-    // In-app notification for proposedTo
-    await createNotification(proposedTo, familyId, 'logistics_suggestion', {
-      suggestion_id: suggestionId,
-      proposed_by: user.id,
-      proposed_by_name: proposerName,
-      activity_title: activityTitle,
+    if (sug.proposed_by !== user.id || sug.status !== 'pending') return negado()
+    const proposerName = await nomeDe(user.id)
+    await notificar(sug.proposed_to, 'logistics_suggestion', {
+      suggestion_id: sug.id, proposed_by: user.id, proposed_by_name: proposerName, activity_title: titulo,
     })
-
-    // WhatsApp para o proposedTo — só envia se não há outras sugestões pendentes já existentes
-    // (evita 1 disparo por sugestão; o usuário recebe apenas 1 aviso de "tem pendências")
-    const { count: otherPending } = await admin
-      .from('logistics_suggestions')
+    // WhatsApp só na primeira sugestão pendente: várias de uma vez viram um aviso só.
+    const { count: outras } = await admin.from('logistics_suggestions')
       .select('id', { count: 'exact', head: true })
-      .eq('proposed_to', proposedTo)
-      .eq('family_id', familyId)
-      .eq('status', 'pending')
-      .neq('id', suggestionId)
-    if ((otherPending ?? 0) === 0) {
-      const phone = await getUserPhone(proposedTo)
+      .eq('proposed_to', sug.proposed_to).eq('family_id', sug.family_id).eq('status', 'pending').neq('id', sug.id)
+    if ((outras ?? 0) === 0) {
+      const phone = await telefoneDe(sug.proposed_to)
       if (phone) {
         const msg = `Você tem sugestões de logística de ${proposerName} pendentes. Acesse o app Família em Dia para aceitar ou recusar.`
-        await sendWhatsApp(phone, msg, undefined, { userId: proposedTo, kind: 'logistica' })
+        await sendWhatsApp(phone, msg, undefined, { userId: sug.proposed_to, kind: 'logistica' })
       }
     }
-
     return NextResponse.json({ ok: true })
   }
 
-  // ── ACTION: accept ─────────────────────────────────────────────────────
+  // ── accept / reject: só o destinatário, e só enquanto está pendente ──────
+  if (sug.proposed_to !== user.id || sug.status !== 'pending') return negado()
+
   if (action === 'accept') {
-    const { suggestionId, activityId, field, proposedBy, familyId, activityTitle } = body
-
-    // Update activity field
-    await admin.from('activities').update({ [field]: user.id }).eq('id', activityId)
-
-    // Mark suggestion accepted
-    await admin.from('logistics_suggestions').update({ status: 'accepted' }).eq('id', suggestionId)
-
-    const accepterName = await getUserName(user.id, familyId)
-
-    // In-app notification for proposedBy
-    await createNotification(proposedBy, familyId, 'logistics_accepted', {
-      accepted_by: user.id,
-      accepted_by_name: accepterName,
-      activity_title: activityTitle,
-    })
-
-    return NextResponse.json({ ok: true })
-  }
-
-  // ── ACTION: reject ─────────────────────────────────────────────────────
-  if (action === 'reject') {
-    const { suggestionId, proposedBy, familyId, activityTitle, activityDate } = body
-
-    // Mark suggestion rejected
-    await admin.from('logistics_suggestions').update({ status: 'rejected' }).eq('id', suggestionId)
-
-    const rejecterName = await getUserName(user.id, familyId)
-
-    // In-app notification for proposedBy
-    await createNotification(proposedBy, familyId, 'logistics_rejected', {
-      rejected_by: user.id,
-      rejected_by_name: rejecterName,
-      activity_title: activityTitle,
-      activity_date: activityDate,
-    })
-
-    // WhatsApp para o proposedBy
-    const phone = await getUserPhone(proposedBy)
-    if (phone) {
-      const fmtDate = activityDate
-        ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(activityDate + 'T12:00:00'))
-        : ''
-      const msg = `${rejecterName} recusou sua sugestão de logística para a atividade ${activityTitle}${fmtDate ? ` na data ${fmtDate}` : ''}. O slot está livre novamente.`
-      await sendWhatsApp(phone, msg, undefined, { userId: proposedBy, kind: 'logistica' })
+    if (!podeLogistica(user.id)) return negado()
+    const campo = sug.field as Campo
+    const { error } = await admin.from('activities').update({ [campo]: user.id }).eq('id', atividade.id).eq('family_id', sug.family_id)
+    if (error) {
+      console.error('[logistics-action] accept:', error.message)
+      return NextResponse.json({ error: 'Não foi possível confirmar.' }, { status: 500 })
     }
-
+    await admin.from('logistics_suggestions').update({ status: 'accepted' }).eq('id', sug.id)
+    await notificar(sug.proposed_by, 'logistics_accepted', {
+      accepted_by: user.id, accepted_by_name: await nomeDe(user.id), activity_title: titulo,
+    })
     return NextResponse.json({ ok: true })
   }
 
-  return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+  // reject
+  await admin.from('logistics_suggestions').update({ status: 'rejected' }).eq('id', sug.id)
+  const rejecterName = await nomeDe(user.id)
+  const activityDate = (atividade.date as string | null) ?? null
+  await notificar(sug.proposed_by, 'logistics_rejected', {
+    rejected_by: user.id, rejected_by_name: rejecterName, activity_title: titulo, activity_date: activityDate,
+  })
+  const phone = await telefoneDe(sug.proposed_by)
+  if (phone) {
+    const fmtDate = activityDate
+      ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(activityDate + 'T12:00:00'))
+      : ''
+    const msg = `${rejecterName} recusou sua sugestão de logística para a atividade ${titulo}${fmtDate ? ` na data ${fmtDate}` : ''}. O slot está livre novamente.`
+    await sendWhatsApp(phone, msg, undefined, { userId: sug.proposed_by, kind: 'logistica' })
+  }
+  return NextResponse.json({ ok: true })
 }
