@@ -71,7 +71,7 @@ export function useVoiceInput({ onTranscript, onError }: UseVoiceInputOptions) {
           const res = await fetch('/api/voice-transcribe', { method: 'POST', body: fd })
           const contentType = res.headers.get('content-type') ?? ''
           if (!contentType.includes('application/json')) {
-            throw new Error(`Erro no servidor (${res.status}). Verifique se GROQ_API_KEY está configurada.`)
+            throw new Error('A transcrição de voz está indisponível no momento. Tente de novo em instantes.')
           }
           const data = await res.json()
           if (!res.ok) throw new Error(data.error || 'Erro ao transcrever')

@@ -29,7 +29,7 @@ export default function SignupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (password.length < 6) { setError('A senha deve ter pelo menos 6 caracteres.'); return }
+    if (password.length < 8) { setError('A senha deve ter pelo menos 8 caracteres.'); return }
     if (!isValidPhoneBR(phone)) { setError('Celular inválido. Use DDD + número.'); return }
     if (!source) { setError('Conte como você nos conheceu.'); return }
     if (!terms) { setError('É necessário aceitar os Termos de Uso e a Política de Privacidade.'); return }
@@ -239,7 +239,7 @@ export default function SignupPage() {
                 <div className="relative">
                   <input type={showPw ? 'text' : 'password'} required value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="Mínimo 6 caracteres" className="input-field pr-11" />
+                    placeholder="Mínimo 8 caracteres" className="input-field pr-11" />
                   <button type="button" onClick={() => setShowPw(!showPw)} tabIndex={-1}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 z-10 p-1 transition-opacity hover:opacity-60"
                     style={{ color: '#8585A8' }}>

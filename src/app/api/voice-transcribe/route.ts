@@ -16,7 +16,7 @@ const ALLOWED_AUDIO_TYPES = [
 export async function POST(request: NextRequest) {
   if (!process.env.GROQ_API_KEY) {
     return NextResponse.json(
-      { error: 'GROQ_API_KEY não configurada no servidor.' },
+      { error: 'A transcrição de voz está indisponível no momento.' },
       { status: 500 }
     )
   }

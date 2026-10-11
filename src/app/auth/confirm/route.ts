@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { destinoInternoSeguro } from '@/lib/redirectSeguro'
 
 // Verificação de link de e-mail via token_hash (fluxo recomendado pelo Supabase
 // para SSR). Diferente do /auth/callback (PKCE ?code=), o verifyOtp NÃO depende
@@ -11,8 +12,9 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
-  const raw = searchParams.get('next') ?? '/dashboard'
-  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard'
+  // A checagem caseira aceitava `/\\site.com`, que o navegador trata como
+  // `//site.com` (outro domínio). `destinoInternoSeguro` recusa essa variante.
+  const next = destinoInternoSeguro(searchParams.get('next'))
 
   if (token_hash && type) {
     const supabase = await createClient()

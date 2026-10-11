@@ -49,6 +49,13 @@ async function getVerifiedContext() {
 //     Não havia limite de tamanho em lugar nenhum — nem aqui, nem no banco.
 const LIMITES = { name: 80, school_name: 120 } as const
 
+/** `<family_id>/<child_id>.<ext>` — o único formato que a tela grava. */
+function caminhoDeAvatarValido(v: unknown, familyId: string, childId: string): boolean {
+  if (typeof v !== 'string') return false
+  const prefixo = `${familyId}/${childId}.`
+  return v.toLowerCase().startsWith(prefixo.toLowerCase()) && /^[a-z0-9]{2,5}$/i.test(v.slice(prefixo.length))
+}
+
 /** `request.json()` que devolve erro em vez de explodir. */
 async function lerJson(request: Request): Promise<Record<string, unknown> | null> {
   try {
@@ -201,7 +208,17 @@ export async function PATCH(request: Request) {
   const { avatar_path } = body
   const updates: Record<string, unknown> = { ...v.campos }
   // `undefined` = não mexer na foto; `null` = remover. São coisas diferentes.
-  if (avatar_path !== undefined) updates.avatar_path = avatar_path
+  //
+  // A foto só pode apontar para o arquivo DESTE filho, na pasta DESTA família
+  // (`<family_id>/<child_id>.<ext>`, como `avatarPath` monta). O valor era
+  // gravado como veio, e o DELETE abaixo apaga com a service role o que estiver
+  // gravado: dava para apontar para a foto de outra família e apagá-la.
+  if (avatar_path !== undefined) {
+    if (avatar_path !== null && !caminhoDeAvatarValido(avatar_path, familyId, id)) {
+      return NextResponse.json({ error: 'Requisição inválida.' }, { status: 400 })
+    }
+    updates.avatar_path = avatar_path
+  }
 
   const { data, error } = await admin
     .from('children')
@@ -246,7 +263,8 @@ export async function DELETE(request: Request) {
   // Apagar a linha sem apagar o arquivo deixava a foto da criança no bucket
   // sem nada apontando para ela — órfã e invisível. Melhor esforço: a linha
   // já saiu, não faz sentido devolver erro por causa do arquivo.
-  if (existing.avatar_path) {
+  // Só apaga arquivo da pasta desta família, mesmo que o valor gravado seja antigo.
+  if (typeof existing.avatar_path === 'string' && existing.avatar_path.startsWith(`${familyId}/`) && !existing.avatar_path.includes('..')) {
     const { error: stErr } = await admin.storage
       .from('avatars')
       .remove([existing.avatar_path as string])

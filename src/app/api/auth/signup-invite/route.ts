@@ -22,6 +22,10 @@ export async function POST(request: Request) {
   if (!email || !password || !name) {
     return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 })
   }
+  // Mesmo mínimo da tela de criar conta — aqui é o servidor quem cria o usuário.
+  if (typeof password !== 'string' || password.length < 8) {
+    return NextResponse.json({ error: 'A senha deve ter pelo menos 8 caracteres.' }, { status: 400 })
+  }
   if (!isValidPhoneBR(typeof c.phone === 'string' ? c.phone : '')) {
     return NextResponse.json({ error: 'Celular inválido. Use DDD + número.' }, { status: 400 })
   }

@@ -89,7 +89,8 @@ export async function POST(request: Request) {
     .single()
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? 'Erro ao criar convite' }, { status: 500 })
+    console.error('[invites/create]', error?.message)
+    return NextResponse.json({ error: 'Não foi possível criar o convite.' }, { status: 500 })
   }
 
   return NextResponse.json(data)

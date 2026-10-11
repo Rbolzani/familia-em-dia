@@ -46,7 +46,7 @@ export default function ResetPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (password.length < 6) { setError('A senha deve ter pelo menos 6 caracteres.'); return }
+    if (password.length < 8) { setError('A senha deve ter pelo menos 8 caracteres.'); return }
     if (password !== confirm) { setError('As senhas não coincidem.'); return }
     setLoading(true); setError('')
     try {

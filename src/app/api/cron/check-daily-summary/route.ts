@@ -35,7 +35,8 @@ export async function GET(request: Request) {
 
   if (error) {
     console.error('[check-daily-summary] erro ao ler cron_heartbeats:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[check-daily-summary]', error.message)
+    return NextResponse.json({ error: 'Falha ao consultar.' }, { status: 500 })
   }
 
   const porNome = new Map((heartbeats ?? []).map(h => [h.name, h]))
