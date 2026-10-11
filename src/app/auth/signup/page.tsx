@@ -200,13 +200,9 @@ export default function SignupPage() {
             style={{ boxShadow: '0 24px 80px rgba(123,111,232,0.12), 0 0 0 1px rgba(123,111,232,0.08)' }}>
 
             <div className="mb-7">
-              <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#7B6FE8' }}>
-                Crie sua conta 🚀
-              </p>
               <h2 style={{ fontFamily: 'var(--font-gilda)', fontSize: 30, color: '#1A1535', lineHeight: 1.2 }}>
-                Grátis para sempre
+                Crie sua conta
               </h2>
-              <p className="text-sm mt-2" style={{ color: '#8585A8' }}>Sem cartão de crédito.</p>
             </div>
 
             <form onSubmit={handleSubmit} method="POST" className="space-y-4">

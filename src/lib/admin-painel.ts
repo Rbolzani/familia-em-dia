@@ -24,6 +24,13 @@ export interface LinhaSemUso {
   criadoEm: string; emailConfirmado: boolean; cadastroConcluido: boolean
   fimDoTeste: string | null; ultimoAcesso: string | null; lembreteEm: string | null
 }
+/** Rede de apoio: entrou por convite e usa a agenda da família de outra pessoa. */
+export interface LinhaRedeApoio {
+  nome: string | null; email: string; celular: string | null
+  /** Usuário principal (dono da família) que convidou. */
+  convidadoPor: string; acesso: string
+  entrouEm: string | null; ultimoAcesso: string | null
+}
 /** Cadastrou filho e ainda não lançou nenhuma atividade (nem lembrete). */
 export interface LinhaSemAtividade {
   nome: string | null; email: string; celular: string | null
@@ -69,6 +76,7 @@ export interface PainelNegocio {
   tempoDeBase: LinhaTempo[]
   emTeste: LinhaTeste[]
   semUso: LinhaSemUso[]
+  redeApoio: LinhaRedeApoio[]
   semAtividade: LinhaSemAtividade[]
   assinantes: LinhaAssinante[]
   cancelamentos: LinhaCancelamento[]
@@ -125,14 +133,15 @@ export async function montarPainel(): Promise<PainelNegocio> {
 
   type Perfil = { user_id: string; full_name: string | null; phone: string | null; acquisition_source: string | null; profile_completed_at: string | null; signup_attribution: Record<string, unknown> | null }
   type Sub = { user_id: string; plan: string | null; status: string | null; trial_ends_at: string | null; stripe_customer_id: string | null; stripe_subscription_id: string | null }
-  type Membro = { user_id: string; role: string | null }
+  type Membro = { user_id: string; role: string | null; family_id: string; access_role: string | null; joined_at: string | null }
   type Uso = { user_id: string; filhos: number; atividades: number; usou_ia: boolean }
 
-  const [usuarios, perfis, subs, membros, lembretes, excluidas, filhosDatas, usoRes, vagasRes] = await Promise.all([
+  const [usuarios, perfis, subs, membros, familias, lembretes, excluidas, filhosDatas, usoRes, vagasRes] = await Promise.all([
     todosUsuarios(),
     todas<Perfil>('profiles', 'user_id, full_name, phone, acquisition_source, profile_completed_at, signup_attribution'),
     todas<Sub>('subscriptions', 'user_id, plan, status, trial_ends_at, stripe_customer_id, stripe_subscription_id'),
-    todas<Membro>('family_members', 'user_id, role'),
+    todas<Membro>('family_members', 'user_id, role, family_id, access_role, joined_at'),
+    todas<{ id: string; created_by: string | null }>('families', 'id, created_by'),
     todas<{ user_id: string; enviado_em: string }>('cadastro_lembretes', 'user_id, enviado_em'),
     todas<{ dias_de_conta: number; convidado: boolean; situacao: string }>('contas_excluidas', 'dias_de_conta, convidado, situacao'),
     // Só as datas: o painel nunca lê nome nem dados dos filhos.
@@ -152,8 +161,16 @@ export async function montarPainel(): Promise<PainelNegocio> {
   const perfilDe = new Map(perfis.map(p => [p.user_id, p]))
   const subDe = new Map(subs.map(s => [s.user_id, s]))
   const usoDe = new Map(((usoRes.data ?? []) as Uso[]).map(u => [u.user_id, u]))
-  const donos = new Set(membros.filter(m => m.role === 'owner').map(m => m.user_id))
-  const convidados = new Set(membros.filter(m => m.role !== 'owner' && !donos.has(m.user_id)).map(m => m.user_id))
+  // Rede de apoio = quem participa da família de OUTRA pessoa e não cadastrou
+  // filho próprio. Não basta "não é dono de nenhuma família": quem entra por
+  // convite pode ganhar também uma família própria, vazia, criada no primeiro
+  // acesso — e por isso aparecia como usuário principal que "cadastrou e não
+  // usou" (caso real de 10/10/2026). Quem tem filho próprio é principal.
+  const conviteDe = new Map<string, Membro>()
+  for (const m of membros) if (m.role !== 'owner' && !conviteDe.has(m.user_id)) conviteDe.set(m.user_id, m)
+  const convidados = new Set([...conviteDe.keys()].filter(id => (usoDe.get(id)?.filhos ?? 0) === 0))
+  const donoDaFamilia = new Map(familias.map(f => [f.id, f.created_by]))
+  const ACESSO: Record<string, string> = { read_only: 'Apenas leitura', logistics_editor: 'Leitura + logística', full_editor: 'Acesso completo' }
   const usuarioDe = new Map(usuarios.map(u => [u.id, u]))
 
   // ── Stripe: assinaturas (todas), para pagantes, receita e cancelamentos ──
@@ -302,6 +319,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   const usuariosQueAssinaram = new Set(jaAssinaram.map(s => s.metadata?.user_id).filter(Boolean) as string[])
   const emTeste: LinhaTeste[] = []
   const semUso: LinhaSemUso[] = []
+  const redeApoio: LinhaRedeApoio[] = []
   const semAtividade: LinhaSemAtividade[] = []
   const cadastrosEm: number[] = []
   let gratuito = 0, cortesia = 0, incompletos = 0, nConvidados = 0, concluiram = 0, comFilho = 0, usaramIa = 0
@@ -331,7 +349,17 @@ export async function montarPainel(): Promise<PainelNegocio> {
     }
 
     const fimTeste = s?.trial_ends_at ? new Date(s.trial_ends_at).getTime() : 0
-    if (ehConvidado) nConvidados++
+    if (ehConvidado) {
+      nConvidados++
+      const m = conviteDe.get(u.id) as Membro
+      const dono = donoDaFamilia.get(m.family_id)
+      const quem = dono ? (perfilDe.get(dono)?.full_name || usuarioDe.get(dono)?.email) : null
+      redeApoio.push({
+        nome: p?.full_name ?? null, email: u.email, celular: p?.phone ?? null,
+        convidadoPor: quem || '—', acesso: ACESSO[m.access_role ?? ''] ?? '—',
+        entrouEm: m.joined_at ?? u.criado, ultimoAcesso: u.ultimoAcesso,
+      })
+    }
     else if (!p?.profile_completed_at) incompletos++
     else if (s?.status === 'trialing' && fimTeste > agora) {
       emTeste.push({
@@ -387,6 +415,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   }))
   emTeste.sort((a, b) => a.fimDoTeste.localeCompare(b.fimDoTeste))
   semUso.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+  redeApoio.sort((a, b) => (b.entrouEm ?? '').localeCompare(a.entrouEm ?? ''))
   semAtividade.sort((a, b) => a.filhoEm.localeCompare(b.filhoEm))
   const ordena = (m: Map<string, LinhaOrigem>) => [...m.values()].sort((a, b) => b.cadastros - a.cadastros)
 
@@ -404,6 +433,6 @@ export async function montarPainel(): Promise<PainelNegocio> {
       cancelaram,
     },
     retencao, tempoDeBase,
-    emTeste, semUso, semAtividade, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
+    emTeste, semUso, redeApoio, semAtividade, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
   }
 }

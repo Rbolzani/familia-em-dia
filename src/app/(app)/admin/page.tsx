@@ -41,7 +41,7 @@ export default async function AdminPage() {
   const p = await montarPainel()
   const r = p.resumo
   const outros = [
-    r.convidados > 0 && `${r.convidados} ${r.convidados === 1 ? 'convidado por link' : 'convidados por link'}`,
+    r.convidados > 0 && `${r.convidados} na rede de apoio (${r.convidados === 1 ? 'convidado' : 'convidados'} por link)`,
     r.incompletos > 0 && `${r.incompletos} com cadastro antigo não concluído`,
   ].filter(Boolean) as string[]
 
@@ -209,7 +209,34 @@ export default async function AdminPage() {
             </table>
           </div>
         )}
-        <p className="adm-ver">Sem filho cadastrado o app fica vazio, então é o sinal de que a pessoa ainda não começou. O lembrete sai uma única vez, por volta das 10h, para quem criou a conta há mais de 24 horas, confirmou o e-mail e ainda está no teste grátis. Quem está no teste aparece também em &quot;Em teste grátis&quot;. Convidados por link e contas cortesia ficam de fora.</p>
+        <p className="adm-ver">Sem filho cadastrado o app fica vazio, então é o sinal de que a pessoa ainda não começou. O lembrete sai uma única vez, por volta das 10h, para quem criou a conta há mais de 24 horas, confirmou o e-mail e ainda está no teste grátis. Quem está no teste aparece também em &quot;Em teste grátis&quot;. Esta lista é só de usuários principais: a rede de apoio (convidados) aparece no bloco abaixo, e contas cortesia ficam de fora.</p>
+      </section>
+
+      <section className="adm-cartao">
+        <div className="adm-cab">
+          <h2>Rede de apoio</h2>
+          <small>{p.redeApoio.length} {p.redeApoio.length === 1 ? 'pessoa convidada' : 'pessoas convidadas'} por um usuário principal · mais recentes primeiro</small>
+        </div>
+        {p.redeApoio.length === 0 ? <p className="adm-vazio">Ninguém entrou por convite ainda.</p> : (
+          <div className="adm-rolar">
+            <table>
+              <thead><tr><th>Quem</th><th>Celular</th><th>Convidado por</th><th>Acesso</th><th>Entrou em</th><th>Último acesso</th></tr></thead>
+              <tbody>
+                {p.redeApoio.map(i => (
+                  <tr key={i.email}>
+                    <td className="adm-quem"><b>{i.nome || '—'}</b><span>{i.email}</span><span className="adm-p adm-cin" style={{ marginTop: 4 }}>rede de apoio</span></td>
+                    <td className="adm-nq">{i.celular ? formatPhoneBR(i.celular) : '—'}</td>
+                    <td>{i.convidadoPor}</td>
+                    <td className="adm-nq">{i.acesso}</td>
+                    <td className="adm-nq">{i.entrouEm ? data(i.entrouEm) : '—'}</td>
+                    <td className="adm-nq">{haQuanto(i.ultimoAcesso)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="adm-ver">Quem entrou por convite usa a agenda e os filhos da família de quem convidou, e herda o plano dela. Por isso não entra em &quot;Em teste grátis&quot;, &quot;Cadastraram e não usaram&quot;, origem nem no funil de assinatura: essas listas são só de usuários principais. Quem foi convidado mas cadastrou filho próprio conta como usuário principal.</p>
       </section>
 
       <section className="adm-cartao">
