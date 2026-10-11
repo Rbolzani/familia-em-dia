@@ -60,7 +60,7 @@ Itens que têm uma data específica em que algo VAI ACONTECER:
 - time: horário de início do período daquela linha (HH:MM)
 - recurring: true (marca que esse item se repete toda semana no mesmo dia/horário)
 - Gere um item para CADA célula preenchida da grade, mesmo que o total seja alto (dezenas de itens) — nunca resuma, agrupe ou pule células.
-- Inclua TAMBÉM as células de intervalo/refeição (ex: "Lanche/Recreio", "Almoço/Recreio", "Lanche/Saída") como itens normais — a exclusão delas é feita depois por outro processo automaticamente; você não precisa (e não deve tentar) filtrá-las.
+- Inclua TAMBÉM as células de intervalo/refeição (ex: "Lanche/Recreio", "Almoço/Recreio", "Lanche/Saída") como itens normais, e também as linhas de entrada e saída — o que não deve ir para a agenda é retirado depois por outro processo automaticamente; você não precisa (e não deve tentar) filtrar nada.
 - Antes de responder, confira mentalmente linha por linha, coluna por coluna: o número de itens gerados para a grade deve ser exatamente igual ao número de células preenchidas na tabela (linhas × colunas). Não pule nenhuma célula.
 Uma grade de horários NUNCA deve virar um item em "documents" nem em "reminders".
 Para atividades com data específica e única (prova, consulta, evento — categoria 1 normal), use "recurring": false.
@@ -369,14 +369,24 @@ interface ExtractedActivity {
   groupId?: string
 }
 
-// Filtro determinístico de períodos de intervalo/refeição — a IA nem sempre
-// aplica essa exclusão de forma consistente entre execuções (observado em
-// produção: a mesma grade ora incluía Almoço/Recreio, ora não). Em vez de
-// depender só do prompt, garantimos isso em código.
-const BREAK_KEYWORDS = ['recreio', 'almoço', 'almoco', 'lanche', 'saída', 'saida', 'intervalo']
+// Filtro determinístico da grade de horários: só ENTRADA e SAÍDA ficam de fora.
+//
+// Decisão do Rogério (11/10/2026): a grade entra inteira — lanche, almoço,
+// jantar, recreio, soninho, higiene — porque o que é "só intervalo" numa
+// escola regular é rotina de verdade num maternal, e uma regra por faixa de
+// idade criaria incoerência entre as famílias. Antes o filtro tirava também
+// recreio/almoço/lanche/intervalo, e o resultado era Almoço fora e Jantar
+// dentro, Saída fora e Entrada dentro.
+//
+// É feito em código, não no prompt, porque a IA não aplica exclusão de forma
+// consistente entre execuções (a mesma grade ora incluía a linha, ora não).
+//
+// Vale o COMEÇO do título: "Entrada (Cineminha)" e "Saída (Parque do Nico)"
+// saem; "Brinquedos na sala de entrada" e "Lanche/Saída" são atividade ou
+// refeição e ficam.
+const ENTRADA_OU_SAIDA = /^\s*(entrada|sa[ií]da)(?![a-zà-ú])/i
 function isBreakPeriod(title: string): boolean {
-  const t = title.toLowerCase()
-  return BREAK_KEYWORDS.some(k => t.includes(k))
+  return ENTRADA_OU_SAIDA.test(title)
 }
 
 // Recorrência explícita na entrada de texto. A IA às vezes marca
@@ -481,7 +491,9 @@ export function corrigirDatasPassadas(
 function expandRecurring(activities: ExtractedActivity[]): ExtractedActivity[] {
   const result: ExtractedActivity[] = []
   activities.forEach((act, idx) => {
-    if (isBreakPeriod(act.title)) return
+    // Só na grade (item recorrente): um evento avulso como "Saída pedagógica ao
+    // zoológico" é compromisso de verdade e não pode sumir.
+    if (act.recurring && isBreakPeriod(act.title)) return
     if (!act.recurring || !act.date) { result.push({ ...act, recurring: false }); return }
     const groupId = `rec-${idx}-${act.title}-${act.time}`
     // Limite dito pelo usuário manda; sem ele, cai no horizonte padrão.
