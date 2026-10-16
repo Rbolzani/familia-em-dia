@@ -200,7 +200,7 @@ export async function reconcileUserFromStripe(userId: string): Promise<boolean> 
   const admin = createAdminClient()
   const { data: row } = await admin
     .from('subscriptions')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, trial_ends_at')
     .eq('user_id', userId)
     .maybeSingle()
 
@@ -214,6 +214,24 @@ export async function reconcileUserFromStripe(userId: string): Promise<boolean> 
       limit: 20,
     })
     const current = pickCurrentSubscription(list.data)
+
+    // Sem assinatura, mas o teste grátis do CADASTRO ainda vale: a pessoa abriu
+    // o pagamento e desistiu (o cliente no Stripe nasce antes do cartão). Ela
+    // continua no teste até o fim — antes caía no gratuito na hora (caso real
+    // de 16/10/2026). O teste é do app, não do Stripe: vem de trial_ends_at.
+    const fimTeste = row?.trial_ends_at ? new Date(row.trial_ends_at as string).getTime() : 0
+    if (!current && fimTeste > Date.now()) {
+      await admin.from('subscriptions').update({
+        plan: 'familia',
+        status: 'trialing',
+        billing_interval: null,
+        cancel_at_period_end: false,
+        current_period_end: null,
+        stripe_subscription_id: null,
+        updated_at: new Date().toISOString(),
+      }).eq('user_id', userId)
+      return true
+    }
 
     if (!current) {
       // Sem nenhuma assinatura no Stripe → garante estado free.

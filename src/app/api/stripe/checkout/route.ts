@@ -15,10 +15,14 @@ export async function POST(request: Request) {
   // nunca pelo cliente — ver passo 5).
   let plan: PlanId
   let interval: BillingInterval
+  // De onde veio (tela Planos do app, botão do WhatsApp ou do e-mail de fim do
+  // teste). Vai para a metadata da assinatura e aparece no Painel do negócio.
+  let origem: 'app' | 'whatsapp' | 'email' = 'app'
   try {
     const body = await request.json()
     plan      = body.plan
     interval  = body.interval
+    if (body.origem === 'whatsapp' || body.origem === 'email') origem = body.origem
   } catch {
     return NextResponse.json({ error: 'Requisição inválida' }, { status: 400 })
   }
@@ -155,8 +159,9 @@ export async function POST(request: Request) {
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
         ...(trialEnd ? { trial_end: trialEnd } : {}),
-        metadata: { user_id: user.id, plan },
+        metadata: { user_id: user.id, plan, origem },
       },
+      metadata: { user_id: user.id, plan, interval, origem },
       allow_promotion_codes: true,
       // Passa por /api/stripe/return: ele reconcilia o plano com o Stripe
       // (protege contra webhook atrasado) e entrega o Início. Antes vinha

@@ -283,7 +283,7 @@ export default async function AdminPage() {
         {p.assinantes.length === 0 ? <p className="adm-vazio">Nenhuma assinatura contratada ainda.</p> : (
           <div className="adm-rolar">
             <table>
-              <thead><tr><th>Quem</th><th>Plano</th><th>Período</th><th className="adm-n">Valor</th><th>Próxima cobrança</th><th>Contratada em</th></tr></thead>
+              <thead><tr><th>Quem</th><th>Plano</th><th>Período</th><th className="adm-n">Valor</th><th>Próxima cobrança</th><th>Contratada em</th><th>Assinou por</th></tr></thead>
               <tbody>
                 {p.assinantes.map(a => (
                   <tr key={a.email + a.desde}>
@@ -303,12 +303,41 @@ export default async function AdminPage() {
                       {a.aguardandoPrimeiraCobranca && a.proximaCobranca && <span className="adm-data">1ª cobrança</span>}
                     </td>
                     <td className="adm-nq">{data(a.desde)}</td>
+                    <td className="adm-nq">{a.origem ?? <span className="adm-p adm-cin">não registrada</span>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
+        <p className="adm-ver">&quot;Assinou por&quot; mostra de onde veio o clique em assinar: a tela Planos do app, o botão da mensagem de WhatsApp ou o botão do e-mail de fim do teste. Assinaturas feitas antes de 16/10/2026 não têm esse registro.</p>
+      </section>
+
+      <section className="adm-cartao">
+        <div className="adm-cab">
+          <h2>Abriram o pagamento e não concluíram</h2>
+          <small>{p.pagamentoNaoConcluido.length} {p.pagamentoNaoConcluido.length === 1 ? 'pessoa' : 'pessoas'} nos últimos 30 dias · mais recentes primeiro</small>
+        </div>
+        {p.pagamentoNaoConcluido.length === 0 ? <p className="adm-vazio">Ninguém desistiu na tela de pagamento.</p> : (
+          <div className="adm-rolar">
+            <table>
+              <thead><tr><th>Quem</th><th>Celular</th><th>Plano escolhido</th><th>Abriu o pagamento</th><th>Veio por</th><th>Situação hoje</th></tr></thead>
+              <tbody>
+                {p.pagamentoNaoConcluido.map(i => (
+                  <tr key={i.email}>
+                    <td className="adm-quem"><b>{i.nome || '—'}</b><span>{i.email}</span></td>
+                    <td className="adm-nq">{i.celular ? formatPhoneBR(i.celular) : '—'}</td>
+                    <td className="adm-nq">{i.plano} {i.periodo.toLowerCase()}</td>
+                    <td className="adm-nq">{data(i.abertoEm)}<span className="adm-data">{haQuanto(i.abertoEm)}</span></td>
+                    <td className="adm-nq">{i.origem ?? '—'}</td>
+                    <td className="adm-nq">{i.situacao}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="adm-ver">Clicou em assinar, chegou à tela de pagamento do Stripe e saiu sem pôr o cartão — e não assinou depois. Quem ainda está no teste grátis continua nele até o fim; a desistência não muda nada na conta.</p>
       </section>
 
       <div className="adm-duas">

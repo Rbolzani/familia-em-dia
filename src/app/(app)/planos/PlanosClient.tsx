@@ -86,6 +86,23 @@ const PLANS = [
   },
 ]
 
+/**
+ * De onde a pessoa veio para assinar: o botão do WhatsApp e o do e-mail de fim
+ * do teste levam `utm_source`; sem ele, é a própria tela Planos do app.
+ * Guardado na sessão do navegador para sobreviver ao modal de dados e a
+ * trocas de mensal/anual antes de clicar em assinar.
+ */
+type Origem = 'whatsapp' | 'email' | 'app'
+function lerOrigem(): Origem {
+  if (typeof window === 'undefined') return 'app'
+  try {
+    const utm = new URLSearchParams(window.location.search).get('utm_source')
+    if (utm === 'whatsapp' || utm === 'email') { sessionStorage.setItem('fed-origem-assinatura', utm); return utm }
+    const salva = sessionStorage.getItem('fed-origem-assinatura')
+    return salva === 'whatsapp' || salva === 'email' ? salva : 'app'
+  } catch { return 'app' }
+}
+
 function fmtDate(iso: string | null) {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -111,6 +128,7 @@ export default function PlanosClient({
     billingInterval === 'year' ? 'year' : 'month',
   )
   const [loading,  setLoading]  = useState<string | null>(null)
+  const [origem] = useState<Origem>(lerOrigem)
   const [error,    setError]    = useState<string | null>(null)
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   // Plano que a pessoa tentou assinar sem ter nome completo, CPF e endereço.
@@ -137,7 +155,7 @@ export default function PlanosClient({
       const res  = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, interval }),
+        body: JSON.stringify({ plan, interval, origem }),
       })
       const data = await res.json()
       // Faltam os dados da nota fiscal: pede agora e retoma o mesmo plano.
@@ -557,11 +575,6 @@ export default function PlanosClient({
 
           {/* Tabela comparativa: Gratuito × Família × Plus */}
           <ComparativoPlanos />
-
-          {/* Footnote acesso básico */}
-          <p className="text-center text-xs animate-fade-up" style={{ color: 'rgba(26,43,28,0.30)', lineHeight: 1.6 }}>
-            Após os 14 dias, você pode assinar ou continuar no plano gratuito. Seus dados nunca somem.
-          </p>
         </>
       )}
 

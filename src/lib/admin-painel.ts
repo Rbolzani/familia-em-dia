@@ -44,6 +44,16 @@ export interface LinhaAssinante {
   proximaCobranca: string | null; desde: string; cancelaNoFim: boolean
   /** Contratada no teste grátis: cartão salvo, nada cobrado ainda. `proximaCobranca` é a primeira. */
   aguardandoPrimeiraCobranca: boolean
+  /** De onde assinou: tela Planos do app, botão do WhatsApp ou do e-mail (vazio = antes de 16/10/2026). */
+  origem: string | null
+}
+/** Abriu a tela de pagamento do Stripe e saiu sem concluir (e não assinou depois). */
+export interface LinhaPagamentoNaoConcluido {
+  nome: string | null; email: string; celular: string | null
+  plano: string; periodo: 'Mensal' | 'Anual'
+  abertoEm: string; origem: string | null
+  /** Situação de hoje: ainda no teste (até quando) ou no gratuito. */
+  situacao: string
 }
 export interface LinhaCancelamento {
   nome: string; plano: string; canceladoEm: string; dias: number
@@ -77,6 +87,7 @@ export interface PainelNegocio {
   emTeste: LinhaTeste[]
   semUso: LinhaSemUso[]
   redeApoio: LinhaRedeApoio[]
+  pagamentoNaoConcluido: LinhaPagamentoNaoConcluido[]
   semAtividade: LinhaSemAtividade[]
   assinantes: LinhaAssinante[]
   cancelamentos: LinhaCancelamento[]
@@ -92,6 +103,7 @@ const MOTIVOS: Record<string, string> = {
   low_quality: 'qualidade', customer_service: 'atendimento', other: 'outro motivo',
 }
 const PLANO: Record<string, string> = { familia: 'Família', plus: 'Família Plus' }
+const ORIGEM: Record<string, string> = { app: 'App (tela Planos)', whatsapp: 'WhatsApp', email: 'E-mail' }
 
 // PostgREST devolve no máximo 1000 linhas por chamada — o mesmo teto mudo que
 // já escondeu dados neste projeto. Pagina até o fim.
@@ -175,11 +187,16 @@ export async function montarPainel(): Promise<PainelNegocio> {
 
   // ── Stripe: assinaturas (todas), para pagantes, receita e cancelamentos ──
   let stripeSubs: Stripe.Subscription[] = []
+  let sessoes: Stripe.Checkout.Session[] = []
   const clientesReembolsados = new Set<string>()
   try {
     stripeSubs = await stripe.subscriptions
       .list({ status: 'all', limit: 100, expand: ['data.customer'] })
       .autoPagingToArray({ limit: 2000 })
+    // Telas de pagamento abertas nos últimos 30 dias — para achar quem desistiu.
+    sessoes = await stripe.checkout.sessions
+      .list({ limit: 100, created: { gte: Math.floor(Date.now() / 1000) - 30 * 86_400 }, expand: ['data.line_items'] })
+      .autoPagingToArray({ limit: 1000 })
     const cobrancas = await stripe.charges.list({ limit: 100 }).autoPagingToArray({ limit: 1000 })
     for (const c of cobrancas) {
       if (c.amount_refunded > 0 && c.customer) clientesReembolsados.add(idDe(c.customer))
@@ -238,9 +255,37 @@ export async function montarPainel(): Promise<PainelNegocio> {
         proximaCobranca: s.cancel_at_period_end ? null : iso(noTeste ? (s.trial_end ?? fimPeriodo) : fimPeriodo),
         desde: iso(s.start_date) as string,
         aguardandoPrimeiraCobranca: noTeste,
+        origem: ORIGEM[s.metadata?.origem ?? ''] ?? null,
       }
     })
     .sort((a, b) => b.desde.localeCompare(a.desde))
+
+  // Abriu o pagamento e não concluiu: sessão de checkout aberta ou expirada, de
+  // quem não tem NENHUMA assinatura (nem antes, nem depois). Uma linha por
+  // pessoa, a tentativa mais recente.
+  const comAssinatura = new Set(stripeSubs.map(s => s.metadata?.user_id).filter(Boolean) as string[])
+  const naoConcluido = new Map<string, LinhaPagamentoNaoConcluido>()
+  for (const ss of [...sessoes].sort((a, b) => b.created - a.created)) {
+    const uid = ss.client_reference_id ?? ss.metadata?.user_id ?? ''
+    if (ss.mode !== 'subscription' || ss.status === 'complete' || !uid || comAssinatura.has(uid) || naoConcluido.has(uid)) continue
+    const u = usuarioDe.get(uid); if (!u) continue
+    const p = perfilDe.get(uid), s = subDe.get(uid)
+    const fim = s?.trial_ends_at ? new Date(s.trial_ends_at).getTime() : 0
+    // Sessões anteriores a 16/10/2026 não guardam plano/ciclo na metadata: vêm do preço.
+    const preco = ss.line_items?.data[0]?.price
+    const doPreco = preco ? planoDoPreco(preco) : null
+    naoConcluido.set(uid, {
+      nome: p?.full_name ?? null, email: u.email, celular: p?.phone ?? null,
+      plano: PLANO[ss.metadata?.plan ?? doPreco?.plan ?? ''] ?? 'Plano',
+      periodo: (ss.metadata?.interval ?? doPreco?.interval ?? preco?.recurring?.interval) === 'year' ? 'Anual' : 'Mensal',
+      abertoEm: iso(ss.created) as string,
+      origem: ORIGEM[ss.metadata?.origem ?? ''] ?? null,
+      situacao: s?.status === 'trialing' && fim > agora
+        ? `em teste até ${new Date(fim).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })}`
+        : 'no gratuito',
+    })
+  }
+  const pagamentoNaoConcluido = [...naoConcluido.values()]
 
   const porMes = (lista: Stripe.Subscription[]) => lista
     .reduce((soma, s) => { const d = descreve(s); return soma + (d.periodo === 'Anual' ? Math.round(d.centavos / 12) : d.centavos) }, 0)
@@ -433,6 +478,6 @@ export async function montarPainel(): Promise<PainelNegocio> {
       cancelaram,
     },
     retencao, tempoDeBase,
-    emTeste, semUso, redeApoio, semAtividade, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
+    emTeste, semUso, redeApoio, pagamentoNaoConcluido, semAtividade, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
   }
 }

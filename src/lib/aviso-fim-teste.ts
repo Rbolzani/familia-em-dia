@@ -18,7 +18,7 @@ import { LEGAL_ENTITY } from '@/lib/legal'
 import { COMPARATIVO, CONTINUA_NO_GRATUITO, PERDE_NO_GRATUITO, precoPorMes, reais, type Celula } from '@/lib/planos-oferta'
 
 export const REMETENTE_AVISO = `Família em Dia <${LEGAL_ENTITY.email}>`
-const LINK = 'https://www.familiaemdia.com.br/planos'
+const LINK = 'https://www.familiaemdia.com.br/planos?utm_source=email&utm_medium=email&utm_campaign=fim_teste'
 const BOTAO = 'Assinar o plano Família'
 
 const diaSP = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d)

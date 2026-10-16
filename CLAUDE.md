@@ -181,7 +181,8 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 - **Paywall por plano** (`lib/billing.ts` → `PLAN_LIMITS`): free = 2 filhos, IA 5/mês, sem voz/WhatsApp/compartilhamento
 - **Checkout** novo assinante; **troca de plano/intervalo sem novo cartão** (modifica a sub existente com proração + `billing_cycle_anchor:'now'`)
 - **Trial 14 dias server-enforced** (sem segundo trial); **cancelamento com motivo** + **reativação**; **portal** com cancelamento desabilitado
-- **Reconciliação on-page-load** (`reconcileUserFromStripe`) — robusto a webhook perdido
+- **Reconciliação on-page-load** (`reconcileUserFromStripe`) — robusto a webhook perdido. **Sem assinatura no Stripe mas com o teste do cadastro ainda valendo (`trial_ends_at` no futuro) → continua no teste**, não cai no gratuito (quem abre o pagamento e desiste já tem cliente no Stripe; caso real de 16/10/2026).
+- **Origem da assinatura:** a tela Planos lê `utm_source` (whatsapp/email; senão `app`) e o checkout grava em `metadata.origem` da assinatura e da sessão. O Painel mostra "Assinou por" e o bloco "Abriram o pagamento e não concluíram" (sessões de checkout dos últimos 30 dias sem assinatura).
 - **Webhook** `/api/stripe/webhook` (checkout/subscription events → `syncSubscriptionToDb`)
 
 ### 9. Grace Period (billing + compartilhamento)

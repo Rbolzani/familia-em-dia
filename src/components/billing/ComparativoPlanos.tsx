@@ -2,12 +2,13 @@ import { Check, Minus } from 'lucide-react'
 import { COMPARATIVO, DIAS_TESTE, type Celula } from '@/lib/planos-oferta'
 
 // Tabela Gratuito × Família × Plus da tela Planos. O conteúdo vem de
-// planos-oferta.ts — a mesma fonte do e-mail de fim do teste.
+// planos-oferta.ts — a mesma fonte do e-mail de fim do teste. Os textos de
+// apoio (etapas, "após os 14 dias", nota) espelham a tabela da landing.
 
 const COLUNAS = [
-  { chave: 'gratuito', nome: 'Gratuito' },
-  { chave: 'familia', nome: 'Família' },
-  { chave: 'plus', nome: 'Plus' },
+  { chave: 'gratuito', nome: 'Gratuito', sub: `após os ${DIAS_TESTE} dias` },
+  { chave: 'familia', nome: 'Família', sub: null },
+  { chave: 'plus', nome: 'Plus', sub: null },
 ] as const
 
 function Valor({ v, destaque }: { v: Celula; destaque: boolean }) {
@@ -21,8 +22,9 @@ export default function ComparativoPlanos() {
     <section className="animate-fade-up" aria-labelledby="comparativo-titulo"
       style={{ background: '#fff', border: '1px solid rgba(61,102,65,0.16)', borderRadius: 16, padding: '16px 14px 12px', boxShadow: '0 4px 16px rgba(44,74,46,0.06)' }}>
       <h2 id="comparativo-titulo" style={{ fontSize: 16, fontWeight: 700, color: '#1A2B1C', margin: '0 0 2px' }}>Compare os planos</h2>
-      <p style={{ fontSize: 12, color: 'rgba(26,43,28,0.55)', margin: '0 0 12px' }}>
-        Toda conta começa com {DIAS_TESTE} dias do Família, sem cartão. Depois, assine ou continue no gratuito.
+      <p style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', background: 'rgba(61,102,65,0.08)', borderRadius: 12, padding: '10px 12px', margin: '8px 0 12px', fontSize: 12.5, lineHeight: 1.45, color: '#1A2B1C' }}>
+        <span><b>Dias 1 a {DIAS_TESTE}:</b> tudo do plano Família, grátis e sem cartão</span>
+        <span><span aria-hidden="true" style={{ color: '#3D6641', fontWeight: 800 }}>→</span> <b>Depois:</b> assine Família ou Plus, ou siga no Gratuito</span>
       </p>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, color: '#1A2B1C', minWidth: 320 }}>
@@ -35,7 +37,10 @@ export default function ComparativoPlanos() {
                   color: c.chave === 'familia' ? '#2C4A2E' : '#1A2B1C',
                   background: c.chave === 'familia' ? 'rgba(61,102,65,0.08)' : 'transparent',
                   borderRadius: c.chave === 'familia' ? '10px 10px 0 0' : 0,
-                }}>{c.nome}</th>
+                }}>
+                  {c.nome}
+                  {c.sub && <span style={{ display: 'block', fontSize: 10.5, fontWeight: 500, color: 'rgba(26,43,28,0.50)', marginTop: 2 }}>{c.sub}</span>}
+                </th>
               ))}
             </tr>
           </thead>
@@ -57,6 +62,9 @@ export default function ComparativoPlanos() {
           </tbody>
         </table>
       </div>
+      <p style={{ fontSize: 12, color: 'rgba(26,43,28,0.55)', margin: '10px 0 0', lineHeight: 1.5 }}>
+        Se não assinar, sua conta passa para o Gratuito automaticamente. Seus dados nunca somem. Sem fidelidade: cancele quando quiser.
+      </p>
     </section>
   )
 }
