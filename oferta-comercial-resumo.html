@@ -7,18 +7,18 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; color: #1a1a1a; background: #f8f8f6; padding: 2.5rem; max-width: 900px; margin: 0 auto; line-height: 1.6; }
+  @media (max-width: 700px) { body { padding: 1rem; } }
   h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
   h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #888; margin: 2.5rem 0 1rem; }
   .meta { font-size: 12px; color: #aaa; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e5e5e5; }
 
   /* Planos */
-  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 2.5rem; }
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1rem; }
+  @media (max-width: 700px) { .plans { grid-template-columns: 1fr; } }
   .plan { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 18px; }
   .plan.featured { border: 2px solid #185FA5; }
-  .plan.founder { border: 2px solid #C49A6C; }
   .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 5px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
   .b-gray  { background: #F1EFE8; color: #5F5E5A; }
-  .b-terra { background: #FBF0E4; color: #8A5C2E; }
   .b-blue  { background: #E6F1FB; color: #185FA5; }
   .b-green { background: #EAF3DE; color: #3B6D11; }
   .plan-name { font-size: 15px; font-weight: 500; margin-bottom: 12px; }
@@ -32,195 +32,181 @@
   .no  { color: #ccc; flex-shrink: 0; }
   .hi  { color: #185FA5; font-weight: 500; }
 
-  /* Tabela racional */
+  /* Tabelas */
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; overflow: hidden; }
   th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: #888; background: #fafafa; border-bottom: 1px solid #e5e5e5; white-space: nowrap; }
   td { padding: 11px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: top; line-height: 1.5; }
   tr:last-child td { border-bottom: none; }
-  td:first-child { font-weight: 500; white-space: nowrap; color: #111; }
+  td:first-child { font-weight: 500; color: #111; }
   td:nth-child(2) { color: #555; }
   td:nth-child(3) { color: #333; }
   .group-header td { background: #fafafa; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #aaa; padding: 8px 14px; border-bottom: 1px solid #e5e5e5; }
   .group-header td:first-child { font-weight: 700; color: #aaa; }
+  .c { text-align: center; }
+  .nota { font-size: 12px; color: #666; margin-top: 8px; margin-bottom: 2.5rem; }
 </style>
 </head>
 <body>
-<div style="background:#B42318;color:#fff;padding:12px 16px;font:600 15px/1.4 system-ui,sans-serif;text-align:center">DOCUMENTO DESATUALIZADO — preços e oferta de lançamento antigos. Oferta vigente desde 16/10/2026: Família R$ 19,90/mês, Plus R$ 29,90/mês, anual −20%, teste de 14 dias sem cartão, sem oferta de lançamento. Fonte: gestao-filhos-app/src/lib/planos-oferta.ts e a landing publicada (gestao-filhos-app/public/marketing).</div>
-
 
 <h1>Família em Dia — Oferta Comercial</h1>
-<p class="meta">Versão resumida · 2026-10-04 — oferta de lançamento: 20 vagas, 25% de desconto para sempre em qualquer plano, sem badge de Fundador</p>
+<p class="meta">Versão resumida · 16/10/2026 — Família R$ 19,90/mês · Plus R$ 29,90/mês · anual −20% · teste de 14 dias sem cartão · sem oferta de lançamento</p>
 
 <h2>O que os diferenciais valem na prática</h2>
-<p style="font-size:13px; color:#555; margin-bottom:1rem;">O produto tem dois diferenciais que não existem combinados em nenhum app de gestão familiar hoje:</p>
+<p style="font-size:13px; color:#555; margin-bottom:1rem;">O produto tem diferenciais que não existem combinados em nenhum app de gestão familiar hoje:</p>
 <div class="table-wrap" style="margin-bottom:2.5rem;">
-  <table style="border-radius:8px;">
+  <table>
     <thead>
-      <tr>
-        <th>Diferencial</th>
-        <th>O que resolve</th>
-        <th>Percepção de valor</th>
-      </tr>
+      <tr><th>Diferencial</th><th>O que resolve</th><th>Percepção de valor</th></tr>
     </thead>
     <tbody>
-      <tr><td><strong>IA com foto/voz</strong></td><td>Elimina digitação manual da agenda escolar</td><td style="color:#3B6D11; font-weight:500;">Alto — economiza 10–20 min/semana</td></tr>
-      <tr><td><strong>Resumo diário no WhatsApp</strong></td><td>Zero fricção — informação chega onde o pai já está</td><td style="color:#3B6D11; font-weight:500;">Muito alto — WhatsApp é o canal primário no BR</td></tr>
-      <tr><td><strong>Compartilhamento real-time</strong></td><td>Coordenação entre pais sem grupo de WhatsApp</td><td style="color:#3B6D11; font-weight:500;">Alto</td></tr>
-      <tr><td><strong>Cofre de documentos</strong></td><td>Centralização de docs sensíveis dos filhos</td><td style="color:#555;">Médio</td></tr>
+      <tr><td><strong>IA com foto, texto e voz</strong></td><td>Elimina a digitação da agenda escolar: uma foto vira a semana organizada</td><td style="color:#3B6D11; font-weight:500;">Alto — economiza 10–20 min/semana</td></tr>
+      <tr><td><strong>Resumo diário no WhatsApp</strong></td><td>A informação chega onde a família já está, no horário escolhido</td><td style="color:#3B6D11; font-weight:500;">Muito alto — WhatsApp é o canal primário no BR</td></tr>
+      <tr><td><strong>Rede de apoio em tempo real</strong></td><td>Pai, avó e babá veem a mesma agenda e combinam quem leva e quem busca</td><td style="color:#3B6D11; font-weight:500;">Alto</td></tr>
+      <tr><td><strong>Cofre de documentos e mensalidades</strong></td><td>Documentos dos filhos e pagamentos recorrentes num só lugar, com alertas</td><td style="color:#555;">Médio</td></tr>
     </tbody>
   </table>
 </div>
 
 <h2>Os planos</h2>
-<div class="plans" style="grid-template-columns: repeat(2, 1fr); max-width: 640px;">
+<div class="plans">
 
-  <div class="plan featured">
-    <span class="badge b-blue">Mais popular</span>
-    <div class="plan-name">Família</div>
-    <div class="price">R$39,90</div>
-    <div class="price-detail">/mês</div>
-    <div class="price-annual">Anual: R$31,90/mês · 2 meses grátis</div>
+  <div class="plan">
+    <span class="badge b-gray">Depois do teste</span>
+    <div class="plan-name">Gratuito</div>
+    <div class="price">R$0</div>
+    <div class="price-detail">para sempre</div>
+    <div class="price-annual"></div>
     <div class="divider"></div>
     <ul>
       <li><span class="ok">✓</span> Até 2 filhos</li>
-      <li><span class="ok hi">✓</span> <span class="hi">IA texto + foto ilimitado</span></li>
-      <li><span class="ok hi">✓</span> <span class="hi">Entrada por voz ilimitado</span></li>
-      <li><span class="ok hi">✓</span> <span class="hi">Cofre de docs inteligente (500 MB)</span></li>
-      <li><span class="ok hi">✓</span> <span class="hi">Resumo diário WhatsApp</span></li>
-      <li><span class="ok hi">✓</span> <span class="hi">1 parceiro</span></li>
-      <li><span class="ok hi">✓</span> <span class="hi">Logística leva/busca</span></li>
-      <li><span class="ok">✓</span> Alertas de vencimento</li>
+      <li><span class="ok">✓</span> Agenda, logística e mensalidades</li>
+      <li><span class="ok">✓</span> IA por foto e texto: 5 por mês</li>
+      <li><span class="ok">✓</span> Documentos já guardados</li>
+      <li><span class="no">—</span> Sem voz</li>
+      <li><span class="no">—</span> Sem resumo no WhatsApp</li>
+      <li><span class="no">—</span> Sem rede de apoio</li>
+      <li><span class="no">—</span> Sem envio de arquivos novos</li>
     </ul>
+  </div>
+
+  <div class="plan featured">
+    <span class="badge b-blue">Mais popular · 14 dias grátis</span>
+    <div class="plan-name">Família</div>
+    <div class="price">R$19,90</div>
+    <div class="price-detail">/mês</div>
+    <div class="price-annual">Anual: R$15,90/mês (R$190,80/ano) · −20%</div>
     <div class="divider"></div>
-    <div style="background:#FBF0E4; border-radius:6px; padding:10px 12px; font-size:11px; color:#8A5C2E; line-height:1.5;">
-      <strong style="display:block; margin-bottom:2px;">🎯 Oferta de lançamento · 20 vagas</strong>
-      Os 20 primeiros assinantes têm <strong>25% de desconto para sempre</strong>, em qualquer plano: Família por <strong>R$29,90/mês</strong> e Plus por <strong>R$44,90/mês</strong>.
-    </div>
+    <ul>
+      <li><span class="ok">✓</span> Até 2 filhos</li>
+      <li><span class="ok hi">✓</span> <span class="hi">IA por foto e texto ilimitada</span></li>
+      <li><span class="ok hi">✓</span> <span class="hi">Captura por voz</span></li>
+      <li><span class="ok hi">✓</span> <span class="hi">Resumo diário no WhatsApp</span></li>
+      <li><span class="ok hi">✓</span> <span class="hi">Rede de apoio: 1 pessoa</span></li>
+      <li><span class="ok hi">✓</span> <span class="hi">Cofre de documentos (500 MB)</span></li>
+      <li><span class="ok">✓</span> Agenda, logística e mensalidades</li>
+    </ul>
   </div>
 
   <div class="plan">
     <span class="badge b-green">Premium</span>
     <div class="plan-name">Família Plus</div>
-    <div class="price">R$59,90</div>
+    <div class="price">R$29,90</div>
     <div class="price-detail">/mês</div>
-    <div class="price-annual">Anual: R$47,90/mês · 2 meses grátis</div>
+    <div class="price-annual">Anual: R$23,90/mês (R$286,80/ano) · −20%</div>
     <div class="divider"></div>
     <ul>
       <li><span class="ok">✓</span> <strong>Tudo do Família</strong></li>
       <li><span class="ok hi">✓</span> <span class="hi">Filhos ilimitados</span></li>
-      <li><span class="ok hi">✓</span> <span class="hi">Parceiros ilimitados</span></li>
-      <li><span class="ok hi">✓</span> <span class="hi">Cofre de docs inteligente (5 GB)</span></li>
+      <li><span class="ok hi">✓</span> <span class="hi">Rede de apoio ilimitada</span></li>
+      <li><span class="ok hi">✓</span> <span class="hi">Cofre de documentos (5 GB)</span></li>
       <li><span class="ok hi">✓</span> <span class="hi">Suporte prioritário</span></li>
-      <li><span class="ok">✓</span> Histórico completo</li>
     </ul>
   </div>
 
 </div>
-<p style="margin-top: 1rem; font-size: 12px; color: #888; text-align: center;">Após os 14 dias, você pode assinar ou continuar gratuitamente com acesso básico (até 2 filhos, IA limitada a 5 usos/mês, sem entrada por voz, sem resumo diário no WhatsApp e sem compartilhamento com parceiro). Seus dados nunca somem.</p>
+<p style="margin-top: 1rem; font-size: 12px; color: #888; text-align: center;">Dias 1 a 14: tudo do plano Família, grátis e sem cartão. Se não assinar, a conta passa para o Gratuito automaticamente, sem nenhuma cobrança. Seus dados nunca somem. Sem fidelidade: cancele quando quiser.</p>
 
 <h2>Racional de cada decisão da oferta</h2>
 <div class="table-wrap">
 <table>
   <thead>
-    <tr>
-      <th>Decisão</th>
-      <th>O que foi decidido</th>
-      <th>Por quê</th>
-    </tr>
+    <tr><th>Decisão</th><th>O que foi decidido</th><th>Por quê</th></tr>
   </thead>
   <tbody>
 
-    <tr class="group-header"><td colspan="3">Posicionamento de preço e diferenciais</td></tr>
+    <tr class="group-header"><td colspan="3">Posicionamento de preço</td></tr>
 
     <tr>
-      <td>Diferenciais únicos no mercado</td>
-      <td>IA (foto, texto, voz) + resumo diário no WhatsApp — combinação inexistente em apps de família</td>
-      <td>Apps de família concorrentes (Cozi, FamilyWall, apps BR de agenda) não têm IA nem WhatsApp. Apps com IA real (Motion, Otter.ai, Mem.ai) cobram US$8–34/mês e não são focados em família. O Família em Dia ocupa um espaço vazio: IA + WhatsApp + gestão familiar. Isso justifica preço acima dos apps de agenda tradicionais.</td>
-    </tr>
-    <tr>
-      <td>Pesquisa competitiva — apps com IA</td>
-      <td>US$8–34/mês (R$48–204/mês) no mercado global</td>
-      <td>Motion (agenda com IA): US$19–34/mês. Otter.ai (transcrição): US$8–20/mês. Mem.ai (notas com IA): US$14,99/mês. Notion AI (add-on): US$10/mês. Reclaim.ai: US$8–16/mês. Todos sem foco em família, sem WhatsApp, sem cofre de documentos. O Família em Dia entrega mais valor no contexto brasileiro a um preço menor.</td>
-    </tr>
-    <tr>
       <td>Preço base Família</td>
-      <td>R$39,90/mês — posicionado acima dos apps de agenda, alinhado com apps de IA</td>
-      <td>R$39,90 rompe o limiar de R$30 intencionalmente: sinaliza que o produto não é mais um app de agenda, é uma ferramenta com IA real. Equivale a R$1,33/dia — justificável para quem economiza 15–20 min/semana de digitação manual. Dentro da faixa de apps com IA no BR (R$48–96 para serviços equivalentes em outros domínios).</td>
+      <td>R$19,90/mês (era R$39,90 até 16/10/2026)</td>
+      <td>Abaixo do limiar psicológico de R$20: "menos de R$0,70 por dia", na mesma faixa de um streaming. Como o teste é sem cartão, a decisão de pagar acontece no dia 14, quando a pessoa compara o Família com o Gratuito; um preço baixo tira a objeção "caro" desse momento. A troca foi feita antes de existir qualquer assinante, então não afetou ninguém.</td>
     </tr>
     <tr>
       <td>Preço Família Plus</td>
-      <td>R$59,90/mês</td>
-      <td>50% acima do Família, justificado por filhos ilimitados, parceiros ilimitados e storage muito maior (500 MB → 5 GB). O Família tem cota calibrada para criar pressão real de upgrade; o Plus oferece fôlego generoso. Funciona como âncora que faz o Família parecer a escolha racional para a maioria.</td>
+      <td>R$29,90/mês</td>
+      <td>50% acima do Família, justificado por filhos ilimitados, rede de apoio ilimitada, 10× mais espaço no cofre (500 MB → 5 GB) e suporte prioritário. Funciona como âncora: ao lado dele, o Família parece a escolha óbvia para a maioria.</td>
     </tr>
     <tr>
-      <td>Estratégia de ancoragem por early adopters</td>
-      <td>Os 20 primeiros assinantes têm ~25% de desconto para sempre, em qualquer plano (Família R$29,90 · Plus R$44,90)</td>
-      <td>Os preços base reais são R$39,90 e R$59,90. Os 20 primeiros travam ~25% de desconto permanente — ancoragem genuína, não preço riscado fictício. O usuário vê R$39,90 e pensa: "posso entrar agora por R$29,90 e travar para sempre." Cria urgência real: quando as 20 vagas acabam, o preço sobe de fato. Legalmente sólido (não há CDP violation de preço fictício).</td>
+      <td>Diferencial contra a concorrência</td>
+      <td>IA (foto, texto, voz) + WhatsApp + gestão familiar pelo preço de um app de agenda</td>
+      <td>Apps de família (Cozi, FamilyWall, agendas escolares BR) cobram R$15–39/mês sem IA nem WhatsApp. Apps com IA (Motion, Otter.ai, Mem.ai) cobram US$8–34/mês e não são de família. A R$19,90, o Família em Dia fica no meio da faixa dos apps de agenda e entrega as duas categorias.</td>
     </tr>
     <tr>
       <td>Desconto anual</td>
-      <td>20% (comunicado como "2 meses grátis"): Família R$31,90/mês · Plus R$47,90/mês</td>
-      <td>20% é o mínimo que muda comportamento em SaaS B2C. "2 meses grátis" é mais concreto que percentual — remove cálculo mental. Caixa upfront: assinante anual do Família paga R$382,80 no ato.</td>
+      <td>20%: Família R$190,80/ano (R$15,90/mês) · Plus R$286,80/ano (R$23,90/mês)</td>
+      <td>20% é o mínimo que muda comportamento em SaaS B2C (≈ 2,4 meses grátis; economia de R$48/ano no Família e R$72/ano no Plus). Comunicado como "economize 20%" no site e "−20%" na tela de Planos. Caixa adiantado e menos cancelamento.</td>
     </tr>
     <tr>
       <td>Períodos de cobrança</td>
       <td>Apenas mensal e anual</td>
-      <td>Trimestral e semestral adicionam atrito cognitivo sem benefício proporcional. Energia de comunicação concentrada em converter mensal → anual.</td>
+      <td>Trimestral e semestral adicionam atrito sem benefício proporcional. A energia de comunicação vai para converter mensal → anual.</td>
+    </tr>
+    <tr>
+      <td>Oferta de lançamento</td>
+      <td>Encerrada em 16/10/2026</td>
+      <td>A oferta antiga (20 vagas com ~25% para sempre sobre R$39,90) perdeu o sentido: o preço novo já é menor que o preço de lançamento antigo (R$29,90). Ninguém tinha assinado por ela.</td>
     </tr>
 
     <tr class="group-header"><td colspan="3">Modelo de acesso</td></tr>
 
     <tr>
-      <td>Trial de 14 dias como porta de entrada</td>
-      <td>Todo cadastro recebe 14 dias do plano Família automaticamente, sem cartão</td>
-      <td>Única porta de entrada — não há escolha de plano no cadastro. 14 dias cobrem duas semanas escolares: IA ilimitada, voz, WhatsApp diário e parceiro convidado. Após 14 dias, downgrade automático para acesso básico (sem perder dados) com banner de conversão.</td>
+      <td>Teste de 14 dias como porta de entrada</td>
+      <td>Todo cadastro recebe 14 dias do plano Família, sem cartão, uma única vez</td>
+      <td>Não há escolha de plano no cadastro. 14 dias cobrem duas semanas escolares: IA ilimitada, voz, WhatsApp diário e rede de apoio. Quem assina durante o teste só é cobrado quando ele termina.</td>
     </tr>
     <tr>
-      <td>Grátis como fallback pós-trial — não promovido como plano</td>
-      <td>Mencionado apenas em rodapé ("acesso básico gratuito"), nunca como card ou coluna na tela de preços</td>
-      <td>Mostrar o Grátis como plano ancora a comparação errada: o usuário avalia Família vs. Grátis (e R$39,90 parece caro) em vez de Família vs. Plus (e R$39,90 parece a escolha óbvia). O Grátis existe para não perder o usuário do banco após o trial — é rede de segurança, não produto. Referência: Notion, Linear e Superhuman usam o mesmo padrão. O que fica visível: "Após os 14 dias, você pode assinar ou continuar com acesso básico (até 2 filhos, IA limitada a 5 usos/mês, sem entrada por voz, sem resumo diário no WhatsApp e sem compartilhamento com parceiro). Seus dados nunca somem."</td>
+      <td>Avisos de fim do teste</td>
+      <td>Faltando 3 dias e na véspera, às 11h, por WhatsApp (com botão "Assinar o plano Família") e e-mail</td>
+      <td>Lembra o que deixa de funcionar e mostra o preço e a tabela. Às 11h, longe do resumo das 7h. O Painel do negócio mede quem recebeu, abriu, clicou e assinou.</td>
     </tr>
     <tr>
-      <td>Logística leva/busca</td>
-      <td>Disponível apenas a partir do plano Família</td>
-      <td>Sem parceiro compartilhado, a logística não tem utilidade — o usuário marcaria a si mesmo. Só faz sentido com dois responsáveis coordenando.</td>
+      <td>Gratuito como destino pós-teste</td>
+      <td>Aparece como coluna "após os 14 dias" na tabela comparativa (site e tela de Planos)</td>
+      <td>Antes ficava escondido no rodapé. Agora a tabela mostra com clareza o que se perde (WhatsApp, voz, IA ilimitada, rede de apoio, envio de arquivos) e o que continua (agenda, 2 filhos, mensalidades, documentos guardados). A perda concreta é o argumento de conversão; deixar claro que nada é cobrado sozinho gera confiança.</td>
+    </tr>
+    <tr>
+      <td>Regras de assinatura</td>
+      <td>Sem fidelidade; reembolso integral em 7 dias; troca de plano sem novo cartão</td>
+      <td>Cancelamento em até 7 dias da cobrança devolve tudo (CDC art. 49). Upgrade e troca de ciclo cobram a diferença proporcional; downgrade vira crédito. Nome completo, CPF e endereço só são pedidos na assinatura.</td>
     </tr>
 
-    <tr class="group-header"><td colspan="3">Oferta de lançamento — 20 primeiros assinantes</td></tr>
-
-    <tr>
-      <td>Preço de lançamento</td>
-      <td>~25% para sempre, em qualquer plano: Família R$29,90/mês ou R$286,80/ano (R$23,90/mês) · Plus R$44,90/mês ou R$430,80/ano (R$35,90/mês)</td>
-      <td>Objetivo: validação com comprometimento financeiro. Os 20 primeiros pagantes geram prova social, depoimentos e feedback qualificado que valem mais do que a diferença de margem. Em qualquer plano, e não só no mensal, para não canibalizar o anual: com a oferta só no Família mensal (R$29,90), ele ficaria mais barato que o anual regular (R$31,90/mês). 25% e não 20% para manter a âncora "abaixo de R$30" e não empatar com o desconto anual.</td>
-    </tr>
-    <tr>
-      <td>Limite de 20 vagas</td>
-      <td>Exatamente 20, somando todos os planos — depois, preços regulares</td>
-      <td>Urgência genuína: quando as vagas acabam, o preço sobe de verdade. 20 vagas mantêm a escassez real e limitam a parcela da base que paga menos para sempre (10% de uma base de 200).</td>
-    </tr>
-    <tr>
-      <td>Como funciona no app</td>
-      <td>Automático no checkout; vagas contadas pelo app</td>
-      <td>Ao abrir o pagamento, a vaga fica reservada por alguns minutos; vira definitiva quando a assinatura nasce (inclusive no teste grátis) e volta para a fila se a pessoa desistir. Reserva atômica: o limite de 20 não é ultrapassado. Vaga definitiva não volta se a pessoa cancelar. Trocar de plano mantém o desconto. A tela de Planos mostra o preço riscado e as vagas restantes.</td>
-    </tr>
-
-    <tr class="group-header"><td colspan="3">Financeiro</td></tr>
+    <tr class="group-header"><td colspan="3">Financeiro (detalhe na Análise de Custos e no Business Plan)</td></tr>
 
     <tr>
       <td>Custo fixo</td>
-      <td>R$278/mês</td>
-      <td>Supabase Pro R$150 + Vercel Pro R$120 + domínio R$8. Independe do número de usuários.</td>
+      <td>R$261/mês</td>
+      <td>Vercel Pro R$108 + Supabase Pro R$135 + chip do WhatsApp ~R$15 + domínio R$3,33. Independe do número de assinantes.</td>
     </tr>
     <tr>
-      <td>Custo variável real</td>
-      <td>R$0,90/usuário/mês</td>
-      <td>IA R$0,24 + WhatsApp R$0,60 + Voz R$0,06. Margem de contribuição: R$39,00/usuário (Família mensal). Permite margens de 91–96% em escala.</td>
+      <td>Custo variável</td>
+      <td>R$4,42 por assinante/mês (Família mensal)</td>
+      <td>WhatsApp R$1,40 + IA R$1,50 + voz R$0,20 + Stripe R$1,32. Margem de contribuição: R$15,48 antes do imposto; R$14,29 depois de 6% de Simples.</td>
     </tr>
     <tr>
       <td>Break-even</td>
-      <td>8 usuários (Família mensal R$39,90)</td>
-      <td>Com custo fixo de R$278/mês e margem de R$39,00/usuário, o produto se paga com 8 assinantes — 2 a menos que no preço anterior de R$29,90. Acima disso, cada real adicional converte em ~96% de margem bruta.</td>
+      <td>19 assinantes (Família mensal) · 18 no mix realista</td>
+      <td>Com o preço antigo eram 8. Para o mesmo lucro, o preço novo pede ~2,15× mais assinantes — ou seja, a conversão do teste precisa mais que dobrar para compensar.</td>
     </tr>
 
   </tbody>
@@ -231,123 +217,66 @@
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>App</th><th>IA</th><th>WhatsApp</th><th>Preço</th></tr>
+      <tr><th>App</th><th class="c">IA</th><th class="c">WhatsApp</th><th>Preço</th></tr>
     </thead>
     <tbody>
-      <tr><td>Cozi Family</td><td style="color:#ccc;">✗</td><td style="color:#ccc;">✗</td><td>US$29,99/ano ≈ R$15/mês</td></tr>
-      <tr><td>OurFamilyWizard</td><td style="color:#ccc;">✗</td><td style="color:#ccc;">✗</td><td>US$12–17/mês ≈ R$72–102/mês</td></tr>
-      <tr><td>FamilyWall</td><td style="color:#ccc;">✗</td><td style="color:#ccc;">✗</td><td>€2,99/mês ≈ R$18/mês</td></tr>
-      <tr><td>Agenda escolar BR (média)</td><td style="color:#ccc;">✗</td><td style="color:#ccc;">✗</td><td>R$15–39/mês</td></tr>
-      <tr style="background:#EAF3DE;"><td><strong>Família em Dia</strong></td><td style="color:#3B6D11; font-weight:500;">✅</td><td style="color:#3B6D11; font-weight:500;">✅</td><td><strong>R$39,90/mês</strong></td></tr>
+      <tr><td>Cozi Family</td><td class="c" style="color:#ccc;">✗</td><td class="c" style="color:#ccc;">✗</td><td>US$29,99/ano ≈ R$15/mês</td></tr>
+      <tr><td>OurFamilyWizard</td><td class="c" style="color:#ccc;">✗</td><td class="c" style="color:#ccc;">✗</td><td>US$12–17/mês ≈ R$72–102/mês</td></tr>
+      <tr><td>FamilyWall</td><td class="c" style="color:#ccc;">✗</td><td class="c" style="color:#ccc;">✗</td><td>€2,99/mês ≈ R$18/mês</td></tr>
+      <tr><td>Agenda escolar BR (média)</td><td class="c" style="color:#ccc;">✗</td><td class="c" style="color:#ccc;">✗</td><td>R$15–39/mês</td></tr>
+      <tr style="background:#EAF3DE;"><td><strong>Família em Dia</strong></td><td class="c" style="color:#3B6D11; font-weight:500;">✅</td><td class="c" style="color:#3B6D11; font-weight:500;">✅</td><td><strong>R$19,90/mês</strong> (R$15,90 no anual)</td></tr>
     </tbody>
   </table>
 </div>
-<p style="font-size:12px; color:#666; margin-top:8px; margin-bottom:2.5rem;">Entre os apps de família, o Família em Dia é o mais caro — mas é o único com IA e WhatsApp. A comparação direta não é justa: são produtos de categorias diferentes.</p>
-
-<h2>Apps que usam WhatsApp como canal principal (BR)</h2>
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr><th>Produto</th><th>Tipo</th><th>Preço</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Ferramentas de notificação WA (B2B)</td><td>Envio de alerts para clientes</td><td>R$99–499/mês</td></tr>
-      <tr><td>Apps de saúde com WA</td><td>Lembretes de medicamento</td><td>R$19–49/mês</td></tr>
-      <tr><td>Tutoring/EAD com WA</td><td>Acompanhamento de alunos</td><td>R$49–199/mês</td></tr>
-    </tbody>
-  </table>
-</div>
-<p style="font-size:12px; color:#666; margin-top:8px; margin-bottom:2.5rem;">No Brasil, WhatsApp tem penetração de 93% dos usuários de smartphone. Produtos que entregam valor via WhatsApp têm custo cognitivo zero para o usuário — ele não precisa abrir outro app. Isso aumenta o valor percebido de forma desproporcional ao custo real da funcionalidade.</p>
+<p class="nota">Preços dos concorrentes levantados em jun/2026 (não reconferidos). A R$19,90, o Família em Dia fica no meio da faixa dos apps de família — e é o único com IA e WhatsApp.</p>
 
 <h2>Análise de elasticidade de preço</h2>
-<p style="font-size:13px; color:#555; margin-bottom:1rem;">Para o público-alvo (pais brasileiros, classe B/C+, filhos em idade escolar):</p>
+<p style="font-size:13px; color:#555; margin-bottom:1rem;">Para o público-alvo (pais brasileiros, classe B/C+, filhos em idade escolar). Estimativa qualitativa — a conversão real será medida no Painel do negócio.</p>
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Faixa de preço</th><th>Percepção</th><th>Estimativa de conversão relativa</th></tr>
+      <tr><th>Faixa de preço</th><th>Percepção</th><th>Conversão relativa estimada</th></tr>
     </thead>
     <tbody>
-      <tr><td>R$19,90</td><td>"Barato demais — será que é bom?"</td><td>Alta, mas âncora de valor baixo</td></tr>
+      <tr><td>R$14,90</td><td>"Barato demais — será que é bom?"</td><td>Alta, mas âncora de valor baixa e margem apertada</td></tr>
+      <tr style="background:#EAF3DE;"><td><strong>R$19,90 ← vigente</strong></td><td>"Menos de R$20, vale testar" — mesma faixa de um streaming</td><td style="color:#3B6D11; font-weight:500;">Alta — tira a objeção de preço no dia 14</td></tr>
       <tr><td>R$24,90</td><td>Confortável, sem atrito</td><td>Alta</td></tr>
-      <tr><td>R$29,90</td><td>"Razoável — menos de R$1/dia"</td><td>Alta</td></tr>
-      <tr><td>R$34,90</td><td>"Ainda OK para o que entrega"</td><td>Queda leve (~10–15%)</td></tr>
-      <tr style="background:#EAF3DE;"><td><strong>R$39,90 ← escolhido</strong></td><td>"Caro, mas justificado se eu usar"</td><td style="color:#3B6D11; font-weight:500;">Queda moderada (~20–25%) — absorvível com diferencial claro</td></tr>
+      <tr><td>R$29,90</td><td>"Razoável — menos de R$1/dia"</td><td>Queda leve</td></tr>
+      <tr><td>R$39,90 (preço antigo)</td><td>"Caro, mas justificado se eu usar"</td><td>Queda moderada (~20–25%)</td></tr>
       <tr><td>R$49,90</td><td>"Preciso ter certeza antes de assinar"</td><td style="color:#A32D2D;">Queda significativa como plano base</td></tr>
     </tbody>
   </table>
 </div>
-<p style="font-size:12px; color:#666; margin-top:8px; margin-bottom:2rem;">A curva de demanda tem um "cotovelo" entre R$34,90 e R$39,90 — ponto onde a percepção de valor sustenta o preço antes de cair. R$39,90 é o teto sustentável da faixa, maximizando margem sem cruzar para "caro demais para arriscar".</p>
+<p class="nota">O risco de R$19,90 é a âncora de valor baixa; ele é compensado pelo teste de 14 dias (a pessoa já viu o produto funcionando), pela tabela comparativa e pelo Plus a R$29,90 ao lado.</p>
 
-<h2 style="margin-top:2.5rem;">Análise de margens e break-even por preço e volume</h2>
+<h2>Margens e break-even por plano</h2>
 <div class="table-wrap">
   <table>
     <thead>
       <tr>
-        <th>Plano / Preço</th>
-        <th>Margem/usuário</th>
+        <th>Plano / Preço por mês</th>
+        <th>Margem/assinante*</th>
         <th>Break-even</th>
-        <th>Margem c/ 50 usuários</th>
-        <th>Margem c/ 100 usuários</th>
-        <th>Margem c/ 500 usuários</th>
+        <th>Margem c/ 50</th>
+        <th>Margem c/ 100</th>
+        <th>Margem c/ 500</th>
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td>Oferta de lançamento — Família mensal R$29,90 (máx. 20 usuários)</td>
-        <td>R$29,00</td>
-        <td>10 usuários</td>
-        <td>—</td>
-        <td>—</td>
-        <td>—</td>
-      </tr>
-      <tr>
-        <td>Família anual R$31,90</td>
-        <td>R$31,00</td>
-        <td>9 usuários</td>
-        <td>80%</td>
-        <td>88%</td>
-        <td>95%</td>
-      </tr>
-      <tr>
-        <td>Mix 60/40 R$36,70</td>
-        <td>R$35,80</td>
-        <td>8 usuários</td>
-        <td>82%</td>
-        <td>90%</td>
-        <td>96%</td>
-      </tr>
-      <tr style="background:#E6F1FB;">
-        <td><strong>Família mensal R$39,90</strong></td>
-        <td><strong>R$39,00</strong></td>
-        <td style="color:#185FA5; font-weight:600;">8 usuários</td>
-        <td style="color:#185FA5; font-weight:600;">84%</td>
-        <td style="color:#185FA5; font-weight:600;">91%</td>
-        <td style="color:#185FA5; font-weight:600;">96%</td>
-      </tr>
-      <tr>
-        <td>Plus anual R$47,90</td>
-        <td>R$47,00</td>
-        <td>6 usuários</td>
-        <td>87%</td>
-        <td>92%</td>
-        <td>97%</td>
-      </tr>
-      <tr>
-        <td>Plus mensal R$59,90</td>
-        <td>R$59,00</td>
-        <td>5 usuários</td>
-        <td>89%</td>
-        <td>94%</td>
-        <td>97%</td>
-      </tr>
+      <tr><td>Família anual R$15,90</td><td>R$11,07</td><td>24 assinantes</td><td>37%</td><td>53%</td><td>65%</td></tr>
+      <tr style="background:#E6F1FB;"><td><strong>Família mensal R$19,90</strong></td><td><strong>R$14,29</strong></td><td style="color:#185FA5; font-weight:600;">19 assinantes</td><td style="color:#185FA5; font-weight:600;">46%</td><td style="color:#185FA5; font-weight:600;">59%</td><td style="color:#185FA5; font-weight:600;">68%</td></tr>
+      <tr><td>Mix realista R$20,60</td><td>R$15,05</td><td>18 assinantes</td><td>48%</td><td>60%</td><td>69%</td></tr>
+      <tr><td>Plus anual R$23,90</td><td>R$18,22</td><td>15 assinantes</td><td>54%</td><td>65%</td><td>73%</td></tr>
+      <tr><td>Plus mensal R$29,90</td><td>R$23,22</td><td>12 assinantes</td><td>60%</td><td>69%</td><td>75%</td></tr>
     </tbody>
   </table>
 </div>
+<p class="nota">* Depois do custo variável (WhatsApp, IA, voz, Stripe) e de 6% de imposto (Simples, Anexo III). Margem = lucro ÷ receita, com custo fixo de R$261/mês (R$369 a 500 assinantes, com o Resend pago). Mix realista: 75% Família e 25% Plus; 60% mensal e 40% anual.</p>
 <div style="background:#EAF3DE; border:1px solid #97C459; border-radius:8px; padding:12px 16px; margin-top:10px; font-size:13px; color:#27500A; line-height:1.6;">
-  <strong>Conclusão financeira:</strong> custo variável de R$0,90/usuário → margem bruta de 96–97% em escala. Break-even em 8 usuários para o plano principal. O produto se paga com menos de duas semanas de vendas ativas em qualquer cenário realista de lançamento. O aumento de preço de R$29,90 para R$39,90 reduziu o break-even de 10 para 8 usuários e melhorou a margem em todos os cenários em 3–6 pontos percentuais.
+  <strong>Conclusão financeira:</strong> com custo variável de R$4,42 por assinante, a margem depois do imposto chega a ~68% em escala no plano principal. O break-even passou de 8 para 19 assinantes com o preço novo: a aposta é que o preço baixo mais que dobre a conversão do teste. Os primeiros 30 dias de dados do Painel (cadastros → teste → assinatura) dizem se a aposta se confirma.
 </div>
 
-<p style="margin-top: 2rem; font-size: 12px; color: #bbb;">Família em Dia · Oferta Comercial resumida · 2026-06-18</p>
+<p style="margin-top: 2rem; font-size: 12px; color: #bbb;">Família em Dia · Oferta Comercial resumida · 16/10/2026 · Fonte dos preços no app: src/lib/planos-oferta.ts</p>
 
 </body>
 </html>
