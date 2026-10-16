@@ -62,8 +62,11 @@ export async function proxy(request: NextRequest) {
 
   if (!user && !isAuthRoute && !isPublic && !isApi && !isConviteRoute) {
     const loginUrl = new URL('/auth/login', request.url)
-    // Preserva o destino (ex.: link de convite) para retornar após o login
-    if (pathname !== '/dashboard') loginUrl.searchParams.set('redirect', pathname)
+    // Preserva o destino (ex.: link de convite) para retornar após o login —
+    // com a query: o botão do WhatsApp leva `utm_*` até /planos, e sem isso a
+    // origem da assinatura se perdia no login (o WhatsApp abre o link num
+    // navegador próprio, sem a sessão do app).
+    if (pathname !== '/dashboard') loginUrl.searchParams.set('redirect', pathname + request.nextUrl.search)
     const res = NextResponse.redirect(loginUrl)
     if (inviteMatch) {
       res.cookies.set('pending_invite', inviteMatch[1], { path: '/', maxAge: 3600, sameSite: 'lax' })

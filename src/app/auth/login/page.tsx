@@ -19,11 +19,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
   const [signupHref, setSignupHref] = useState('/auth/signup')
+  // Chegou pelo botão do WhatsApp: ele abre o link num navegador próprio, que
+  // não tem a sessão do app — a pessoa estranha ter de entrar de novo.
+  const [vemDoWhatsapp, setVemDoWhatsapp] = useState(false)
 
   // Propaga ?redirect= (ex.: link de convite) para o fluxo de criação de conta
   useEffect(() => {
     const search = window.location.search
     if (search) setSignupHref(`/auth/signup${search}`)
+    const destino = new URLSearchParams(search).get('redirect') ?? ''
+    if (/[?&]utm_source=whatsapp/.test(destino)) setVemDoWhatsapp(true)
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -135,6 +140,12 @@ export default function LoginPage() {
                 Seu dia começa aqui — organizado e tranquilo.
               </p>
             </div>
+
+            {vemDoWhatsapp && (
+              <p className="text-sm mb-5" style={{ background: 'rgba(61,102,65,0.08)', border: '1px solid rgba(61,102,65,0.18)', borderRadius: 12, padding: '10px 12px', color: '#1A2B1C', lineHeight: 1.5 }}>
+                Você abriu pelo WhatsApp, que usa um navegador próprio. Entre uma vez e você vai direto para os planos.
+              </p>
+            )}
 
             <form onSubmit={handleSubmit} method="POST" className="space-y-4">
               <div>
