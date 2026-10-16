@@ -302,6 +302,10 @@
   .cmp .cmp-dest{background:#E8F5F2;font-weight:700}
   .cmp .cmp-nao{color:#B7C2BE;font-weight:400}
   .cmp-nota{font-size:13px;color:var(--muted);margin:12px 0 0}
+  .cmp-etapas{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#E8F5F2;border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:14px;line-height:1.45;color:var(--ink,#1A2B1C)}
+  .cmp-etapas b{font-weight:800}
+  .cmp-etapas .seta{color:#0F766E;font-weight:800}
+  .cmp th .cmp-sub{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:2px}
   .pcard .price{font-family:var(--serif);font-size:38px;font-weight:700;line-height:1}
   .pcard .price small{font-size:15px;color:var(--muted);font-weight:400}
   .pcard .div{height:1px;background:var(--line);margin:20px 0}
@@ -1472,8 +1476,9 @@
     <!-- Comparativo: espelha src/lib/planos-oferta.ts (COMPARATIVO). Mudou lá, mude aqui. -->
     <div class="cmp-wrap">
       <h3 class="cmp-tit">Compare os planos</h3>
+      <p class="cmp-etapas"><span><b>Dias 1 a 14:</b> tudo do plano Família, grátis e sem cartão</span><span class="seta" aria-hidden="true">&rarr;</span><span><b>Depois:</b> assine Família ou Plus, ou siga no Gratuito</span></p>
       <div class="cmp-rolar"><table class="cmp">
-        <thead><tr><th scope="col">Recurso</th><th scope="col">Gratuito</th><th scope="col" class="cmp-dest">Família</th><th scope="col">Plus</th></tr></thead>
+        <thead><tr><th scope="col">Recurso</th><th scope="col">Gratuito<span class="cmp-sub">após os 14 dias</span></th><th scope="col" class="cmp-dest">Família</th><th scope="col">Plus</th></tr></thead>
         <tbody>
           <tr><th scope="row">Preço mensal</th><td>Grátis</td><td class="cmp-dest">R$19,90</td><td>R$29,90</td></tr>
           <tr><th scope="row">No plano anual (−20%)</th><td class="cmp-nao">—</td><td class="cmp-dest">R$15,90/mês</td><td>R$23,90/mês</td></tr>
@@ -1487,7 +1492,7 @@
           <tr><th scope="row">Suporte prioritário</th><td class="cmp-nao">—</td><td class="cmp-dest cmp-nao">—</td><td>✓</td></tr>
         </tbody>
       </table></div>
-      <p class="cmp-nota">Toda conta começa com 14 dias do plano Família, sem cartão. Depois, assine ou continue no gratuito &mdash; seus dados nunca somem. Sem fidelidade: cancele quando quiser.</p>
+      <p class="cmp-nota">Se não assinar, sua conta passa para o Gratuito automaticamente. Seus dados nunca somem. Sem fidelidade: cancele quando quiser.</p>
     </div>
   </div>
 </section>
