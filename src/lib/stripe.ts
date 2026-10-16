@@ -78,9 +78,9 @@ export async function precoVigenteId(plan: Exclude<PlanId, 'free'>, interval: Bi
   return id
 }
 
-// Preços da oferta de lançamento (~25% para sempre, em qualquer plano).
-// Identificados pelo lookup_key — e não por env var — porque o app os cria
-// sozinho (ver oferta-lancamento.ts), tanto na conta de teste quanto na LIVE.
+// Preços da antiga oferta de lançamento (encerrada em 16/10/2026 sem nenhuma
+// assinatura). O app não vende mais por eles; continuam reconhecidos só para
+// uma assinatura antiga, se existir, não virar "plano desconhecido".
 export const PRECOS_LANCAMENTO: Record<`${Exclude<PlanId, 'free'>}:${BillingInterval}`, { lookupKey: string; centavos: number }> = {
   'familia:month': { lookupKey: 'lancamento_familia_mensal', centavos: 2990 },   // R$ 39,90 → R$ 29,90
   'familia:year':  { lookupKey: 'lancamento_familia_anual',  centavos: 28680 },  // R$ 382,80 → R$ 286,80 (R$ 23,90/mês)

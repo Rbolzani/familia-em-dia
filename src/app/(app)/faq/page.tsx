@@ -4,6 +4,7 @@ import {
   ChevronDown, Rocket, CalendarDays, Sparkles,
   FolderLock, Car, Users, MessageCircle, CreditCard, Shield,
 } from 'lucide-react'
+import { DESCONTO_ANUAL_PCT, DIAS_TESTE, precoPorMes, reais } from '@/lib/planos-oferta'
 
 interface FAQItem {
   q: string
@@ -193,15 +194,15 @@ const SECTIONS: FAQSection[] = [
     items: [
       {
         q: 'Quais são os planos disponíveis?',
-        a: 'Gratuito (sem custo), Família e Família Plus — ambos disponíveis em mensal ou anual (20% de desconto).',
+        a: `Gratuito (sem custo), Família (${reais(precoPorMes('familia', 'month'))}/mês) e Família Plus (${reais(precoPorMes('plus', 'month'))}/mês). No plano anual há ${DESCONTO_ANUAL_PCT}% de desconto: ${reais(precoPorMes('familia', 'year'))}/mês no Família e ${reais(precoPorMes('plus', 'year'))}/mês no Plus. A comparação completa está em Planos.`,
       },
       {
         q: 'Posso testar antes de assinar?',
-        a: 'Sim. Ao assinar pela primeira vez, você tem 14 dias de trial gratuito. O trial não é concedido uma segunda vez.',
+        a: `Sim. Toda conta nova já começa com ${DIAS_TESTE} dias do plano Família completo, sem cartão de crédito. Se você não assinar, a conta passa sozinha para o Gratuito, sem nenhuma cobrança. O teste é concedido uma única vez.`,
       },
       {
         q: 'Como cancelo minha assinatura?',
-        a: 'Em Configurações → Planos, toque em cancelar. Você continua com acesso até o fim do período já pago.',
+        a: 'Em Configurações → Planos, toque em cancelar. Se a cobrança foi feita há até 7 dias, o valor volta integralmente para o cartão. Depois disso, você continua com acesso até o fim do período já pago, sem novas cobranças.',
       },
       {
         q: 'Posso trocar de plano sem perder acesso?',

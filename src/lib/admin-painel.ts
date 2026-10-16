@@ -7,7 +7,6 @@
 import type Stripe from 'stripe'
 import { stripe, planoDoPreco, ehPrecoLancamento } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/server'
-import { VAGAS_LANCAMENTO } from '@/lib/oferta-lancamento'
 
 const DIA = 86_400_000
 
@@ -84,7 +83,7 @@ const DIAS_TESTE = 14
 export interface PainelNegocio {
   resumo: {
     cadastros: number; emTeste: number; assinantes: number; gratuito: number; cancelaram: number
-    receitaMensalCentavos: number; vagasUsadas: number; vagasTotal: number
+    receitaMensalCentavos: number
     /** Pagantes + contratadas no teste que ainda não tiveram a primeira cobrança. */
     contratadas: number; aguardandoCobranca: number; receitaPrevistaCentavos: number
     cortesia: number; convidados: number; incompletos: number; semUso: number
@@ -165,7 +164,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
 
   type Aviso = { user_id: string; etapa: string; enviado_em: string; whatsapp: boolean; email: boolean; email_aberto_em: string | null; email_clicado_em: string | null }
   type MsgWa = { user_id: string | null; status: string | null; sent_at: string | null; kind: string | null }
-  const [usuarios, perfis, subs, membros, familias, lembretes, excluidas, filhosDatas, usoRes, vagasRes, avisos_, msgsWa] = await Promise.all([
+  const [usuarios, perfis, subs, membros, familias, lembretes, excluidas, filhosDatas, usoRes, avisos_, msgsWa] = await Promise.all([
     todosUsuarios(),
     todas<Perfil>('profiles', 'user_id, full_name, phone, acquisition_source, profile_completed_at, signup_attribution'),
     todas<Sub>('subscriptions', 'user_id, plan, status, trial_ends_at, stripe_customer_id, stripe_subscription_id'),
@@ -176,7 +175,6 @@ export async function montarPainel(): Promise<PainelNegocio> {
     // Só as datas: o painel nunca lê nome nem dados dos filhos.
     todas<{ user_id: string; created_at: string }>('children', 'user_id, created_at'),
     admin.rpc('admin_uso_por_usuario'),
-    admin.rpc('vagas_lancamento_usadas'),
     todas<Aviso>('aviso_fim_teste', 'user_id, etapa, enviado_em, whatsapp, email, email_aberto_em, email_clicado_em'),
     todas<MsgWa>('whatsapp_messages', 'user_id, status, sent_at, kind').then(l => l.filter(m => m.kind === 'fim_teste')),
   ])
@@ -523,7 +521,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   return {
     resumo: {
       cadastros: usuarios.length, emTeste: emTeste.length, assinantes: pagas.length, gratuito, cancelaram,
-      receitaMensalCentavos, vagasUsadas: Number(vagasRes.data ?? 0), vagasTotal: VAGAS_LANCAMENTO,
+      receitaMensalCentavos,
       contratadas: pagas.length + aguardando.length, aguardandoCobranca: aguardando.length, receitaPrevistaCentavos,
       cortesia, convidados: nConvidados, incompletos, semUso: semUso.length, pagantesFamilia, pagantesPlus,
       semAtividade72h: semAtividade.filter(l => l.passou72h).length,

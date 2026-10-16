@@ -65,8 +65,10 @@ export default function TermosPage() {
       <ul>
         <Li>O Serviço oferece um plano gratuito e planos pagos (Família e Família Plus), em ciclos mensal
           ou anual, conforme os preços exibidos na Plataforma.</Li>
-        <Li>Novos usuários podem ter direito a um período de teste gratuito, concedido uma única vez. Ao
-          fim do teste, salvo cancelamento, a assinatura é convertida em cobrança no plano escolhido.</Li>
+        <Li>Todo novo cadastro recebe, uma única vez, <strong>14 dias de teste gratuito do plano
+          Família</strong>, sem cartão de crédito. Se o Usuário não assinar até o fim do teste, a conta
+          passa automaticamente para o plano gratuito, <strong>sem nenhuma cobrança</strong>. Quem assina
+          durante o teste só é cobrado quando o teste termina, no plano e ciclo escolhidos.</Li>
         <Li>Os pagamentos são processados por operador externo (Stripe). A assinatura é
           <strong> recorrente</strong> e renovada automaticamente até o cancelamento.</Li>
         <Li>O Usuário pode cancelar a qualquer momento. Fora do prazo de arrependimento descrito abaixo,
