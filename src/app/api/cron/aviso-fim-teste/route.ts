@@ -1,4 +1,4 @@
-// Aviso de fim do teste grátis (Vercel Cron, 1×/dia às 20h de Brasília).
+// Aviso de fim do teste grátis (Vercel Cron, 1×/dia às 11h de Brasília).
 //
 // Dois avisos para quem está no teste do Família e ainda não assinou:
 //   d3 — faltando 3 dias (ou 2, se a execução de um dia falhou);
@@ -6,8 +6,9 @@
 // Cada um sai UMA vez por pessoa: WhatsApp (modelo de Marketing `fim_teste`,
 // com o botão de assinatura; reserva `aviso_conta`) e e-mail. Envio em
 // src/lib/aviso-fim-teste-envio.ts; textos em src/lib/aviso-fim-teste.ts.
-// Às 20h e não junto do resumo diário (7h): uma mensagem não apaga a outra, e
-// é a hora em que os pais têm o celular na mão e tempo para assinar.
+// Às 11h e não junto do resumo diário (7h): uma mensagem não apaga a outra.
+// Decisão do Rogério (16/10/2026): durante o dia, depois de levar as crianças
+// e antes do almoço; às 20h a mãe está ocupada com casa e filhos.
 //
 // Quem fica de fora: quem já assinou no teste (tem assinatura no Stripe),
 // convidados por link (usam o plano de outra família) e contas cortesia (não

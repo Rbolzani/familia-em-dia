@@ -90,7 +90,7 @@ export default async function AdminPage() {
 
       <section className="adm-cartao">
         <div className="adm-cab"><h2>Aviso de fim do teste</h2><small>WhatsApp com botão de assinatura + e-mail</small></div>
-        <p className="adm-ver" style={{ marginTop: 0, marginBottom: 12 }}>Sai sozinho às 20h, faltando 3 dias e na véspera do fim do teste, para quem ainda não assinou. O botão abaixo manda para você o aviso exatamente como o cliente recebe, simulando um teste que termina em 3 dias.</p>
+        <p className="adm-ver" style={{ marginTop: 0, marginBottom: 12 }}>Sai sozinho às 11h, faltando 3 dias e na véspera do fim do teste, para quem ainda não assinou. O botão abaixo manda para você o aviso exatamente como o cliente recebe, simulando um teste que termina em 3 dias.</p>
         <TesteAvisoBotao />
       </section>
 
