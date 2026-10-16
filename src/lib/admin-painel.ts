@@ -47,6 +47,19 @@ export interface LinhaAssinante {
   /** De onde assinou: tela Planos do app, botão do WhatsApp ou do e-mail (vazio = antes de 16/10/2026). */
   origem: string | null
 }
+/** Um aviso de fim do teste enviado (faltando 3 dias ou na véspera). */
+export interface LinhaAvisoFimTeste {
+  nome: string | null; email: string
+  etapa: 'Faltando 3 dias' | 'Véspera'; enviadoEm: string
+  whatsapp: 'não enviado' | 'enviado' | 'entregue' | 'lido' | 'falhou'
+  emailStatus: 'não enviado' | 'enviado' | 'aberto' | 'clicou'
+  /** Assinou depois do aviso? Com a origem gravada na assinatura. */
+  assinou: string | null
+}
+export interface FunilAviso {
+  email: { enviados: number; abertos: number; clicaram: number; assinaram: number }
+  whatsapp: { enviados: number; entregues: number; lidos: number; assinaram: number }
+}
 /** Abriu a tela de pagamento do Stripe e saiu sem concluir (e não assinou depois). */
 export interface LinhaPagamentoNaoConcluido {
   nome: string | null; email: string; celular: string | null
@@ -88,6 +101,8 @@ export interface PainelNegocio {
   semUso: LinhaSemUso[]
   redeApoio: LinhaRedeApoio[]
   pagamentoNaoConcluido: LinhaPagamentoNaoConcluido[]
+  avisosFimTeste: LinhaAvisoFimTeste[]
+  funilAviso: FunilAviso
   semAtividade: LinhaSemAtividade[]
   assinantes: LinhaAssinante[]
   cancelamentos: LinhaCancelamento[]
@@ -148,7 +163,9 @@ export async function montarPainel(): Promise<PainelNegocio> {
   type Membro = { user_id: string; role: string | null; family_id: string; access_role: string | null; joined_at: string | null }
   type Uso = { user_id: string; filhos: number; atividades: number; usou_ia: boolean }
 
-  const [usuarios, perfis, subs, membros, familias, lembretes, excluidas, filhosDatas, usoRes, vagasRes] = await Promise.all([
+  type Aviso = { user_id: string; etapa: string; enviado_em: string; whatsapp: boolean; email: boolean; email_aberto_em: string | null; email_clicado_em: string | null }
+  type MsgWa = { user_id: string | null; status: string | null; sent_at: string | null; kind: string | null }
+  const [usuarios, perfis, subs, membros, familias, lembretes, excluidas, filhosDatas, usoRes, vagasRes, avisos_, msgsWa] = await Promise.all([
     todosUsuarios(),
     todas<Perfil>('profiles', 'user_id, full_name, phone, acquisition_source, profile_completed_at, signup_attribution'),
     todas<Sub>('subscriptions', 'user_id, plan, status, trial_ends_at, stripe_customer_id, stripe_subscription_id'),
@@ -160,6 +177,8 @@ export async function montarPainel(): Promise<PainelNegocio> {
     todas<{ user_id: string; created_at: string }>('children', 'user_id, created_at'),
     admin.rpc('admin_uso_por_usuario'),
     admin.rpc('vagas_lancamento_usadas'),
+    todas<Aviso>('aviso_fim_teste', 'user_id, etapa, enviado_em, whatsapp, email, email_aberto_em, email_clicado_em'),
+    todas<MsgWa>('whatsapp_messages', 'user_id, status, sent_at, kind').then(l => l.filter(m => m.kind === 'fim_teste')),
   ])
   if (usoRes.error) avisos.push('Não consegui ler as contagens de uso.')
   if (!process.env.RESEND_API_KEY) avisos.push('O lembrete por e-mail para quem cadastrou e não usou está parado: falta a chave RESEND_API_KEY na Vercel.')
@@ -286,6 +305,43 @@ export async function montarPainel(): Promise<PainelNegocio> {
     })
   }
   const pagamentoNaoConcluido = [...naoConcluido.values()]
+
+  // ── Aviso de fim do teste: quem recebeu, abriu, clicou, assinou ─────────
+  // WhatsApp: o status vem do webhook da Meta (whatsapp_messages), casado pelo
+  // envio do mesmo dia. Clique no botão do WhatsApp não é medido por pessoa (o
+  // link é fixo no modelo da Meta) — só "assinou por WhatsApp".
+  const assinaturaDe = new Map<string, Stripe.Subscription>()
+  for (const s of jaAssinaram) { const uid = s.metadata?.user_id; if (uid && !assinaturaDe.has(uid)) assinaturaDe.set(uid, s) }
+  const funilAviso: FunilAviso = { email: { enviados: 0, abertos: 0, clicaram: 0, assinaram: 0 }, whatsapp: { enviados: 0, entregues: 0, lidos: 0, assinaram: 0 } }
+  const assinouPor = new Map<string, string | null>()
+  const avisosFimTeste: LinhaAvisoFimTeste[] = avisos_
+    .sort((a, b) => b.enviado_em.localeCompare(a.enviado_em))
+    .map(a => {
+      const u = usuarioDe.get(a.user_id), p = perfilDe.get(a.user_id)
+      const enviado = new Date(a.enviado_em).getTime()
+      const msg = msgsWa
+        .filter(m => m.user_id === a.user_id && m.sent_at && Math.abs(new Date(m.sent_at).getTime() - enviado) < 30 * 60_000)
+        .sort((x, y) => (y.sent_at ?? '').localeCompare(x.sent_at ?? ''))[0]
+      const wa: LinhaAvisoFimTeste['whatsapp'] = !a.whatsapp ? 'não enviado'
+        : msg?.status === 'read' ? 'lido' : msg?.status === 'delivered' ? 'entregue' : msg?.status === 'failed' ? 'falhou' : 'enviado'
+      const em: LinhaAvisoFimTeste['emailStatus'] = !a.email ? 'não enviado' : a.email_clicado_em ? 'clicou' : a.email_aberto_em ? 'aberto' : 'enviado'
+      const sub = assinaturaDe.get(a.user_id)
+      const depois = sub && sub.created * 1000 >= enviado - 60_000
+      const origemSub = depois ? (s => ORIGEM[s] ?? 'origem não registrada')(sub!.metadata?.origem ?? '') : null
+      if (a.email) { funilAviso.email.enviados++; if (em === 'aberto' || em === 'clicou') funilAviso.email.abertos++; if (em === 'clicou') funilAviso.email.clicaram++ }
+      if (a.whatsapp) { funilAviso.whatsapp.enviados++; if (wa === 'entregue' || wa === 'lido') funilAviso.whatsapp.entregues++; if (wa === 'lido') funilAviso.whatsapp.lidos++ }
+      if (depois) assinouPor.set(a.user_id, sub!.metadata?.origem ?? null)
+      return {
+        nome: p?.full_name ?? null, email: u?.email ?? '(conta excluída)',
+        etapa: a.etapa === 'd1' ? 'Véspera' : 'Faltando 3 dias', enviadoEm: a.enviado_em,
+        whatsapp: wa, emailStatus: em, assinou: origemSub,
+      }
+    })
+  // "assinaram" conta pessoas (não avisos), pela origem gravada na assinatura
+  for (const origem of assinouPor.values()) {
+    if (origem === 'email') funilAviso.email.assinaram++
+    if (origem === 'whatsapp') funilAviso.whatsapp.assinaram++
+  }
 
   const porMes = (lista: Stripe.Subscription[]) => lista
     .reduce((soma, s) => { const d = descreve(s); return soma + (d.periodo === 'Anual' ? Math.round(d.centavos / 12) : d.centavos) }, 0)
@@ -478,6 +534,6 @@ export async function montarPainel(): Promise<PainelNegocio> {
       cancelaram,
     },
     retencao, tempoDeBase,
-    emTeste, semUso, redeApoio, pagamentoNaoConcluido, semAtividade, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
+    emTeste, semUso, redeApoio, pagamentoNaoConcluido, avisosFimTeste, funilAviso, semAtividade, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
   }
 }

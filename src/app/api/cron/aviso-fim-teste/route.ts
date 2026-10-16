@@ -81,10 +81,11 @@ export async function GET(request: Request) {
   for (const c of pendentes) {
     // Marca ANTES de enviar: a chave primária barra um segundo envio se duas
     // execuções se cruzarem.
-    const { error: marcaErr } = await admin.from('aviso_fim_teste').insert({ user_id: c.userId, etapa: c.etapa, fim_teste: c.fim.toISOString() })
-    if (marcaErr) continue
+    const { data: marca, error: marcaErr } = await admin.from('aviso_fim_teste')
+      .insert({ user_id: c.userId, etapa: c.etapa, fim_teste: c.fim.toISOString() }).select('token').single()
+    if (marcaErr || !marca) continue
 
-    const r = await enviarAvisoFimTeste(admin, c.userId, c.fim)
+    const r = await enviarAvisoFimTeste(admin, c.userId, c.fim, 'fim_teste', marca.token as string)
     if (r.erros.length) console.error('[aviso-fim-teste] %s %s:', c.etapa, c.userId.slice(0, 8), r.erros.join(' | '))
     if (!r.whatsapp && !r.email) {
       // Nada chegou: tira a marca para tentar de novo amanhã.

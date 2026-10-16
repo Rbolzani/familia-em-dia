@@ -91,7 +91,46 @@ export default async function AdminPage() {
       <section className="adm-cartao">
         <div className="adm-cab"><h2>Aviso de fim do teste</h2><small>WhatsApp com botão de assinatura + e-mail</small></div>
         <p className="adm-ver" style={{ marginTop: 0, marginBottom: 12 }}>Sai sozinho às 11h, faltando 3 dias e na véspera do fim do teste, para quem ainda não assinou. O botão abaixo manda para você o aviso exatamente como o cliente recebe, simulando um teste que termina em 3 dias.</p>
-        <TesteAvisoBotao />
+        <div className="adm-duas" style={{ marginBottom: 14 }}>
+          {([
+            ['E-mail', [['enviados', p.funilAviso.email.enviados], ['abriram', p.funilAviso.email.abertos], ['clicaram no botão', p.funilAviso.email.clicaram], ['assinaram pelo e-mail', p.funilAviso.email.assinaram]]],
+            ['WhatsApp', [['enviados', p.funilAviso.whatsapp.enviados], ['entregues', p.funilAviso.whatsapp.entregues], ['leram', p.funilAviso.whatsapp.lidos], ['assinaram pelo WhatsApp', p.funilAviso.whatsapp.assinaram]]],
+          ] as [string, [string, number][]][]).map(([canal, etapas]) => (
+            <div key={canal}>
+              <p style={{ fontWeight: 700, margin: '0 0 6px' }}>{canal}</p>
+              <div className="adm-funil">
+                {etapas.map(([rotulo, n]) => (
+                  <div className="adm-f" key={rotulo}>
+                    <span>{rotulo}</span>
+                    <span className="adm-b"><i style={{ width: `${Math.min(100, pct(n, etapas[0][1]))}%` }} /></span>
+                    <b>{n}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        {p.avisosFimTeste.length === 0 ? <p className="adm-vazio">Nenhum aviso enviado ainda.</p> : (
+          <div className="adm-rolar">
+            <table>
+              <thead><tr><th>Quem</th><th>Aviso</th><th>Enviado em</th><th>WhatsApp</th><th>E-mail</th><th>Assinou?</th></tr></thead>
+              <tbody>
+                {p.avisosFimTeste.map(i => (
+                  <tr key={i.email + i.etapa}>
+                    <td className="adm-quem"><b>{i.nome || '—'}</b><span>{i.email}</span></td>
+                    <td className="adm-nq">{i.etapa}</td>
+                    <td className="adm-nq">{data(i.enviadoEm)}</td>
+                    <td className="adm-nq"><span className={`adm-p ${i.whatsapp === 'lido' ? 'adm-ok' : i.whatsapp === 'falhou' ? 'adm-amb' : 'adm-cin'}`}>{i.whatsapp}</span></td>
+                    <td className="adm-nq"><span className={`adm-p ${i.emailStatus === 'clicou' ? 'adm-ok' : i.emailStatus === 'aberto' ? 'adm-az' : 'adm-cin'}`}>{i.emailStatus}</span></td>
+                    <td className="adm-nq">{i.assinou ? <span className="adm-p adm-ok">sim · {i.assinou}</span> : 'não'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="adm-ver">E-mail: &quot;aberto&quot; vem de uma imagem invisível e é tendência, não número exato (o Mail do iPhone abre sozinho; outros programas bloqueiam imagens). &quot;Clicou&quot; é confiável. WhatsApp: &quot;entregue&quot; e &quot;lido&quot; vêm da Meta (lido só aparece para quem não desligou a confirmação de leitura); o clique no botão do WhatsApp não é medido por pessoa, só a assinatura que veio dele.</p>
+        <div style={{ marginTop: 14 }}><TesteAvisoBotao /></div>
       </section>
 
       <section className="adm-cartao">

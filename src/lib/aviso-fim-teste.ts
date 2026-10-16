@@ -18,7 +18,15 @@ import { LEGAL_ENTITY } from '@/lib/legal'
 import { COMPARATIVO, CONTINUA_NO_GRATUITO, PERDE_NO_GRATUITO, precoPorMes, reais, type Celula } from '@/lib/planos-oferta'
 
 export const REMETENTE_AVISO = `Família em Dia <${LEGAL_ENTITY.email}>`
-const LINK = 'https://www.familiaemdia.com.br/planos?utm_source=email&utm_medium=email&utm_campaign=fim_teste'
+const SITE = 'https://www.familiaemdia.com.br'
+export const LINK_PLANOS_EMAIL = `${SITE}/planos?utm_source=email&utm_medium=email&utm_campaign=fim_teste`
+// Com `token` (envio real da rotina), o botão passa por /api/e/c — que registra
+// o clique e leva a /planos — e uma imagem invisível (/api/e/a) registra a
+// abertura. Sem token (amostra do Painel), o link vai direto e não há imagem.
+const linkBotao = (token?: string) => token ? `${SITE}/api/e/c?t=${token}` : LINK_PLANOS_EMAIL
+const imagemAbertura = (token?: string) => token
+  ? `<img src="${SITE}/api/e/a?t=${token}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">`
+  : ''
 const BOTAO = 'Assinar o plano Família'
 
 const diaSP = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d)
@@ -65,14 +73,14 @@ const PRECO = `O plano Família custa ${reais(precoPorMes('familia', 'month'))} 
 const DEPOIS_DO_BOTAO = 'Ficou com alguma dúvida? É só responder este e-mail.'
 const RODAPE = 'Você recebeu este e-mail porque está no teste grátis de uma conta em familiaemdia.com.br.'
 
-export function emailEmTexto(nome: string | null, fim: Date): string {
+export function emailEmTexto(nome: string | null, fim: Date, token?: string): string {
   const tabela = COMPARATIVO.map(l => `${l.recurso}: Gratuito ${txt(l.gratuito)} · Família ${txt(l.familia)} · Plus ${txt(l.plus)}`).join('\n')
   return [
     ...paragrafos(nome, fim),
     PERDE_NO_GRATUITO.map(i => `• ${i}`).join('\n'),
     DEPOIS_DA_LISTA,
     PRECO,
-    `${BOTAO}: ${LINK}`,
+    `${BOTAO}: ${linkBotao(token)}`,
     'Compare os planos:\n' + tabela,
     DEPOIS_DO_BOTAO,
     'Obrigado,\nFamília em Dia',
@@ -81,7 +89,7 @@ export function emailEmTexto(nome: string | null, fim: Date): string {
 }
 function txt(v: Celula) { return v === true ? 'sim' : v === false ? 'não' : v }
 
-export function emailEmHtml(nome: string | null, fim: Date): string {
+export function emailEmHtml(nome: string | null, fim: Date, token?: string): string {
   const fonte = '-apple-system,Segoe UI,sans-serif'
   const p = (t: string) => `<tr><td style="padding:0 0 14px;font:400 15px/1.6 ${fonte};color:#1A2B1C">${t}</td></tr>`
   const cel = (v: Celula, destaque: boolean) =>
@@ -97,7 +105,7 @@ export function emailEmHtml(nome: string | null, fim: Date): string {
     ${p(DEPOIS_DA_LISTA)}
     ${p(PRECO)}
     <tr><td style="padding:4px 0 22px">
-      <a href="${LINK}" style="display:inline-block;background:#3D6641;color:#fff;text-decoration:none;font:700 14px ${fonte};padding:12px 20px;border-radius:12px">${BOTAO}</a>
+      <a href="${linkBotao(token)}" style="display:inline-block;background:#3D6641;color:#fff;text-decoration:none;font:700 14px ${fonte};padding:12px 20px;border-radius:12px">${BOTAO}</a>
     </td></tr>
     <tr><td style="padding:0 0 8px;font:700 14px ${fonte};color:#1A2B1C">Compare os planos</td></tr>
     <tr><td style="padding:0 0 18px">${tabela}</td></tr>
@@ -106,5 +114,5 @@ export function emailEmHtml(nome: string | null, fim: Date): string {
     <tr><td style="padding:8px 0 0;border-top:1px solid #EFE8DA;font:400 12px/1.5 ${fonte};color:#7A8577">
       <div style="padding-top:12px">${RODAPE}</div>
     </td></tr>
-  </table></body></html>`
+  </table>${imagemAbertura(token)}</body></html>`
 }

@@ -27,3 +27,11 @@ revoke all on public.aviso_fim_teste from anon, authenticated;
 alter table public.aviso_fim_teste add column if not exists etapa text not null default 'd3' check (etapa in ('d3','d1'));
 alter table public.aviso_fim_teste drop constraint if exists aviso_fim_teste_pkey;
 alter table public.aviso_fim_teste add primary key (user_id, etapa);
+
+-- ── 16/10/2026: medição do e-mail (abertura e clique) ─────────────────────────
+-- `token` vai no endereço da imagem invisível (/api/e/a) e do botão (/api/e/c)
+-- de cada e-mail; as rotas gravam a primeira abertura e o primeiro clique.
+alter table public.aviso_fim_teste add column if not exists token uuid not null default gen_random_uuid();
+alter table public.aviso_fim_teste add column if not exists email_aberto_em timestamptz;
+alter table public.aviso_fim_teste add column if not exists email_clicado_em timestamptz;
+create unique index if not exists aviso_fim_teste_token_key on public.aviso_fim_teste (token);

@@ -16,7 +16,9 @@ export interface ResultadoAviso {
   erros: string[]
 }
 
-export async function enviarAvisoFimTeste(admin: SupabaseClient, userId: string, fim: Date, kind = 'fim_teste'): Promise<ResultadoAviso> {
+// `token` = o do registro em `aviso_fim_teste` (só nos envios da rotina): liga a
+// abertura e o clique do e-mail a este aviso. Sem ele, o e-mail sai sem medição.
+export async function enviarAvisoFimTeste(admin: SupabaseClient, userId: string, fim: Date, kind = 'fim_teste', token?: string): Promise<ResultadoAviso> {
   const erros: string[] = []
   let whatsapp = false
   let modelo: ResultadoAviso['modelo'] = null
@@ -47,7 +49,7 @@ export async function enviarAvisoFimTeste(admin: SupabaseClient, userId: string,
   if (u.user?.email && u.user.email_confirmed_at) {
     const { data: perfil } = await admin.from('profiles').select('full_name').eq('user_id', userId).maybeSingle()
     const nome = (perfil?.full_name as string | null)?.trim().split(/\s+/)[0] || null
-    const e = await enviarEmail(u.user.email, assuntoEmail(fim), emailEmHtml(nome, fim), emailEmTexto(nome, fim),
+    const e = await enviarEmail(u.user.email, assuntoEmail(fim), emailEmHtml(nome, fim, token), emailEmTexto(nome, fim, token),
       { de: REMETENTE_AVISO, responderPara: LEGAL_ENTITY.email })
     email = e.ok
     if (!e.ok) erros.push('e-mail: ' + (e.naoConfigurado ? 'sem RESEND_API_KEY' : e.erro))

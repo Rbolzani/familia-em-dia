@@ -88,7 +88,7 @@ export default function PrivacidadePage() {
           (páginas vistas, origem do acesso, cliques e conversões como cadastro e assinatura) e um
           identificador guardado em cookie. Não enviamos nome, e-mail, CPF nem dados dos filhos;</Li>
         <Li><strong>Resend</strong> — envio de e-mails da conta (confirmação de cadastro,
-          redefinição de senha, resumo diário e um lembrete único a quem criou a conta e ainda não começou a usar) e <strong>ImprovMX</strong> — recebimento dos e-mails de
+          redefinição de senha, resumo diário, um lembrete único a quem criou a conta e ainda não começou a usar, e os avisos de fim do teste grátis). Nos avisos de fim do teste, medimos com um registro do próprio site se o e-mail foi aberto e se o botão foi clicado, apenas para saber se a comunicação funciona; isso não é compartilhado com terceiros. A <strong>ImprovMX</strong> faz o recebimento dos e-mails de
           contato e suporte;</Li>
         <Li><strong>Sentry</strong> — monitoramento de erros da aplicação. Registra falhas
           técnicas para correção; não recebe conteúdo dos seus documentos, e identificadores
