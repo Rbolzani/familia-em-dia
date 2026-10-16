@@ -5,13 +5,14 @@
 // opt-in de comunicações promocionais.
 // ⚠️ Mudar aqui é mudar o que o cliente lê: o Rogério aprova o texto.
 //
-// POR QUE O WHATSAPP NÃO LEVA LINK NEM PREÇO
-// Ele sai pelo template `aviso_conta` (categoria Utilidade, 1 parâmetro), o
-// mesmo do aviso de grace. A Meta reclassifica como Marketing um template
-// Utilidade que convida a comprar — mais caro, com limite e opt-out. Por isso
-// o WhatsApp só informa o estado da conta (o que acaba e quando), e o convite
-// a assinar, com preço, link e tabela, vai no e-mail. Para ter link no
-// WhatsApp é preciso um template próprio de Marketing aprovado na Meta.
+// WHATSAPP: DOIS MODELOS
+// 1. `fim_teste` (Marketing, aprovado na Meta em 16/10/2026): o texto e o botão
+//    "Assinar o plano Família" (link fixo para /planos com utm) moram NA META;
+//    o app só preenche {{1}} = quando (`quandoTermina`) e {{2}} = data. Mudar o
+//    texto desse modelo é no painel da Meta, não aqui.
+// 2. `aviso_conta` (Utilidade, 1 parâmetro), reserva para quando o primeiro
+//    falhar: só informa o estado da conta, SEM link nem preço — um modelo de
+//    Utilidade que convida a comprar é reclassificado como Marketing.
 
 import { LEGAL_ENTITY } from '@/lib/legal'
 import { COMPARATIVO, CONTINUA_NO_GRATUITO, PERDE_NO_GRATUITO, precoPorMes, reais, type Celula } from '@/lib/planos-oferta'
@@ -20,10 +21,23 @@ export const REMETENTE_AVISO = `Família em Dia <${LEGAL_ENTITY.email}>`
 const LINK = 'https://www.familiaemdia.com.br/planos'
 const BOTAO = 'Assinar o plano Família'
 
-/** "em 3 dias" / "amanhã" / "hoje" — conta a partir de agora até o fim do teste. */
+const diaSP = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d)
+/**
+ * Dias de CALENDÁRIO (fuso de Brasília) até o fim do teste. Contar por horas
+ * dava "em 4 dias" para um teste que termina às 21h37 avisado às 20h de três
+ * dias antes.
+ */
+export function diasAteFim(fim: Date, agora = new Date()): number {
+  return Math.round((Date.parse(diaSP(fim)) - Date.parse(diaSP(agora))) / 86_400_000)
+}
+/** "em 3 dias" / "amanhã" / "hoje". */
 export function quandoTermina(fim: Date, agora = new Date()): string {
-  const dias = Math.ceil((fim.getTime() - agora.getTime()) / 86_400_000)
+  const dias = diasAteFim(fim, agora)
   return dias <= 0 ? 'hoje' : dias === 1 ? 'amanhã' : `em ${dias} dias`
+}
+/** Parâmetros do modelo `fim_teste` da Meta: {{1}} quando, {{2}} data. */
+export function paramsModeloFimTeste(fim: Date, agora = new Date()): [string, string] {
+  return [quandoTermina(fim, agora), dataCurta(fim)]
 }
 export function dataCurta(fim: Date): string {
   return fim.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })

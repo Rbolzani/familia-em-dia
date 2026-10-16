@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { fundadorLogado } from '@/lib/admin'
 import { montarPainel } from '@/lib/admin-painel'
 import { formatPhoneBR } from '@/lib/cpf'
+import TesteAvisoBotao from './TesteAvisoBotao'
 
 // Nunca em cache e nunca indexada: a resposta depende de quem está logado e
 // traz dados pessoais de todos os clientes.
@@ -85,6 +86,12 @@ export default async function AdminPage() {
           <div className="adm-num adm-destaque"><b>{reais(r.receitaMensalCentavos)}</b><span>receita mensal recorrente</span></div>
         </div>
         {outros.length > 0 && <p className="adm-ver">O total de cadastros inclui também {outros.join(', ')}.</p>}
+      </section>
+
+      <section className="adm-cartao">
+        <div className="adm-cab"><h2>Aviso de fim do teste</h2><small>WhatsApp com botão de assinatura + e-mail</small></div>
+        <p className="adm-ver" style={{ marginTop: 0, marginBottom: 12 }}>Sai sozinho às 20h, faltando 3 dias e na véspera do fim do teste, para quem ainda não assinou. O botão abaixo manda para você o aviso exatamente como o cliente recebe, simulando um teste que termina em 3 dias.</p>
+        <TesteAvisoBotao />
       </section>
 
       <section className="adm-cartao">

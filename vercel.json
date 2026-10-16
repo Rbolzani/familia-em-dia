@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/aviso-fim-teste",
-      "schedule": "0 12 * * *"
+      "schedule": "0 23 * * *"
     }
   ]
 }

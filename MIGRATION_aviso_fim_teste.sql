@@ -21,3 +21,9 @@ create table if not exists public.aviso_fim_teste (
 alter table public.aviso_fim_teste enable row level security;
 
 revoke all on public.aviso_fim_teste from anon, authenticated;
+
+-- ── 16/10/2026: dois avisos — faltando 3 dias (d3) e na véspera (d1) ──────────
+-- Uma linha por pessoa E por etapa. Aplicado com a tabela ainda vazia.
+alter table public.aviso_fim_teste add column if not exists etapa text not null default 'd3' check (etapa in ('d3','d1'));
+alter table public.aviso_fim_teste drop constraint if exists aviso_fim_teste_pkey;
+alter table public.aviso_fim_teste add primary key (user_id, etapa);
