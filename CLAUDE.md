@@ -176,6 +176,8 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 
 ### 8. Assinaturas / Billing (`/planos`) — Stripe
 - Planos **Gratuito / Família / Família Plus**, mensal ou **anual (−20%)**
+- **Oferta vigente (16/10/2026):** Família **R$ 19,90/mês** ou R$ 190,80/ano · Plus **R$ 29,90/mês** ou R$ 286,80/ano · teste de 14 dias do Família sem cartão · **sem oferta de lançamento** (encerrada; ninguém tinha assinado). Fonte única de preços e da tabela comparativa: `lib/planos-oferta.ts` (a landing estática tem cópia manual da tabela). Preços no Stripe por `lookup_key` (`*_2026_10`), criados sozinhos na 1ª venda (`precoVigenteId`); os antigos (env `STRIPE_PRICE_*`) seguem reconhecidos. Mudar valor = lookup_key novo.
+- **Aviso de fim do teste** (`/api/cron/aviso-fim-teste`, 9h de Brasília): 1 vez, 3 dias antes, a quem está no teste e não assinou (exclui convidados). WhatsApp pelo template `aviso_conta` (Utilidade: só estado da conta, **sem link nem preço** — convite a comprar reclassifica como Marketing) + e-mail com o que deixa de funcionar, preço, botão e tabela. Textos em `lib/aviso-fim-teste.ts` (o Rogério aprova). Controle em `aviso_fim_teste`.
 - **Paywall por plano** (`lib/billing.ts` → `PLAN_LIMITS`): free = 2 filhos, IA 5/mês, sem voz/WhatsApp/compartilhamento
 - **Checkout** novo assinante; **troca de plano/intervalo sem novo cartão** (modifica a sub existente com proração + `billing_cycle_anchor:'now'`)
 - **Trial 14 dias server-enforced** (sem segundo trial); **cancelamento com motivo** + **reativação**; **portal** com cancelamento desabilitado

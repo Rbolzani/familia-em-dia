@@ -20,6 +20,7 @@ const CRONS: { name: string; maxAtrasoMin: number; descricao: string }[] = [
   { name: 'expire-trials', maxAtrasoMin: 27 * 60, descricao: 'expiração de trial / grace period' },
   // Vercel Cron nativo, 1x/dia às 13:00 UTC (10h de Brasília)
   { name: 'lembrete-cadastro', maxAtrasoMin: 27 * 60, descricao: 'lembrete a quem não cadastrou filho' },
+  { name: 'aviso-fim-teste', maxAtrasoMin: 27 * 60, descricao: 'aviso de fim do teste grátis' },
 ]
 
 export async function GET(request: Request) {

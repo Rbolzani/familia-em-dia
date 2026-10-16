@@ -3,11 +3,9 @@ import { useState } from 'react'
 import { Check, Loader2, Star, Zap, Heart, ExternalLink } from 'lucide-react'
 import type { PlanId, BillingInterval } from '@/lib/stripe'
 import type { PlanPrices } from './page'
-import type { StatusOferta } from '@/lib/oferta-lancamento'
+import ComparativoPlanos from '@/components/billing/ComparativoPlanos'
 import { medir } from '@/lib/medicao'
 
-// Espelha DESCONTO_LANCAMENTO_PCT de oferta-lancamento.ts (server-only).
-const DESCONTO_LANCAMENTO_PCT = 25
 import Modal from '@/components/ui/Modal'
 import DadosAssinaturaModal from '@/components/billing/DadosAssinaturaModal'
 
@@ -44,12 +42,6 @@ interface Props {
   childLimit: number
   aiLimit: number
   prices: PlanPrices
-  /** Oferta de lançamento do Família mensal (vagas contadas pelo Stripe). */
-  oferta?: StatusOferta
-  /** A assinatura vigente já tem o preço de lançamento. */
-  precoLancamento?: boolean
-  /** Vaga da oferta que já é desta pessoa (vale mesmo com a oferta esgotada). */
-  vagaPropria?: 'confirmada' | 'reservada' | null
   /** Plano concedido sem assinatura no Stripe: nada a pagar, trocar ou cancelar. */
   cortesia?: boolean
 }
@@ -111,7 +103,7 @@ function fmtPrice(n: number) {
 export default function PlanosClient({
   currentPlan, status, trialEndsAt, currentPeriodEnd,
   cancelAtPeriodEnd, billingInterval, isOwner, ownerName, childLimit, aiLimit, prices,
-  arrependimentoAte = null, assinouNoTeste = false, oferta, precoLancamento = false, vagaPropria = null, cortesia = false,
+  arrependimentoAte = null, assinouNoTeste = false, cortesia = false,
 }: Props) {
   // Toggle abre no intervalo do plano atual do usuário; sem plano pago (grátis/
   // cancelado) cai no padrão mensal.
@@ -137,19 +129,10 @@ export default function PlanosClient({
   // segue até o fim e a assinatura pode ser reativada até lá.
   const canceladaNoTeste = isTrialing && assinouNoTeste && cancelAtPeriodEnd
 
-  // Oferta de lançamento. Quem já tem o preço de lançamento leva o desconto
-  // para qualquer plano. Fora isso, ela só entra no checkout — quem já paga
-  // outro plano (ou assinou no teste) troca sem checkout e não a recebe, então
-  // mostrar o preço com desconto para essa pessoa seria prometer à toa.
-  const lancamentoAplica = !!oferta && (
-    precoLancamento ||
-    (!isPaidActive && !assinouNoTeste && (oferta.ativa || vagaPropria !== null))
-  )
-
   async function handleCheckout(plan: PlanId) {
     setLoading(plan)
     setError(null)
-    medir('checkout_iniciado', { plano: plan, periodo: interval, lancamento: lancamentoAplica })
+    medir('checkout_iniciado', { plano: plan, periodo: interval })
     try {
       const res  = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -416,24 +399,6 @@ export default function PlanosClient({
       {/* Cards dos planos */}
       {isOwner && (
         <div className="animate-fade-up space-y-4">
-          {lancamentoAplica && (
-            <div style={{
-              padding: '11px 14px', borderRadius: 13,
-              background: 'rgba(255,107,92,0.10)', border: '1px solid rgba(255,107,92,0.28)',
-              fontSize: 13, lineHeight: 1.5, color: '#1A2B1C',
-            }}>
-              {precoLancamento ? (
-                <><b>Preço de lançamento garantido.</b> Você tem {DESCONTO_LANCAMENTO_PCT}% de desconto para sempre, em qualquer plano.</>
-              ) : vagaPropria === 'confirmada' ? (
-                <><b>🎯 Sua vaga da oferta de lançamento está garantida:</b> {DESCONTO_LANCAMENTO_PCT}% de desconto para sempre, em qualquer plano.</>
-              ) : vagaPropria === 'reservada' && !oferta!.ativa ? (
-                <><b>🎯 Sua vaga da oferta de lançamento está reservada</b> por alguns minutos: conclua a assinatura para garantir {DESCONTO_LANCAMENTO_PCT}% de desconto para sempre.</>
-              ) : (
-                <><b>🎯 Oferta de lançamento</b> · os {oferta!.total} primeiros assinantes têm {DESCONTO_LANCAMENTO_PCT}% de desconto para sempre, em qualquer plano.
-                  {' '}Restam <b>{oferta!.restantes} {oferta!.restantes === 1 ? 'vaga' : 'vagas'}</b>.</>
-              )}
-            </div>
-          )}
           {PLANS.map(plan => {
             // "Plano atual" só quando plano E intervalo batem. Mesmo plano com
             // intervalo diferente (mensal↔anual) deve oferecer botão de troca.
@@ -445,8 +410,6 @@ export default function PlanosClient({
             const samePlanDiffInterval = currentPlan === plan.id && isPaidActive && billingInterval !== interval
             const planPrices = prices[plan.id as keyof PlanPrices]
             const price = interval === 'year' ? planPrices.yearly : planPrices.monthly
-            const lanc = oferta?.precos[plan.id as keyof StatusOferta['precos']]
-            const precoFinal = lancamentoAplica && lanc ? (interval === 'year' ? lanc.yearly : lanc.monthly) : price
             const Icon  = plan.icon
 
             return (
@@ -492,16 +455,17 @@ export default function PlanosClient({
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    {precoFinal !== price && (
-                      <p style={{ fontSize: 12, color: 'rgba(26,43,28,0.40)', margin: '0 0 2px', textDecoration: 'line-through' }}>
-                        R$ {fmtPrice(price)}
+                    {interval === 'year' && (
+                      <p style={{ fontSize: 12, color: 'rgba(26,43,28,0.40)', margin: '0 0 2px', textDecoration: 'line-through', whiteSpace: 'nowrap' }}>
+                        R$ {fmtPrice(planPrices.monthly)}
                       </p>
                     )}
-                    <p style={{ fontSize: 24, fontWeight: 800, color: '#1A2B1C', margin: 0, lineHeight: 1 }}>
-                      R$ {fmtPrice(precoFinal)}
+                    <p style={{ fontSize: 24, fontWeight: 800, color: '#1A2B1C', margin: 0, lineHeight: 1, whiteSpace: 'nowrap' }}>
+                      R$ {fmtPrice(price)}
                     </p>
                     <p style={{ fontSize: 11, color: 'rgba(26,43,28,0.45)', margin: '3px 0 0' }}>
-                      /mês{interval === 'year' ? ' · cobrado anualmente' : ''}
+                      /mês
+                      {interval === 'year' && <span style={{ display: 'block', whiteSpace: 'nowrap' }}>R$ {fmtPrice(price * 12)} por ano</span>}
                     </p>
                   </div>
                 </div>
@@ -591,9 +555,12 @@ export default function PlanosClient({
             Pagamento seguro via Stripe · Cancele quando quiser · Sem fidelidade
           </p>
 
+          {/* Tabela comparativa: Gratuito × Família × Plus */}
+          <ComparativoPlanos />
+
           {/* Footnote acesso básico */}
           <p className="text-center text-xs animate-fade-up" style={{ color: 'rgba(26,43,28,0.30)', lineHeight: 1.6 }}>
-            Após os 14 dias, você pode assinar ou continuar com acesso básico gratuito (até 2 filhos, IA limitada a 5 usos/mês, sem entrada por voz, sem resumo diário no WhatsApp e sem compartilhamento com parceiro). Seus dados nunca somem.
+            Após os 14 dias, você pode assinar ou continuar no plano gratuito. Seus dados nunca somem.
           </p>
         </>
       )}

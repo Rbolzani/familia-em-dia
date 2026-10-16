@@ -83,7 +83,6 @@ export default async function AdminPage() {
           <div className="adm-num adm-cortesia"><b>{r.cortesia}</b><span>contas cortesia (administradores)</span></div>
           <div className="adm-num"><b>{r.cancelaram}</b><span>cancelaram</span></div>
           <div className="adm-num adm-destaque"><b>{reais(r.receitaMensalCentavos)}</b><span>receita mensal recorrente</span></div>
-          <div className="adm-num"><b>{r.vagasUsadas} <small>de {r.vagasTotal}</small></b><span>vagas de lançamento usadas</span></div>
         </div>
         {outros.length > 0 && <p className="adm-ver">O total de cadastros inclui também {outros.join(', ')}.</p>}
       </section>

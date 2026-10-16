@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { stripe, planToPrice, ehPrecoLancamento, type PlanId, type BillingInterval } from '@/lib/stripe'
+import { stripe, precoVigenteId, type PlanId, type BillingInterval } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
-import { reservarVaga, precoLancamentoId, garantirVagaParaReativar, CHECKOUT_LANCAMENTO_SEGUNDOS } from '@/lib/oferta-lancamento'
 import { dadosFiscais, camposDoCliente, sincronizarClienteStripe, nomeCompleto } from '@/lib/stripe-customer'
 
 export async function POST(request: Request) {
@@ -28,7 +27,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Plano inválido' }, { status: 400 })
   }
 
-  const priceId = planToPrice(plan, interval)
+  // Preço vigente (Família R$ 19,90 · Plus R$ 29,90; anual −20%). A oferta de
+  // lançamento foi encerrada em 16/10/2026: ninguém tinha assinado por ela.
+  const priceId = await precoVigenteId(plan as 'familia' | 'plus', interval).catch(e => { console.error('[stripe-checkout] preço vigente:', e); return null })
   if (!priceId) {
     return NextResponse.json({ error: 'Preço não configurado' }, { status: 500 })
   }
@@ -94,11 +95,9 @@ export async function POST(request: Request) {
       if (current) {
         const currentItem = current.items.data[0]
         const currentPriceId = currentItem?.price?.id
-        // Quem tem preço de lançamento leva o desconto para qualquer plano:
-        // a troca vai para o preço de lançamento do plano novo.
-        const alvoId = ehPrecoLancamento(currentItem?.price)
-          ? (await precoLancamentoId(plan, interval)) ?? priceId
-          : priceId
+        // Toda troca vai para o preço vigente do plano/intervalo escolhido —
+        // inclusive de quem ainda está num preço antigo.
+        const alvoId = priceId
 
         // 4a. Mesmo plano/intervalo → nada a trocar.
         if (currentPriceId === alvoId && !current.cancel_at_period_end) {
@@ -129,7 +128,6 @@ export async function POST(request: Request) {
 
         // 4c. Mesmo preço mas estava cancelando → reativar.
         if (currentPriceId === alvoId && current.cancel_at_period_end) {
-          await garantirVagaParaReativar(current, user.id)
           await stripe.subscriptions.update(current.id, { cancel_at_period_end: false })
           await reconcileUserFromStripe(user.id)
           return NextResponse.json({ url: `${baseUrl}/planos?billing=reativado` })
@@ -150,32 +148,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // Oferta de lançamento: reserva uma das 20 vagas antes de abrir o
-    // pagamento. A reserva dura um pouco mais que a sessão (que expira em 31
-    // min); checkout abandonado devolve a vaga sozinho. Se a vaga não sair
-    // (esgotou, ou o banco falhou), segue no preço regular — nunca trava a
-    // assinatura. Código promocional fica desligado na oferta para não
-    // empilhar desconto sobre desconto.
-    let linhaPreco = priceId
-    let comOferta = false
-    const vaga = await reservarVaga(user.id)
-    if (vaga === 'reservada' || vaga === 'confirmada') {
-      const lancamento = await precoLancamentoId(plan, interval)
-      if (lancamento) { linhaPreco = lancamento; comOferta = true }
-    }
-
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
       client_reference_id: user.id,
-      line_items: [{ price: linhaPreco, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
         ...(trialEnd ? { trial_end: trialEnd } : {}),
-        metadata: { user_id: user.id, plan, ...(comOferta ? { oferta: 'lancamento' } : {}) },
+        metadata: { user_id: user.id, plan },
       },
-      ...(comOferta
-        ? { expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_LANCAMENTO_SEGUNDOS }
-        : { allow_promotion_codes: true }),
+      allow_promotion_codes: true,
       // Passa por /api/stripe/return: ele reconcilia o plano com o Stripe
       // (protege contra webhook atrasado) e entrega o Início. Antes vinha
       // direto para /configuracoes — que reconcilia, mas deixava a pessoa em

@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/lembrete-cadastro",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/aviso-fim-teste",
+      "schedule": "0 12 * * *"
     }
   ]
 }

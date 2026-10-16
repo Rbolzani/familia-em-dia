@@ -1,9 +1,9 @@
 import { getEffectiveSubscription, getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
-import { stripe, ehPrecoLancamento } from '@/lib/stripe'
+import { stripe } from '@/lib/stripe'
+import { precoPorMes } from '@/lib/planos-oferta'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
 import { janelaArrependimento } from '@/lib/stripe-arrependimento'
 import { createAdminClient } from '@/lib/supabase/server'
-import { statusOferta, vagaDoUsuario } from '@/lib/oferta-lancamento'
 import PlanosClient from './PlanosClient'
 
 export interface PlanPrices {
@@ -24,31 +24,16 @@ export default async function PlanosPage() {
   const eff = pre.isOwner ? await getEffectiveSubscription() : pre
 
   // Plano para gating/limites — getFamilyPlan já resolve owner mesmo para parceiro.
-  const [plan, prices, oferta] = await Promise.all([
-    getFamilyPlan(),
-    (async (): Promise<PlanPrices> => {
-      const ids = [
-        process.env.STRIPE_PRICE_FAMILIA_MENSAL!,
-        process.env.STRIPE_PRICE_FAMILIA_ANUAL!,
-        process.env.STRIPE_PRICE_PLUS_MENSAL!,
-        process.env.STRIPE_PRICE_PLUS_ANUAL!,
-      ]
-      const fetched = await Promise.all(ids.map(id => stripe.prices.retrieve(id)))
-      const cents = (p: typeof fetched[0]) => (p.unit_amount ?? 0) / 100
-      return {
-        familia: { monthly: cents(fetched[0]), yearly: cents(fetched[1]) / 12 },
-        plus:    { monthly: cents(fetched[2]), yearly: cents(fetched[3]) / 12 },
-      }
-    })(),
-    statusOferta(),
-  ])
-  let precoLancamento = false
+  // Preços da oferta vigente (planos-oferta.ts). Antes eram lidos dos preços
+  // antigos do Stripe, que deixaram de ser vendidos em 16/10/2026.
+  const plan = await getFamilyPlan()
+  const prices: PlanPrices = {
+    familia: { monthly: precoPorMes('familia', 'month'), yearly: precoPorMes('familia', 'year') },
+    plus:    { monthly: precoPorMes('plus', 'month'),    yearly: precoPorMes('plus', 'year') },
+  }
   // Plano cortesia (fundadores): plano pago gravado direto no banco, sem
   // cliente no Stripe. Não há assinatura para gerenciar, cancelar ou trocar.
   let cortesia = false
-  // Vaga já garantida (ex.: assinou com o preço de lançamento e cancelou):
-  // continua dela, mesmo com a oferta esgotada para os outros.
-  const vagaPropria = eff.isOwner && eff.ownerId ? await vagaDoUsuario(eff.ownerId) : null
 
   // Janela de arrependimento (7 dias) — só o owner tem cobrança própria, e só
   // faz sentido consultar o Stripe se houver plano pago para desfazer.
@@ -66,9 +51,6 @@ export default async function PlanosPage() {
         const vivas = await stripe.subscriptions.list({ customer: cus, status: 'all', limit: 20 })
         const vigentes = vivas.data.filter(s => s.status === 'active' || s.status === 'trialing')
         const ids = vigentes.map(s => s.id)
-        // Cancelada no teste: a vaga voltou para a fila, o preço não está mais garantido.
-        precoLancamento = vigentes.some(s => ehPrecoLancamento(s.items.data[0]?.price)
-          && !(s.status === 'trialing' && (s.cancel_at_period_end || !!s.cancel_at)))
         const j = await janelaArrependimento(cus, ids)
         if (j.dentro) arrependimentoAte = j.prazo
       }
@@ -94,9 +76,6 @@ export default async function PlanosPage() {
       childLimit={PLAN_LIMITS[plan].children}
       aiLimit={PLAN_LIMITS[plan].aiPerMonth}
       prices={prices}
-      oferta={oferta}
-      precoLancamento={precoLancamento}
-      vagaPropria={vagaPropria}
       cortesia={cortesia}
     />
   )

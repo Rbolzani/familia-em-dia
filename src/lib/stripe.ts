@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import { PRECOS_VIGENTES } from '@/lib/planos-oferta'
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -35,6 +36,48 @@ export function planToPrice(plan: PlanId, interval: BillingInterval): string | n
 
 export const TRIAL_DAYS = 14
 
+// ── Preços vigentes (desde 16/10/2026) ───────────────────────────────────────
+// Identificados pelo lookup_key, como os de lançamento: o app cria cada preço
+// sozinho na primeira venda, no mesmo produto do preço antigo, tanto na conta
+// de teste quanto na LIVE — sem trocar env var na Vercel. Os preços antigos
+// (env STRIPE_PRICE_*) continuam reconhecidos por priceToPlan.
+// Valores e lookup_keys moram em planos-oferta.ts (fonte única, sem servidor).
+
+const cacheVigentes = new Map<string, string>()
+
+// ID do preço vigente no Stripe; cria na primeira vez, no produto do preço antigo.
+export async function precoVigenteId(plan: Exclude<PlanId, 'free'>, interval: BillingInterval): Promise<string | null> {
+  const chave = `${plan}:${interval}` as const
+  const emCache = cacheVigentes.get(chave)
+  if (emCache) return emCache
+  const { lookupKey, centavos } = PRECOS_VIGENTES[chave]
+  const achar = async () => (await stripe.prices.list({ lookup_keys: [lookupKey], active: true, limit: 1 })).data[0]?.id
+  let id = await achar()
+  if (!id) {
+    const antigoId = planToPrice(plan, interval)
+    if (!antigoId) return null
+    const antigo = await stripe.prices.retrieve(antigoId)
+    const produto = typeof antigo.product === 'string' ? antigo.product : antigo.product.id
+    try {
+      id = (await stripe.prices.create({
+        product: produto,
+        currency: antigo.currency,
+        unit_amount: centavos,
+        recurring: { interval },
+        lookup_key: lookupKey,
+        nickname: `${plan === 'familia' ? 'Família' : 'Plus'} ${interval === 'month' ? 'mensal' : 'anual'} (out/2026)`,
+        metadata: { plan, interval },
+      })).id
+    } catch (e) {
+      // Outra requisição criou no mesmo instante (lookup_key é único).
+      id = await achar()
+      if (!id) throw e
+    }
+  }
+  cacheVigentes.set(chave, id)
+  return id
+}
+
 // Preços da oferta de lançamento (~25% para sempre, em qualquer plano).
 // Identificados pelo lookup_key — e não por env var — porque o app os cria
 // sozinho (ver oferta-lancamento.ts), tanto na conta de teste quanto na LIVE.
@@ -49,10 +92,16 @@ export function ehPrecoLancamento(price: Pick<Stripe.Price, 'lookup_key'> | null
   return !!price?.lookup_key && Object.values(PRECOS_LANCAMENTO).some(p => p.lookupKey === price.lookup_key)
 }
 
-// Plano/intervalo de qualquer preço que o app vende — regular ou de lançamento.
+// Plano/intervalo de qualquer preço que o app vende — vigente, antigo ou de lançamento.
 export function planoDoPreco(price: Pick<Stripe.Price, 'id' | 'lookup_key'>): { plan: PlanId; interval: BillingInterval } | null {
   const regular = priceToPlan(price.id)
   if (regular) return regular
+  for (const [chave, p] of Object.entries(PRECOS_VIGENTES)) {
+    if (p.lookupKey === price.lookup_key) {
+      const [plan, interval] = chave.split(':') as [PlanId, BillingInterval]
+      return { plan, interval }
+    }
+  }
   for (const [chave, p] of Object.entries(PRECOS_LANCAMENTO)) {
     if (p.lookupKey === price.lookup_key) {
       const [plan, interval] = chave.split(':') as [PlanId, BillingInterval]

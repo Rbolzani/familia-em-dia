@@ -291,6 +291,17 @@
   .pcard.pop{border:2px solid var(--green);box-shadow:0 20px 44px rgba(15,118,110,.16);position:relative}
   .pcard .ribbon{position:absolute;top:-13px;left:32px;background:var(--coral);color:#fff;font-size:12px;font-weight:800;padding:5px 14px;border-radius:20px}
   .pcard h3{font-size:21px;margin-bottom:4px}.pcard .desc{color:var(--muted);font-size:14px;margin-bottom:16px}
+  .cmp-wrap{max-width:760px;margin:28px auto 0;background:#fff;border:1px solid rgba(15,118,110,.14);border-radius:18px;padding:20px 18px 14px}
+  .cmp-tit{font-family:var(--serif);font-size:22px;margin:0 0 12px}
+  .cmp-rolar{overflow-x:auto}
+  .cmp{width:100%;min-width:420px;border-collapse:collapse;font-size:14px}
+  .cmp th,.cmp td{padding:10px 8px;border-top:1px solid rgba(15,118,110,.10);text-align:center;font-variant-numeric:tabular-nums}
+  .cmp thead th{border-top:0;font-weight:800;font-size:14px}
+  .cmp tbody th{text-align:left;font-weight:500;color:var(--muted)}
+  .cmp thead th:first-child{text-align:left;font-size:12px;font-weight:600;color:var(--muted)}
+  .cmp .cmp-dest{background:#E8F5F2;font-weight:700}
+  .cmp .cmp-nao{color:#B7C2BE;font-weight:400}
+  .cmp-nota{font-size:13px;color:var(--muted);margin:12px 0 0}
   .pcard .price{font-family:var(--serif);font-size:38px;font-weight:700;line-height:1}
   .pcard .price small{font-size:15px;color:var(--muted);font-weight:400}
   .pcard .div{height:1px;background:var(--line);margin:20px 0}
@@ -1424,8 +1435,8 @@
         <span class="ribbon">Mais popular</span>
         <h3>Família</h3>
         <div class="desc">A experiência completa da família.</div>
-        <div class="price">R$39,90<small>/mês</small></div>
-        <div class="price-annual">Anual: R$31,90/mês &mdash; 2 meses grátis</div>
+        <div class="price">R$19,90<small>/mês</small></div>
+        <div class="price-annual">No anual: R$15,90/mês &mdash; economize 20%</div>
         <div class="div"></div>
         <ul>
           <li><span class="ck">✓</span> Até 2 filhos</li>
@@ -1437,10 +1448,6 @@
           <li><span class="ck">✓</span> Logística leva/busca em tempo real</li>
           <li><span class="ck">✓</span> Alertas de vencimento de documentos</li>
         </ul>
-        <div class="founder-note">
-          <strong style="display:block;margin-bottom:2px">🎯 Oferta de lançamento · 20 vagas</strong>
-          Os 20 primeiros assinantes têm <strong>25% de desconto para sempre</strong>, em qualquer plano: Família por <strong>R$29,90/mês</strong> e Plus por <strong>R$44,90/mês</strong>.
-        </div>
         <a href="/auth/signup" class="btn btn-primary" style="width:auto;padding:10px 28px;text-align:center;line-height:1.3">Começar agora<br><small style="font-size:11px;font-weight:400;opacity:.85">14 dias grátis</small></a>
       </div>
 
@@ -1448,8 +1455,8 @@
       <div class="pcard">
         <h3>Família Plus</h3>
         <div class="desc">Para famílias maiores ou com mais parceiros.</div>
-        <div class="price">R$59,90<small>/mês</small></div>
-        <div class="price-annual">Anual: R$47,90/mês &mdash; 2 meses grátis</div>
+        <div class="price">R$29,90<small>/mês</small></div>
+        <div class="price-annual">No anual: R$23,90/mês &mdash; economize 20%</div>
         <div class="div"></div>
         <ul>
           <li><span class="ck">✓</span> <b>Tudo do plano Família</b></li>
@@ -1462,7 +1469,26 @@
       </div>
 
     </div>
-    <p style="text-align:left;margin-top:20px;font-size:13.5px;color:var(--muted);max-width:760px;margin-left:auto;margin-right:auto">Após os 14 dias, você pode assinar ou continuar gratuitamente com acesso básico (até 2 filhos, IA limitada a 5 usos/mês, sem envio de novos arquivos ao cofre (os já enviados continuam acessíveis), sem entrada por voz, sem resumo diário no WhatsApp e sem compartilhamento com parceiro).<br>Seus dados nunca somem.</p>
+    <!-- Comparativo: espelha src/lib/planos-oferta.ts (COMPARATIVO). Mudou lá, mude aqui. -->
+    <div class="cmp-wrap">
+      <h3 class="cmp-tit">Compare os planos</h3>
+      <div class="cmp-rolar"><table class="cmp">
+        <thead><tr><th scope="col">Recurso</th><th scope="col">Gratuito</th><th scope="col" class="cmp-dest">Família</th><th scope="col">Plus</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Preço mensal</th><td>Grátis</td><td class="cmp-dest">R$19,90</td><td>R$29,90</td></tr>
+          <tr><th scope="row">No plano anual (−20%)</th><td class="cmp-nao">—</td><td class="cmp-dest">R$15,90/mês</td><td>R$23,90/mês</td></tr>
+          <tr><th scope="row">Filhos</th><td>até 2</td><td class="cmp-dest">até 2</td><td>ilimitados</td></tr>
+          <tr><th scope="row">Rede de apoio (pai, avó, babá)</th><td class="cmp-nao">—</td><td class="cmp-dest">1 pessoa</td><td>ilimitada</td></tr>
+          <tr><th scope="row">Captura por IA (foto e texto)</th><td>5 por mês</td><td class="cmp-dest">ilimitada</td><td>ilimitada</td></tr>
+          <tr><th scope="row">Captura por voz</th><td class="cmp-nao">—</td><td class="cmp-dest">✓</td><td>✓</td></tr>
+          <tr><th scope="row">Resumo diário no WhatsApp</th><td class="cmp-nao">—</td><td class="cmp-dest">✓</td><td>✓</td></tr>
+          <tr><th scope="row">Cofre de documentos</th><td>sem envio de arquivos</td><td class="cmp-dest">500 MB</td><td>5 GB</td></tr>
+          <tr><th scope="row">Agenda, logística e mensalidades</th><td>✓</td><td class="cmp-dest">✓</td><td>✓</td></tr>
+          <tr><th scope="row">Suporte prioritário</th><td class="cmp-nao">—</td><td class="cmp-dest cmp-nao">—</td><td>✓</td></tr>
+        </tbody>
+      </table></div>
+      <p class="cmp-nota">Toda conta começa com 14 dias do plano Família, sem cartão. Depois, assine ou continue no gratuito &mdash; seus dados nunca somem. Sem fidelidade: cancele quando quiser.</p>
+    </div>
   </div>
 </section>
 
@@ -1478,7 +1504,7 @@
       <details class="qa"><summary>Funciona com mais de um filho?<span class="pl">+</span></summary><div class="a">Sim. Cadastre quantos filhos quiser, cada um com sua agenda, escola, saúde e documentos. A IA identifica de qual filho é cada compromisso.</div></details>
       <details class="qa"><summary>E o outro pai/mãe ou a família?<span class="pl">+</span></summary><div class="a">Você compartilha o ambiente definindo o nível de acesso: só visualizar, editar apenas a logística (leva/busca) ou completo. Tudo atualiza em tempo real.</div></details>
       <details class="qa"><summary>Meus documentos ficam seguros?<span class="pl">+</span></summary><div class="a">Sim. Cada arquivo é isolado por família e baixado por links assinados e temporários. Ninguém de fora da sua família acessa.</div></details>
-      <details class="qa"><summary>Preciso de cartão de crédito para começar?<span class="pl">+</span></summary><div class="a">Não. Todo cadastro já vem com 14 dias do plano Família completo, sem pedir cartão. Depois do trial, você escolhe o plano ou fica no Grátis — os dados não somem.</div></details>
+      <details class="qa"><summary>Preciso de cartão de crédito para começar?<span class="pl">+</span></summary><div class="a">Não. Todo cadastro já vem com 14 dias do plano Família completo, sem pedir cartão. Depois do teste, você assina o Família (R$19,90/mês) ou o Plus (R$29,90/mês), ou continua no gratuito — os dados não somem.</div></details>
       <details class="qa"><summary>Funciona no celular e no computador?<span class="pl">+</span></summary><div class="a">Sim, sempre sincronizado. Celular para a correria do dia, desktop para planejar a semana.</div></details>
     </div>
   </div>
