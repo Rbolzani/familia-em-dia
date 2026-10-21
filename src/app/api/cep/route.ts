@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { onlyDigits } from '@/lib/cpf'
 
 // Consulta de CEP para preencher o endereço sozinho. Passa pelo servidor para
 // não abrir o CSP do navegador a um domínio externo. É só conveniência: se o
 // ViaCEP estiver fora, o formulário segue com digitação manual.
+// Sem exigir login: a tela de criar conta (anônima) também usa. Só repassa a
+// consulta pública do ViaCEP, que não tem dado de ninguém.
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   const cep = onlyDigits(new URL(request.url).searchParams.get('cep') ?? '')
   if (cep.length !== 8) return NextResponse.json({ error: 'CEP inválido.' }, { status: 400 })
 

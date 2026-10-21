@@ -33,8 +33,8 @@ export default function PrivacidadePage() {
 
       <H>2. Dados que coletamos</H>
       <ul>
-        <Li><strong>Cadastro do responsável:</strong> nome, e-mail, telefone/celular e CPF. Endereço e dados do
-          cartão são informados na tela de pagamento do Stripe.</Li>
+        <Li><strong>Cadastro do responsável:</strong> nome, e-mail, telefone/celular, CPF e endereço. Os dados
+          do cartão são informados na tela de pagamento do Stripe.</Li>
         <Li><strong>Dados dos filhos (crianças/adolescentes):</strong> nome, data de nascimento, escola, foto e
           informações de atividades — inseridos pelo responsável.</Li>
         <Li><strong>Documentos e dados sensíveis:</strong> arquivos que o Usuário opte por armazenar no cofre

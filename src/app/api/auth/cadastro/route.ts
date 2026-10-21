@@ -4,8 +4,12 @@
 // No fluxo novo a pessoa vai direto do formulário para a tela de pagamento do
 // Stripe (T3 → T4). Com o cadastro pelo Supabase no navegador, ela precisaria
 // antes abrir o e-mail e clicar no link — uma etapa a mais onde desistir.
-// Decisão do Rogério: a confirmação do e-mail vem DEPOIS do cartão. Então a
-// conta nasce já confirmada aqui, e o navegador entra com a senha em seguida.
+// Decisão do Rogério: a confirmação do e-mail não bloqueia. A conta nasce com
+// o login liberado aqui, o navegador entra com a senha em seguida, e a pessoa
+// recebe o e-mail "Confirme seu e-mail" (faixa no app até clicar — 21/10/2026).
+//
+// O endereço também é pedido aqui (CEP primeiro, com preenchimento automático):
+// a tela do Stripe não preenche pelo CEP brasileiro e põe o CEP por último.
 //
 // O que impede abuso, já que esta rota não tem o limite de taxa do Supabase:
 //  · limite de 5 cadastros por hora por IP (cadastro_tentativas);
@@ -21,6 +25,8 @@ import { isValidCPF, isValidPhoneBR, onlyDigits } from '@/lib/cpf'
 import { nomeCompleto } from '@/lib/stripe-customer'
 import { LEGAL_VERSION } from '@/lib/legal'
 import { concluirCadastroPelosMetadados } from '@/lib/cadastro'
+import { addressError, addressToRow, normalizeAddress } from '@/lib/address'
+import { enviarConfirmacaoEmail } from '@/lib/confirmacao-email'
 
 const LIMITE_POR_HORA = 5
 const MSG_CPF_EM_USO = 'Este CPF já está ligado a outra conta. Se for a sua, entre com o e-mail dela ou recupere a senha. Precisa de ajuda? suporte@familiaemdia.com.br'
@@ -44,12 +50,15 @@ export async function POST(request: Request) {
   const origem = s(b.origem, 60)
   const plano = b.plano === 'basico' || b.plano === 'plus' ? b.plano : 'familia'
   const ciclo = b.ciclo === 'year' ? 'year' : 'month'
+  const endereco = normalizeAddress(b.endereco as Record<string, unknown> | null)
 
   if (!nomeCompleto(nome)) return NextResponse.json({ error: 'Informe seu nome e sobrenome.' }, { status: 400 })
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: 'E-mail inválido.' }, { status: 400 })
   if (senha.length < 8) return NextResponse.json({ error: 'A senha deve ter pelo menos 8 caracteres.' }, { status: 400 })
   if (!isValidPhoneBR(celular)) return NextResponse.json({ error: 'Celular inválido. Use DDD + número.' }, { status: 400 })
   if (!isValidCPF(cpf)) return NextResponse.json({ error: 'CPF inválido.' }, { status: 400 })
+  const erroEndereco = addressError(endereco)
+  if (erroEndereco) return NextResponse.json({ error: erroEndereco }, { status: 400 })
   if (!origem) return NextResponse.json({ error: 'Conte como você nos conheceu.' }, { status: 400 })
   if (b.termos !== true) return NextResponse.json({ error: 'É necessário aceitar os Termos de Uso e a Política de Privacidade.' }, { status: 400 })
 
@@ -96,7 +105,10 @@ export async function POST(request: Request) {
 
   // Grava o CPF já agora: o índice único fecha a corrida entre dois cadastros
   // simultâneos com o mesmo CPF — o segundo perde e a conta dele é desfeita.
-  const { error: errCpf } = await admin.from('profiles').upsert({ user_id: data.user.id, cpf }, { onConflict: 'user_id' })
+  const { error: errCpf } = await admin.from('profiles').upsert(
+    { user_id: data.user.id, cpf, ...addressToRow(endereco), email_confirmado_em: null },
+    { onConflict: 'user_id' },
+  )
   if (errCpf) {
     await admin.auth.admin.deleteUser(data.user.id)
     return errCpf.code === '23505'
@@ -107,6 +119,9 @@ export async function POST(request: Request) {
   // Perfil concluído já agora (nome, celular, aceite): o navegador vai direto
   // para o pagamento, e o checkout exige o nome completo no perfil.
   await concluirCadastroPelosMetadados(data.user)
+
+  // Não bloqueia: se o envio falhar, a faixa no app oferece "Reenviar".
+  await enviarConfirmacaoEmail(data.user.id, email, nome).catch(e => console.error('[cadastro] confirmação de e-mail:', e))
 
   return NextResponse.json({ ok: true })
 }

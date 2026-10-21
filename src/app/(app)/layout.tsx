@@ -10,6 +10,8 @@ import TrialBanner from '@/components/billing/TrialBanner'
 import GraceBanner from '@/components/billing/GraceBanner'
 import { PLAN_LABELS, getEffectiveSubscription, getFamilyPlan, planoQueLibera, type PlanId } from '@/lib/billing'
 import CobrancaBanner, { type FaixaCobranca } from '@/components/billing/CobrancaBanner'
+import EmailConfirmBanner from '@/components/billing/EmailConfirmBanner'
+import { Suspense } from 'react'
 import { UpsellProvider } from '@/components/billing/Upsell'
 import { NOME_PLANO, valorDaCobranca, type PlanoPago } from '@/lib/planos-oferta'
 import { DIAS_CARENCIA_CARTAO } from '@/lib/oferta-v2'
@@ -61,12 +63,15 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   // pela tela atual já informou tudo ali — o perfil é concluído aqui mesmo, no
   // primeiro acesso. Só cai em /completar-cadastro (formulário curto, fora
   // deste grupo, sem loop) a conta antiga que parou no meio.
+  // E-mail ainda não confirmado (cadastro do modelo novo): faixa no topo.
+  let emailPendente = false
   if (user) {
     const { data: prof } = await supabase
       .from('profiles')
-      .select('profile_completed_at')
+      .select('profile_completed_at, email_confirmado_em')
       .eq('user_id', user.id)
       .maybeSingle()
+    emailPendente = !!prof && !prof.email_confirmado_em
     if (!prof?.profile_completed_at) {
       if (!(await concluirCadastroPelosMetadados(user))) redirect('/completar-cadastro')
       // Chegou por link de convite e acabou de concluir: vai aceitar o convite
@@ -180,6 +185,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         <AppLayout sidebarChildren={sidebarChildrenComFoto} activeFamilyId={activeFamilyId} isAdmin={ehFundador(user?.id)} userId={user?.id ?? ''} plano={planoFamilia}>
           <RealtimeSync />
           <PartnerBanner />
+          <Suspense fallback={null}><EmailConfirmBanner pendente={emailPendente} email={user?.email ?? ''} /></Suspense>
           {faixa && <CobrancaBanner faixa={faixa} />}
           {bannerInfo?.type === 'trial' && (
             <TrialBanner daysLeft={bannerInfo.daysLeft} planLabel={bannerInfo.planLabel} hasPartner={bannerInfo.hasPartner} isPartner={bannerInfo.isPartner} assinou={bannerInfo.assinou} cobrancaEm={bannerInfo.cobrancaEm} />

@@ -39,7 +39,7 @@ export default function TermosPage() {
       <P>
         Para usar o Serviço, o Usuário deve ser <strong>maior de 18 anos</strong> e plenamente capaz.
         O Usuário compromete-se a fornecer informações verídicas, completas e atualizadas (nome,
-        e-mail, telefone e CPF no cadastro; endereço e dados do cartão na tela de pagamento) e a mantê-las atualizadas. O Usuário é
+        e-mail, telefone, CPF e endereço no cadastro; dados do cartão na tela de pagamento) e a mantê-las atualizadas. O Usuário é
         responsável pela confidencialidade de suas credenciais e por toda atividade realizada em sua conta.
       </P>
 

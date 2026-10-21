@@ -68,8 +68,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Dados da nota fiscal. No modelo novo o CPF vem do cadastro e o endereço
-    // é pedido pela própria tela do Stripe (decisão 20/10/2026); no antigo,
+    // Dados da nota fiscal. No modelo novo CPF e endereço vêm do cadastro (o
+    // endereço desde 21/10/2026, com CEP automático); a conta v2 sem endereço
+    // gravado (criada antes disso) informa na tela do Stripe. No antigo,
     // os três são cobrados aqui e a tela de planos abre "Dados para a assinatura".
     const fiscais = await dadosFiscais(user.id)
     if (!nomeCompleto(fiscais.nome) || !fiscais.cpf || (!v2 && !fiscais.endereco)) {
@@ -187,7 +188,9 @@ export async function POST(request: Request) {
       locale: 'pt-BR',
       ...(v2 ? {
         payment_method_collection: 'always' as const,
-        billing_address_collection: 'required' as const,
+        // Endereço já veio do cadastro e foi copiado para o Customer: o Stripe
+        // não pede de novo. Sem endereço gravado, a tela do Stripe pede.
+        billing_address_collection: fiscais.endereco ? 'auto' as const : 'required' as const,
         customer_update: { address: 'auto' as const, name: 'auto' as const },
       } : {}),
       // /api/stripe/return reconcilia com o Stripe (protege contra webhook

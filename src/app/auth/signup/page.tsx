@@ -9,6 +9,8 @@ import { NOME_PLANO, PLANOS_PAGOS, PLANO_RECOMENDADO, DIAS_TESTE, DESCONTO_ANUAL
 import { ACQUISITION_OPTIONS } from '@/lib/cadastro-opcoes'
 import { LEGAL_VERSION } from '@/lib/legal'
 import { medir } from '@/lib/medicao'
+import AddressFields from '@/components/AddressFields'
+import { EMPTY_ADDRESS, addressError, normalizeAddress, type Address } from '@/lib/address'
 import { Eye, EyeOff, ArrowRight } from 'lucide-react'
 
 export default function SignupPage() {
@@ -21,6 +23,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [cpf, setCpf] = useState('')
+  const [endereco, setEndereco] = useState<Address>(EMPTY_ADDRESS)
   // Plano e ciclo: o site pode pré-escolher (?plano=basico&ciclo=year).
   const [plano, setPlano] = useState<PlanoPago>(PLANO_RECOMENDADO)
   const [ciclo, setCiclo] = useState<Ciclo>('month')
@@ -50,6 +53,8 @@ export default function SignupPage() {
     if (!source) { setError('Conte como você nos conheceu.'); return }
     if (!isInvite && name.trim().split(/\s+/).filter(p => p.length >= 2).length < 2) { setError('Informe seu nome e sobrenome.'); return }
     if (!isInvite && !isValidCPF(cpf)) { setError('CPF inválido.'); return }
+    const erroEndereco = isInvite ? null : addressError(normalizeAddress(endereco))
+    if (erroEndereco) { setError(erroEndereco); return }
     if (!terms) { setError('É necessário aceitar os Termos de Uso e a Política de Privacidade.'); return }
     setLoading(true); setError('')
 
@@ -116,13 +121,15 @@ export default function SignupPage() {
 
     // Fluxo do modelo novo (teste de 14 dias com cartão): o servidor cria a
     // conta já confirmada, o navegador entra com a senha e segue direto para a
-    // tela de pagamento do Stripe. A confirmação do e-mail vem depois do cartão
-    // (decisão do Rogério, 20/10/2026). Ver /api/auth/cadastro.
+    // tela de pagamento do Stripe. A confirmação do e-mail não bloqueia: chega
+    // por e-mail e o app lembra até a pessoa clicar (21/10/2026). O endereço vai
+    // daqui para o Stripe, que então não o pede de novo. Ver /api/auth/cadastro.
     const res = await fetch('/api/auth/cadastro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nome: name, familia: familyName, email, senha: password, celular: phone, cpf,
+        endereco: normalizeAddress(endereco),
         origem: source, marketing: consent, termos: terms, plano, ciclo,
         atribuicao: readAttribution(),
       }),
@@ -297,6 +304,14 @@ export default function SignupPage() {
                   <input type="text" inputMode="numeric" required value={cpf}
                     onChange={e => setCpf(formatCPF(e.target.value))}
                     placeholder="000.000.000-00" className="input-field" />
+                </div>
+              )}
+
+              {!isInvite && (
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#8585A8' }}>Endereço</label>
+                  <p className="text-xs mb-3" style={{ color: '#C0BFD5' }}>Para a nota fiscal. Digite o CEP e preenchemos o resto.</p>
+                  <AddressFields value={endereco} onChange={setEndereco} />
                 </div>
               )}
 
