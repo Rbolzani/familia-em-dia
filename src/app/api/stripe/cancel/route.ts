@@ -2,11 +2,19 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripe } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
-import { janelaArrependimento, reembolsarEEncerrar, agendarFimDaAssinatura, reativarAssinatura } from '@/lib/stripe-arrependimento'
+import { agendarFimDaAssinatura, reativarAssinatura } from '@/lib/stripe-arrependimento'
+import { avisarCancelamento } from '@/lib/avisos-conta'
 
 // Cancela (ou reativa) a assinatura vigente do usuário direto via API do Stripe.
 // Não depende do portal externo — controle total dentro do app.
-// Body: { reactivate?: boolean }
+// Body: { reactivate?: boolean, reason, comment? }
+//
+// Regras desde a oferta de 20/10/2026 (Termos 5.4–5.6):
+//  · cancelar NÃO devolve dinheiro: no teste nada foi cobrado; depois do teste
+//    o acesso continua até o fim do período pago. O arrependimento de 7 dias
+//    (CDC art. 49) transcorre dentro do teste grátis. (O reembolso automático
+//    de 7 dias depois da cobrança, que existia antes, foi retirado.)
+//  · o motivo é OBRIGATÓRIO (T12) e vai para cancellation_details no Stripe.
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -33,6 +41,10 @@ export async function POST(request: Request) {
     }
   } catch { /* corpo vazio = cancelar */ }
 
+  if (!reactivate && !feedback) {
+    return NextResponse.json({ error: 'Conte por que você está cancelando.' }, { status: 400 })
+  }
+
   const admin = createAdminClient()
   const { data: row } = await admin
     .from('subscriptions')
@@ -46,41 +58,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Busca a assinatura vigente (ativa ou em trial) do cliente.
-    const [activeList, trialingList] = await Promise.all([
-      stripe.subscriptions.list({ customer: customerId, status: 'active', limit: 10 }),
-      stripe.subscriptions.list({ customer: customerId, status: 'trialing', limit: 10 }),
-    ])
-    const liveSubs = [...activeList.data, ...trialingList.data]
+    // Busca a assinatura vigente (ativa, em teste ou com pagamento pendente).
+    const listas = await Promise.all(['active', 'trialing', 'past_due'].map(st =>
+      stripe.subscriptions.list({ customer: customerId, status: st as 'active', limit: 10 })))
+    const liveSubs = listas.flatMap(l => l.data)
 
     if (liveSubs.length === 0) {
       return NextResponse.json({ error: 'Nenhuma assinatura ativa' }, { status: 404 })
-    }
-
-    // ── Direito de arrependimento (CDC art. 49) ──────────────────────────
-    // Dentro de 7 dias da cobrança, cancelar NÃO é "encerrar no fim do
-    // período": é desfazer a compra. Dinheiro de volta, acesso encerrado na
-    // hora. Fora da janela, segue o comportamento normal.
-    if (!reactivate) {
-      const janela = await janelaArrependimento(customerId, liveSubs.map(s => s.id))
-      if (janela.dentro) {
-        const { reembolsado, creditoZerado } = await reembolsarEEncerrar(janela, liveSubs, customerId)
-        // Registra o motivo mesmo no arrependimento — é a informação mais
-        // valiosa que existe sobre quem desiste nos primeiros dias.
-        if (feedback || comment) {
-          await Promise.all(liveSubs.map(s => stripe.subscriptions.update(s.id, {
-            cancellation_details: {
-              ...(feedback ? { feedback } : {}),
-              ...(comment ? { comment } : {}),
-            },
-          }).catch(e => console.error('[stripe-cancel] motivo não gravado:', e))))
-        }
-        await reconcileUserFromStripe(user.id)
-        console.warn('[stripe-cancel] arrependimento: R$ %s devolvidos a %s%s',
-          (reembolsado / 100).toFixed(2), user.id,
-          creditoZerado ? ` (crédito de R$ ${(creditoZerado / 100).toFixed(2)} anulado)` : '')
-        return NextResponse.json({ ok: true, reembolsado, creditoZerado })
-      }
     }
 
     // Agenda o fim (ou desfaz). Passa pelos helpers porque assinatura sob
@@ -104,6 +88,9 @@ export async function POST(request: Request) {
 
     // Sincroniza o banco com o novo estado.
     await reconcileUserFromStripe(user.id)
+
+    // Confirmação clara do cancelamento (E6 + WhatsApp) — só no modelo novo.
+    if (!reactivate) await avisarCancelamento(user.id).catch(e => console.error('[stripe-cancel] confirmação:', e))
 
     return NextResponse.json({ ok: true })
   } catch (err) {

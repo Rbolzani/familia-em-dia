@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { stripe } from '@/lib/stripe'
 import { syncSubscriptionToDb } from '@/lib/stripe-sync'
+import { verificarCartaoDoTeste } from '@/lib/oferta-v2'
+import { avisarInicioDoTeste } from '@/lib/avisos-conta'
 import type Stripe from 'stripe'
 
 export async function POST(request: Request) {
@@ -36,8 +38,13 @@ export async function POST(request: Request) {
           const subId = typeof session.subscription === 'string'
             ? session.subscription
             : session.subscription.id
-          const sub = await stripe.subscriptions.retrieve(subId)
+          const sub = await stripe.subscriptions.retrieve(subId, { expand: ['default_payment_method'] })
+          // Modelo novo: um teste por cartão — confere antes de liberar (a
+          // mesma conferência roda no retorno do Checkout; é idempotente).
+          const userId = session.client_reference_id ?? sub.metadata?.user_id
+          if (userId && (await verificarCartaoDoTeste(sub, userId)) === 'cartao_ja_usado') break
           await syncSubscriptionToDb(sub)
+          if (userId) await avisarInicioDoTeste(userId).catch(e => console.error('[stripe-webhook] confirmação do teste:', e))
         }
         break
       }

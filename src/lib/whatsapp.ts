@@ -34,6 +34,12 @@ function sanitizeParam(s: string): string {
 // {{n}} do template, e as quebras de linha entre seções ficam no texto fixo
 // do template, não no parâmetro). Twilio e texto livre não têm essa restrição
 // e usam \n\n real entre seções.
+/** O plano do dono inclui o resumo diário? (Família e Plus, ativos, em teste ou na carência do cartão.) */
+function temResumoNoPlano(s: { plan: string | null; status: string | null }): boolean {
+  return (s.plan === 'familia' || s.plan === 'plus') &&
+    (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
+}
+
 export async function sendWhatsApp(
   to: string,
   content: string | string[],
@@ -304,7 +310,8 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     : await examQuery.eq('user_id', userId)
 
   // Plano efetivo da família = plano do owner (ativo/trial). A agenda diária é
-  // recurso PAGO; o aviso de grace é notificação de conta e é tratado à parte
+  // recurso dos planos Família e Plus (o Básico e o gratuito antigo não têm;
+  // durante a carência do cartão recusado — past_due — continua saindo); o aviso de grace é notificação de conta e é tratado à parte
   // (ver runGraceNotices) — por isso não entra mais neste resumo.
   let familyIsPaid = false
   if (familyIds.length > 0) {
@@ -314,14 +321,12 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     if (ownerIds.length > 0) {
       const { data: subs } = await admin
         .from('subscriptions').select('plan, status').in('user_id', ownerIds)
-      familyIsPaid = (subs ?? []).some(s =>
-        s.plan !== 'free' && (s.status === 'active' || s.status === 'trialing'))
+      familyIsPaid = (subs ?? []).some(temResumoNoPlano)
     }
   } else {
     const { data: ownSub } = await admin
       .from('subscriptions').select('plan, status').eq('user_id', userId).maybeSingle()
-    familyIsPaid = !!ownSub && ownSub.plan !== 'free' &&
-      (ownSub.status === 'active' || ownSub.status === 'trialing')
+    familyIsPaid = !!ownSub && temResumoNoPlano(ownSub)
   }
 
   // Free não recebe a agenda. Sem atividades, o resumo ainda é enviado — as

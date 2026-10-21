@@ -22,11 +22,13 @@ export interface Access {
   canEdit: boolean        // criar/editar/excluir tudo (owner ou full_editor)
   canLogistics: boolean   // marcar leva/busca (owner, full_editor, logistics_editor)
   ownerName: string | null
+  /** Conta da família pausada (modelo novo): só leitura para todos. */
+  pausada: boolean
 }
 
 const FULL: Access = {
   role: 'owner', isOwner: true, isPartner: false,
-  canEdit: true, canLogistics: true, ownerName: null,
+  canEdit: true, canLogistics: true, ownerName: null, pausada: false,
 }
 
 /**
@@ -38,15 +40,20 @@ export async function getAccess(): Promise<Access> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ...FULL, role: 'read_only', isOwner: false, canEdit: false, canLogistics: false }
 
+  // Conta pausada (ou cadastro não concluído) no modelo novo: o banco já
+  // recusa qualquer escrita (familia_pode_editar); aqui só escondemos os botões.
+  const { data: podeEditar } = await supabase.rpc('familia_pode_editar')
+  const pausada = podeEditar === false
+
   const { data } = await supabase.rpc('get_my_access')
   const row = data?.[0] as { role: string; access_role: string | null; is_owner: boolean; owner_name: string | null } | undefined
 
   // Sem membership ainda → trata como owner (vai criar a própria família)
-  if (!row) return FULL
+  if (!row) return pausada ? { ...FULL, canEdit: false, canLogistics: false, pausada } : FULL
 
   const role: AccessRole = row.is_owner ? 'owner' : ((row.access_role as AccessRole) ?? 'read_only')
-  const canEdit = role === 'owner' || role === 'full_editor'
-  const canLogistics = canEdit || role === 'logistics_editor'
+  const canEdit = !pausada && (role === 'owner' || role === 'full_editor')
+  const canLogistics = !pausada && (canEdit || role === 'logistics_editor')
 
   return {
     role,
@@ -55,5 +62,6 @@ export async function getAccess(): Promise<Access> {
     canEdit,
     canLogistics,
     ownerName: row.owner_name,
+    pausada,
   }
 }

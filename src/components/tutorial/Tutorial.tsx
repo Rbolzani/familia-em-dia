@@ -4,14 +4,14 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useAccess } from '@/components/access/AccessContext'
-import { PASSOS, type PassoId } from './passos'
+import { PASSOS, type PassoId, type RecursoDoPlano } from './passos'
 
 // Tutorial "Primeiros passos": bolinha "?" fixa no canto inferior direito que
 // abre um carrossel com um passo por cartão. Substitui o tour de primeiro
 // acesso. Não abre sozinho: no primeiro acesso a bolinha pulsa e mostra um
 // balão; depois de aberta uma vez, fica quieta.
 
-interface Estado { gratuito: boolean; feitos: Partial<Record<PassoId, boolean>> }
+interface Estado { semRecurso?: Partial<Record<RecursoDoPlano, boolean>>; feitos: Partial<Record<PassoId, boolean>> }
 
 const AVISO = 'fed-tutorial-mudou'
 const ler = (chave: string) => { try { return localStorage.getItem(chave) } catch { return null } }
@@ -167,7 +167,7 @@ export default function Tutorial({ userId }: { userId: string }) {
                     {feito(p.id) && <span style={{ flex: 'none', fontSize: 11, fontWeight: 700, color: '#2C4A2E', background: '#D4E8D5', borderRadius: 99, padding: '3px 9px' }}>Feito</span>}
                   </div>
 
-                  {estado?.gratuito && p.pago && avisoPago(p.pago)}
+                  {p.recurso && estado?.semRecurso?.[p.recurso] && p.pago && avisoPago(p.pago)}
                   {semPermissao(p.exige) && (
                     <div style={{ fontSize: 12, lineHeight: 1.4, color: 'rgba(26,43,28,0.72)', background: 'rgba(61,102,65,0.09)', border: '1px solid rgba(61,102,65,0.18)', borderRadius: 10, padding: '7px 10px' }}>
                       👀 Seu acesso a esta família não inclui esta ação. Quem convidou você pode fazer isso ou ampliar o seu acesso.
@@ -194,7 +194,7 @@ export default function Tutorial({ userId }: { userId: string }) {
                         <i style={{ flex: 'none', fontStyle: 'normal', width: 21, height: 21, borderRadius: '50%', background: '#D4E8D5', color: '#2C4A2E', fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>{k + 1}</i>
                         <span>{q.txt}</span>
                       </figcaption>
-                      {estado?.gratuito && q.pago && avisoPago(q.pago)}
+                      {q.recurso && estado?.semRecurso?.[q.recurso] && q.pago && avisoPago(q.pago)}
                       {q.img}
                     </figure>
                   ))}

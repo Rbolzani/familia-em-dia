@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Users, Copy, Check, Trash2, Crown, UserPlus, Eye, Truck, Pencil, Clock, MessageCircle, Lock } from 'lucide-react'
-import type { PlanId } from '@/lib/billing'
+import type { PlanId } from '@/lib/planos-limites'
+import { useUpsell } from '@/components/billing/Upsell'
 
 type AccessRole = 'read_only' | 'logistics_editor' | 'full_editor'
 
@@ -149,6 +150,7 @@ export default function ConfiguracoesClient({
 
   const partners = members.filter(m => m.role === 'partner')
   const me = members.find(m => m.user_id === userId)
+  const { abrir: abrirUpsell } = useUpsell()
   const sharingBlocked = partnerLimit === 0
   const atPartnerLimit = partnerLimit !== Infinity && partners.length >= partnerLimit
 
@@ -293,25 +295,25 @@ export default function ConfiguracoesClient({
             <div style={{ fontSize: 12, fontWeight: 700, color: '#2D6A35', marginBottom: 10 }}>Convidar parceiro(a)</div>
 
             {/* Banner de upgrade — plano gratuito ou limite atingido */}
-            {(sharingBlocked || atPartnerLimit) && (
+            {plan !== 'pausada' && (sharingBlocked || atPartnerLimit) && (
               <div style={{ background: 'rgba(245,158,11,0.09)', border: '1px solid rgba(245,158,11,0.30)', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
                 <div className="flex items-start gap-2">
                   <Lock size={14} style={{ color: '#92400E', flexShrink: 0, marginTop: 1 }} />
                   <div>
                     <p style={{ fontSize: 12.5, fontWeight: 700, color: '#78350F', margin: '0 0 4px' }}>
                       {sharingBlocked
-                        ? 'Compartilhamento não disponível no plano gratuito'
-                        : `Limite de ${partnerLimit} parceiro(s) atingido`}
+                        ? 'Traga quem ajuda você'
+                        : 'Rede de apoio sem limite'}
                     </p>
                     <p style={{ fontSize: 12, color: '#92400E', margin: '0 0 8px', lineHeight: 1.5 }}>
                       {sharingBlocked
-                        ? 'Faça upgrade para o plano Família e compartilhe o app com seu parceiro(a).'
-                        : 'Faça upgrade para o plano Família Plus e adicione parceiros ilimitados.'}
+                        ? 'No Família, o pai, a avó ou a babá veem a mesma agenda que você, com o nível de acesso que você escolher.'
+                        : 'O Família inclui você + 1 pessoa. No Plus, todos que ajudam na rotina entram.'}
                     </p>
-                    <a href="/planos"
-                      style={{ display: 'inline-block', background: 'linear-gradient(140deg,#C49A6C,#A07840)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 8, textDecoration: 'none' }}>
-                      Ver planos
-                    </a>
+                    <button type="button" onClick={() => abrirUpsell('rede')}
+                      style={{ display: 'inline-block', background: 'linear-gradient(140deg,#C49A6C,#A07840)', color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer' }}>
+                      {sharingBlocked ? 'Assinar o Família' : 'Mudar para o Plus'}
+                    </button>
                   </div>
                 </div>
               </div>

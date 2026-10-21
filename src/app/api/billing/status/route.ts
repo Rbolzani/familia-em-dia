@@ -13,6 +13,8 @@ export async function GET() {
 
   return NextResponse.json({
     plan,
+    voice: limits.voice,
+    pausada: plan === 'pausada',
     children: { limit: limits.children },
     ai: {
       used: aiUsed,

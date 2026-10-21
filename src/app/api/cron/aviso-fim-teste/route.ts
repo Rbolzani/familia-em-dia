@@ -17,6 +17,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { diasAteFim } from '@/lib/aviso-fim-teste'
 import { enviarAvisoFimTeste } from '@/lib/aviso-fim-teste-envio'
+import { avisarAntesDaCobranca, diasAte } from '@/lib/avisos-conta'
 
 export const maxDuration = 60
 
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
     .from('subscriptions')
     .select('user_id, trial_ends_at')
     .eq('status', 'trialing')
+    .eq('oferta', 'v1')
     .is('stripe_subscription_id', null)
     .gt('trial_ends_at', agora.toISOString())
     .lte('trial_ends_at', new Date(agora.getTime() + 4 * DIA).toISOString())
@@ -98,7 +100,13 @@ export async function GET(request: Request) {
     await admin.from('aviso_fim_teste').update({ whatsapp: r.whatsapp, email: r.email }).eq('user_id', c.userId).eq('etapa', c.etapa)
   }
 
-  const result = { candidatos: pendentes.length, avisados, comBotao, nenhum }
+  // ── Modelo novo (teste com cartão): avisos antes da primeira cobrança ────
+  // 7 dias (só e-mail — regra da Visa), 3 dias e véspera (e-mail + WhatsApp).
+  // Quem cancelou no teste não recebe (nada será cobrado). Mesma tabela
+  // aviso_fim_teste, para o Painel medir aberturas e cliques.
+  const v2 = await avisosModeloNovo(admin, agora)
+
+  const result = { candidatos: pendentes.length, avisados, comBotao, nenhum, modeloNovo: v2 }
   try {
     await admin.from('cron_heartbeats').upsert(
       { name: 'aviso-fim-teste', ran_at: new Date().toISOString(), result },
@@ -108,4 +116,43 @@ export async function GET(request: Request) {
     console.error('[aviso-fim-teste] falha ao gravar heartbeat:', e)
   }
   return NextResponse.json(result)
+}
+
+function etapaV2(dias: number): 'd7' | 'd3' | 'd1' | null {
+  if (dias === 7 || dias === 6) return 'd7'
+  if (dias === 3 || dias === 2) return 'd3'
+  if (dias === 1 || dias === 0) return 'd1'
+  return null
+}
+
+async function avisosModeloNovo(admin: ReturnType<typeof createAdminClient>, agora: Date) {
+  const { data, error } = await admin
+    .from('subscriptions')
+    .select('user_id, trial_ends_at')
+    .eq('oferta', 'v2')
+    .eq('status', 'trialing')
+    .eq('cancel_at_period_end', false)
+    .gt('trial_ends_at', agora.toISOString())
+    .lte('trial_ends_at', new Date(agora.getTime() + 8 * DIA).toISOString())
+    .limit(1000)
+  if (error) { console.error('[aviso-fim-teste] v2 erro ao ler:', error.code); return { erro: error.code } }
+
+  let enviados = 0, nenhum = 0
+  for (const r of data ?? []) {
+    const fim = new Date(r.trial_ends_at as string)
+    const etapa = etapaV2(diasAte(fim, agora))
+    if (!etapa) continue
+    const { data: marca, error: e } = await admin.from('aviso_fim_teste')
+      .insert({ user_id: r.user_id, etapa, fim_teste: fim.toISOString() }).select('token').single()
+    if (e || !marca) continue   // já avisado nesta etapa
+    const res = await avisarAntesDaCobranca(r.user_id as string, etapa, marca.token as string)
+    if (!res.email && !res.whatsapp) {
+      nenhum++
+      await admin.from('aviso_fim_teste').delete().eq('user_id', r.user_id).eq('etapa', etapa)
+      continue
+    }
+    enviados++
+    await admin.from('aviso_fim_teste').update({ whatsapp: res.whatsapp, email: res.email }).eq('user_id', r.user_id).eq('etapa', etapa)
+  }
+  return { enviados, nenhum }
 }

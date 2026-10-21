@@ -2,12 +2,12 @@
 import { useState, useEffect } from 'react'
 import { Mail, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { PlanId } from '@/lib/billing'
+import type { PlanId } from '@/lib/planos-limites'
 
 const APP_VERSION = '1.0.0'
 
 const PLAN_LABELS: Record<PlanId, string> = {
-  free: 'Gratuito', familia: 'Família', plus: 'Família Plus',
+  free: 'Gratuito', basico: 'Básico', familia: 'Família', plus: 'Família Plus', pausada: 'Conta pausada',
 }
 
 type Channel = 'email' | 'whatsapp'
@@ -21,6 +21,8 @@ interface PlanCfg {
 
 const CFG: Record<PlanId, PlanCfg> = {
   free:    { channel:'email',    label:'Fale com o suporte',  sla: null,                  priority: false },
+  pausada: { channel:'email',    label:'Fale com o suporte',  sla: null,                  priority: false },
+  basico:  { channel:'email',    label:'Fale com o suporte',  sla: 'Resposta em até 72h', priority: false },
   familia: { channel:'email',    label:'Fale com o suporte',  sla: 'Resposta em até 72h', priority: false },
   plus:    { channel:'whatsapp', label:'Suporte prioritário', sla: 'Resposta em até 12h', priority: true  },
 }
@@ -40,7 +42,7 @@ export default function SupportButton() {
       setUserEmail(user.email ?? '')
       const { data } = await supabase.rpc('get_family_plan')
       const p = (data as PlanId) ?? 'free'
-      setPlan(p === 'plus' ? 'plus' : p === 'familia' ? 'familia' : 'free')
+      setPlan(p in CFG ? p : 'free')
       setReady(true)
     }
     load()

@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { captureAttribution, readAttribution, clearAttribution } from '@/lib/attribution'
-import { formatPhoneBR, isValidPhoneBR } from '@/lib/cpf'
+import { formatCPF, formatPhoneBR, isValidCPF, isValidPhoneBR } from '@/lib/cpf'
+import { NOME_PLANO, PLANOS_PAGOS, PLANO_RECOMENDADO, DIAS_TESTE, DESCONTO_ANUAL_PCT, precoPorMes, precoCobrado, reais, type PlanoPago, type Ciclo } from '@/lib/planos-oferta'
 import { ACQUISITION_OPTIONS } from '@/lib/cadastro-opcoes'
 import { LEGAL_VERSION } from '@/lib/legal'
 import { medir } from '@/lib/medicao'
@@ -19,19 +20,36 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
+  const [cpf, setCpf] = useState('')
+  // Plano e ciclo: o site pode pré-escolher (?plano=basico&ciclo=year).
+  const [plano, setPlano] = useState<PlanoPago>(PLANO_RECOMENDADO)
+  const [ciclo, setCiclo] = useState<Ciclo>('month')
+  const [isInvite, setIsInvite] = useState(false)
+  // Lido depois de montar (a página também renderiza no servidor, sem URL do
+  // navegador): ler no estado inicial faria o HTML divergir na hidratação.
+  /* eslint-disable react-hooks/set-state-in-effect -- ver acima */
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const p = q.get('plano')
+    if (p === 'basico' || p === 'familia' || p === 'plus') setPlano(p)
+    if (q.get('ciclo') === 'year') setCiclo('year')
+    setIsInvite(!!q.get('redirect')?.startsWith('/convite/'))
+  }, [])
+  /* eslint-enable react-hooks/set-state-in-effect */
   const [source, setSource] = useState('')
   const [terms, setTerms] = useState(false)
   const [consent, setConsent] = useState(false)
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (password.length < 8) { setError('A senha deve ter pelo menos 8 caracteres.'); return }
     if (!isValidPhoneBR(phone)) { setError('Celular inválido. Use DDD + número.'); return }
     if (!source) { setError('Conte como você nos conheceu.'); return }
+    if (!isInvite && name.trim().split(/\s+/).filter(p => p.length >= 2).length < 2) { setError('Informe seu nome e sobrenome.'); return }
+    if (!isInvite && !isValidCPF(cpf)) { setError('CPF inválido.'); return }
     if (!terms) { setError('É necessário aceitar os Termos de Uso e a Política de Privacidade.'); return }
     setLoading(true); setError('')
 
@@ -51,9 +69,7 @@ export default function SignupPage() {
 
     const params = new URLSearchParams(window.location.search)
     const redirect = params.get('redirect')
-    const isInvite = redirect?.startsWith('/convite/')
-
-    if (isInvite) {
+    if (isInvite && redirect) {
       // Fluxo de convite: cria usuário já confirmado via admin API e loga em seguida.
       // O token vai junto: o endpoint só confirma o e-mail automaticamente se
       // houver um convite pendente com ele. Sem isso a rota seria um criador
@@ -98,48 +114,41 @@ export default function SignupPage() {
       return
     }
 
-    // Fluxo normal: cadastro com confirmação de e-mail obrigatória.
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signUp({
-      email, password,
-      options: {
-        data: cadastro,
-        emailRedirectTo: `${window.location.origin}/auth/callback${window.location.search}`,
-      },
+    // Fluxo do modelo novo (teste de 14 dias com cartão): o servidor cria a
+    // conta já confirmada, o navegador entra com a senha e segue direto para a
+    // tela de pagamento do Stripe. A confirmação do e-mail vem depois do cartão
+    // (decisão do Rogério, 20/10/2026). Ver /api/auth/cadastro.
+    const res = await fetch('/api/auth/cadastro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: name, familia: familyName, email, senha: password, celular: phone, cpf,
+        origem: source, marketing: consent, termos: terms, plano, ciclo,
+        atribuicao: readAttribution(),
+      }),
     })
-    if (error) { setError(error.message); setLoading(false); return }
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) { setError(body.error || 'Não foi possível criar a conta.'); setLoading(false); return }
     clearAttribution()
     medir('conta_criada')
-    medir('cadastro_concluido', { convidado: false, origem: source })
-    if (data.session) {
-      const dest = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard'
-      router.push(dest)
-    } else {
-      setSuccess(true)
-    }
-  }
+    medir('cadastro_concluido', { convidado: false, origem: source, plano, periodo: ciclo })
 
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#F8F3EA' }}>
-        <div className="text-center animate-scale-in max-w-sm">
-          <div className="text-6xl mb-5 animate-float">📬</div>
-          <h2 className="text-3xl font-bold mb-3" style={{ fontFamily: 'var(--font-lora)', color: '#1A2B1C' }}>
-            Confirme seu e-mail
-          </h2>
-          <p className="text-sm leading-relaxed mb-6" style={{ color: 'rgba(26,43,28,0.60)' }}>
-            Enviamos um link de confirmação para <strong style={{ color: '#1A2B1C' }}>{email}</strong>.
-            <br /><br />
-            Abra o e-mail e clique no link para ativar sua conta. Depois, volte aqui e faça login.
-          </p>
-          <a href={`/auth/login${typeof window !== 'undefined' ? window.location.search : ''}`}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold text-white"
-            style={{ background: 'linear-gradient(140deg,#3D6641,#2C4A2E)', boxShadow: '0 4px 16px rgba(44,74,46,0.30)' }}>
-            Ir para o login →
-          </a>
-        </div>
-      </div>
-    )
+    const supabase = createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) { router.push('/auth/login?redirect=/assinar'); return }
+
+    // Vai para a tela de pagamento. Se algo falhar aqui, a conta já existe: a
+    // tela "Conclua sua assinatura" (/assinar) retoma do mesmo ponto.
+    try {
+      const r = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: plano, interval: ciclo }),
+      })
+      const j = await r.json()
+      if (r.ok && j.url) { window.location.href = j.url; return }
+    } catch { /* cai no /assinar */ }
+    router.push('/assinar')
   }
 
   return (
@@ -162,7 +171,7 @@ export default function SignupPage() {
 
         <div className="relative flex-1 flex flex-col justify-center">
           <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#7B6FE8' }}>
-            Comece hoje, é grátis
+            {isInvite ? 'Você foi convidado' : `${DIAS_TESTE} dias grátis`}
           </p>
           <h1 style={{ fontFamily: 'var(--font-gilda)', fontSize: 44, lineHeight: 1.2, color: '#1A1535' }}>
             Sua família<br/>merece o melhor<br/>da organização. 💚
@@ -172,7 +181,9 @@ export default function SignupPage() {
           </p>
 
           <div className="mt-8 space-y-3">
-            {['Crie sua conta gratuita', 'Cadastre seus filhos', 'Adicione atividades com IA'].map((s, i) => (
+            {(isInvite
+              ? ['Crie sua conta', 'Entre no ambiente da família', 'Acompanhe a rotina em tempo real']
+              : ['Escolha seu plano', 'Cadastre o cartão — hoje R$ 0,00', 'Organize a rotina com IA']).map((s, i) => (
               <div key={i} className="flex items-center gap-3">
                 <span className="w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center flex-none"
                   style={{ background: 'rgba(123,111,232,0.15)', color: '#7B6FE8' }}>
@@ -184,7 +195,7 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <p className="text-xs" style={{ color: '#C0BFD5' }}>✓ Sem cartão de crédito · ✓ Cancele quando quiser</p>
+        <p className="text-xs" style={{ color: '#C0BFD5' }}>{isInvite ? '✓ Sem custo para quem é convidado' : `✓ ${DIAS_TESTE} dias grátis · ✓ Cancele quando quiser`}</p>
       </div>
 
       {/* ── Painel direito — form ── */}
@@ -203,12 +214,55 @@ export default function SignupPage() {
               <h2 style={{ fontFamily: 'var(--font-gilda)', fontSize: 30, color: '#1A1535', lineHeight: 1.2 }}>
                 Crie sua conta
               </h2>
-              <p className="text-sm mt-2" style={{ color: '#8585A8' }}>Sem cartão de crédito.</p>
+              <p className="text-sm mt-2" style={{ color: '#8585A8' }}>
+                {isInvite
+                  ? 'Quem é convidado não paga nada: você usa o plano de quem te convidou.'
+                  : `${DIAS_TESTE} dias grátis em qualquer plano. Cancele quando quiser, sem cobrança durante o teste.`}
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} method="POST" className="space-y-4">
+              {!isInvite && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="block text-xs font-semibold" style={{ color: '#8585A8' }}>Seu plano</span>
+                    <div className="flex rounded-full p-0.5" style={{ background: '#F0EEFF' }}>
+                      {(['month', 'year'] as Ciclo[]).map(c => (
+                        <button key={c} type="button" onClick={() => setCiclo(c)}
+                          className="px-3 py-1 rounded-full text-[11px] font-bold transition-all"
+                          style={ciclo === c ? { background: '#7B6FE8', color: '#fff' } : { color: '#8585A8' }}>
+                          {c === 'month' ? 'Mensal' : `Anual (−${DESCONTO_ANUAL_PCT}%)`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {PLANOS_PAGOS.map(p => {
+                      const sel = plano === p
+                      return (
+                        <button key={p} type="button" onClick={() => setPlano(p)}
+                          className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-left transition-all"
+                          style={{ border: sel ? '2px solid #7B6FE8' : '1px solid #E8E4FF', background: sel ? '#F7F5FF' : '#fff' }}>
+                          <span className="flex items-center gap-2">
+                            <span className="text-sm font-bold" style={{ color: '#1A1535' }}>{NOME_PLANO[p]}</span>
+                            {p === PLANO_RECOMENDADO && (
+                              <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: '#7B6FE8', color: '#fff' }}>Recomendado</span>
+                            )}
+                          </span>
+                          <span className="text-right">
+                            <span className="block text-sm font-bold whitespace-nowrap" style={{ color: '#1A1535' }}>{reais(precoPorMes(p, ciclo))}<span className="text-[11px] font-semibold" style={{ color: '#8585A8' }}>/mês</span></span>
+                            {ciclo === 'year' && <span className="block text-[10px]" style={{ color: '#8585A8' }}>{reais(precoCobrado(p, 'year'))} por ano</span>}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <a href="/#planos" target="_blank" className="block text-[11px] mt-2 underline" style={{ color: '#7B6FE8' }}>Comparar os planos</a>
+                </div>
+              )}
+
               <div>
-                <label className="block text-xs font-semibold mb-2" style={{ color: '#8585A8' }}>Seu nome</label>
+                <label className="block text-xs font-semibold mb-2" style={{ color: '#8585A8' }}>{isInvite ? 'Seu nome' : 'Nome e sobrenome'}</label>
                 <input type="text" required value={name} onChange={e => setName(e.target.value)}
                   placeholder="João Silva" className="input-field" />
               </div>
@@ -228,11 +282,23 @@ export default function SignupPage() {
 
               <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: '#8585A8' }}>Celular</label>
-                <p className="text-xs mb-2" style={{ color: '#C0BFD5' }}>Você receberá o resumo diário no WhatsApp deste número. Dá para desligar quando quiser.</p>
+                <p className="text-xs mb-2" style={{ color: '#C0BFD5' }}>{isInvite
+                  ? 'Você receberá os avisos da família no WhatsApp deste número.'
+                  : 'Vamos usar este número para avisos da sua conta no WhatsApp (início e fim do teste, cobranças) e, nos planos Família e Plus, para o resumo diário da agenda.'}</p>
                 <input type="tel" inputMode="numeric" autoComplete="tel-national" required value={phone}
                   onChange={e => setPhone(formatPhoneBR(e.target.value))}
                   placeholder="(11) 90000-0000" className="input-field" />
               </div>
+
+              {!isInvite && (
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: '#8585A8' }}>CPF</label>
+                  <p className="text-xs mb-2" style={{ color: '#C0BFD5' }}>Usamos o CPF na nota fiscal e para garantir um teste grátis por pessoa.</p>
+                  <input type="text" inputMode="numeric" required value={cpf}
+                    onChange={e => setCpf(formatCPF(e.target.value))}
+                    placeholder="000.000.000-00" className="input-field" />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold mb-2" style={{ color: '#8585A8' }}>Senha</label>
@@ -268,10 +334,10 @@ export default function SignupPage() {
                 <input type="checkbox" checked={terms} onChange={e => setTerms(e.target.checked)}
                   className="mt-0.5 flex-none" style={{ accentColor: '#7B6FE8', width: 16, height: 16 }} />
                 <span className="text-xs leading-relaxed" style={{ color: '#6B6B8D' }}>
-                  Tenho 18 anos ou mais e aceito os{' '}
+                  Li e aceito os{' '}
                   <a href="/termos" target="_blank" className="font-semibold underline" style={{ color: '#7B6FE8' }}>Termos de Uso</a>
                   {' '}e a{' '}
-                  <a href="/privacidade" target="_blank" className="font-semibold underline" style={{ color: '#7B6FE8' }}>Política de Privacidade</a>.
+                  <a href="/privacidade" target="_blank" className="font-semibold underline" style={{ color: '#7B6FE8' }}>Política de Privacidade</a>, e declaro ter 18 anos ou mais.
                 </span>
               </label>
 
@@ -295,9 +361,14 @@ export default function SignupPage() {
                 style={{ background: 'linear-gradient(135deg,#7B6FE8,#C084FC)', boxShadow: '0 8px 28px rgba(123,111,232,0.30)' }}>
                 {loading
                   ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  : <><span>Criar conta grátis</span><ArrowRight size={15} /></>
+                  : <><span>{isInvite ? 'Criar conta' : 'Continuar para o pagamento'}</span><ArrowRight size={15} /></>
                 }
               </button>
+              {!isInvite && (
+                <p className="text-[11px] text-center leading-relaxed" style={{ color: '#8585A8' }}>
+                  Na próxima tela você cadastra o cartão. Hoje: R$ 0,00. Primeira cobrança só depois de {DIAS_TESTE} dias.
+                </p>
+              )}
             </form>
           </div>
 

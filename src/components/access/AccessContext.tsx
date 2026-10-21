@@ -4,7 +4,7 @@ import type { Access } from '@/lib/access'
 
 const AccessCtx = createContext<Access>({
   role: 'owner', isOwner: true, isPartner: false,
-  canEdit: true, canLogistics: true, ownerName: null,
+  canEdit: true, canLogistics: true, ownerName: null, pausada: false,
 })
 
 export function AccessProvider({ value, children }: { value: Access; children: React.ReactNode }) {

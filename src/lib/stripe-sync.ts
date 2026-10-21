@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/server'
-import { stripe, planoDoPreco, ehPrecoLancamento } from '@/lib/stripe'
+import { stripe, planoDoPreco } from '@/lib/stripe'
 import type Stripe from 'stripe'
+import { DIAS_ATE_APAGAR } from '@/lib/oferta-v2'
+import { avisarCartaoRecusado, avisarPausa } from '@/lib/avisos-conta'
 
 const GRACE_DAYS = 5
 
@@ -123,6 +125,21 @@ export async function syncSubscriptionToDb(
 
   const isEnded = sub.status === 'canceled' || sub.status === 'incomplete_expired'
 
+  const { data: atual } = await admin
+    .from('subscriptions')
+    .select('status, oferta, plan, stripe_subscription_id, paused_at, pause_reason, payment_failed_at')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  // Evento atrasado de uma assinatura antiga (ex.: a pessoa reativou e há
+  // outra assinatura viva): não pode sobrescrever o estado da atual.
+  if (isEnded && atual?.stripe_subscription_id && atual.stripe_subscription_id !== sub.id) return
+
+  if (atual?.oferta === 'v2') {
+    await syncV2(admin, userId, sub, atual, mapped, customerId ?? null, isEnded)
+    return
+  }
+
   // Pago/trial → grátis com parceiro conectado: inicia grace de 5 dias.
   // Voltou a ficar ativo: limpa qualquer grace pendente.
   let graceField: { partner_grace_until: string | null } | undefined
@@ -154,25 +171,82 @@ export async function syncSubscriptionToDb(
     ...cotaZerada,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
+}
 
-  // Vaga de lançamento.
-  //  · Assinatura viva com preço de lançamento → a vaga é definitiva, e não
-  //    volta nem se a pessoa cancelar depois de ter sido cobrada.
-  //  · EXCEÇÃO: quem cancela ainda no teste grátis nunca pagou. Segurar uma
-  //    das 20 vagas para quem desistiu antes da primeira cobrança tiraria o
-  //    desconto de um cliente de verdade — a vaga volta para a fila. Se a
-  //    pessoa reativar, `garantirVagaParaReativar` pega outra (se houver).
-  if (ehPrecoLancamento(price)) {
-    const saindo = (sub.cancel_at_period_end ?? false) || !!sub.cancel_at
-    const encerradaNoTeste = isEnded && !!sub.trial_end && !!sub.ended_at && sub.ended_at <= sub.trial_end
-    if ((sub.status === 'trialing' && saindo) || encerradaNoTeste) {
-      const { error } = await admin.rpc('liberar_vaga_lancamento', { p_user: userId })
-      if (error) console.error('[stripe-sync] liberar vaga de lançamento falhou:', error.message)
-    } else if (!isEnded) {
-      const { error } = await admin.rpc('confirmar_vaga_lancamento', { p_user: userId })
-      if (error) console.error('[stripe-sync] confirmar vaga de lançamento falhou:', error.message)
-    }
+// ── Modelo novo (teste com cartão, sem gratuito) ────────────────────────────
+// Estados: trialing · active · past_due (cartão recusado, 7 dias de carência)
+// · paused (sem assinatura válida; só leitura; apagada em 90 dias)
+// · incompleto (sem cartão ainda — inclui o teste cancelado por cartão repetido).
+type LinhaAtual = { status: string | null; plan: string | null; paused_at: string | null; pause_reason: string | null; payment_failed_at: string | null }
+
+async function syncV2(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  sub: Stripe.Subscription,
+  atual: LinhaAtual,
+  mapped: ReturnType<typeof planoDoPreco>,
+  customerId: string | null,
+  isEnded: boolean,
+): Promise<void> {
+  const agora = new Date()
+  const base = {
+    user_id: userId,
+    stripe_customer_id: customerId,
+    plan: mapped?.plan ?? atual.plan ?? 'familia',
+    billing_interval: mapped?.interval ?? null,
+    trial_ends_at: toISO(sub.trial_end),
+    current_period_end: toISO(getPeriodEnd(sub)),
+    partner_grace_until: null,
+    updated_at: agora.toISOString(),
   }
+
+  if (isEnded || sub.status === 'unpaid') {
+    // Teste cancelado porque o cartão já tinha usado o teste: volta a
+    // "incompleto" (a pessoa escolhe assinar sem teste — T5).
+    if (sub.metadata?.motivo_fim === 'cartao_ja_usado') {
+      await admin.from('subscriptions').update({ status: 'incompleto', stripe_subscription_id: null, trial_ends_at: null, updated_at: agora.toISOString() }).eq('user_id', userId)
+      return
+    }
+    // Assinatura acabou (cancelada e o período terminou, ou o Stripe desistiu
+    // de cobrar): conta pausada. Mantém a data da pausa se já estava pausada.
+    const pausadaEm = atual.status === 'paused' && atual.paused_at ? new Date(atual.paused_at) : agora
+    const motivo = atual.status === 'past_due' || atual.payment_failed_at || atual.pause_reason === 'pagamento' || sub.status === 'unpaid'
+      ? 'pagamento' : 'cancelada'
+    await admin.from('subscriptions').upsert({
+      ...base,
+      stripe_subscription_id: sub.id,
+      status: 'paused',
+      cancel_at_period_end: false,
+      paused_at: pausadaEm.toISOString(),
+      pause_reason: motivo,
+      delete_after: new Date(pausadaEm.getTime() + DIAS_ATE_APAGAR * 86_400_000).toISOString(),
+      payment_failed_at: null,
+    }, { onConflict: 'user_id' })
+    if (atual.status !== 'paused') await avisarPausa(userId).catch(e => console.error('[stripe-sync] aviso de pausa:', e))
+    return
+  }
+
+  // Pausada por falta de pagamento (7 dias sem regularizar) enquanto o Stripe
+  // ainda tenta cobrar: continua pausada até o pagamento entrar.
+  if (atual.status === 'paused' && atual.pause_reason === 'pagamento' && sub.status === 'past_due') {
+    await admin.from('subscriptions').update({ stripe_subscription_id: sub.id, updated_at: agora.toISOString() }).eq('user_id', userId)
+    return
+  }
+
+  const status = sub.status === 'incomplete' ? 'incompleto' : sub.status
+  const entrouEmAtraso = status === 'past_due' && atual.status !== 'past_due'
+  await admin.from('subscriptions').upsert({
+    ...base,
+    stripe_subscription_id: sub.id,
+    status,
+    // `cancel_at` cobre o caso do schedule (ver o modelo antigo acima).
+    cancel_at_period_end: (sub.cancel_at_period_end ?? false) || !!sub.cancel_at,
+    payment_failed_at: status === 'past_due' ? (atual.payment_failed_at ?? agora.toISOString()) : null,
+    paused_at: null,
+    pause_reason: null,
+    delete_after: null,
+  }, { onConflict: 'user_id' })
+  if (entrouEmAtraso) await avisarCartaoRecusado(userId, 'd0').catch(e => console.error('[stripe-sync] aviso de cartão recusado:', e))
 }
 
 // Escolhe a assinatura "vigente" entre as do cliente:
@@ -200,7 +274,7 @@ export async function reconcileUserFromStripe(userId: string): Promise<boolean> 
   const admin = createAdminClient()
   const { data: row } = await admin
     .from('subscriptions')
-    .select('stripe_customer_id, trial_ends_at')
+    .select('stripe_customer_id, trial_ends_at, oferta, status, plan, paused_at, pause_reason, payment_failed_at')
     .eq('user_id', userId)
     .maybeSingle()
 
@@ -214,6 +288,21 @@ export async function reconcileUserFromStripe(userId: string): Promise<boolean> 
       limit: 20,
     })
     const current = pickCurrentSubscription(list.data)
+
+    if (row?.oferta === 'v2') {
+      if (current) { await syncSubscriptionToDb(current, userId); return true }
+      // Sem nenhuma assinatura: quem ainda não pôs o cartão continua
+      // "incompleto"; quem já teve assinatura fica pausado.
+      if (row.status === 'incompleto' || row.status === 'paused') return false
+      const agora = new Date()
+      await admin.from('subscriptions').update({
+        status: 'paused', paused_at: agora.toISOString(), pause_reason: row.payment_failed_at ? 'pagamento' : 'cancelada',
+        delete_after: new Date(agora.getTime() + DIAS_ATE_APAGAR * 86_400_000).toISOString(),
+        stripe_subscription_id: null, cancel_at_period_end: false, payment_failed_at: null, updated_at: agora.toISOString(),
+      }).eq('user_id', userId)
+      await avisarPausa(userId).catch(e => console.error('[stripe-sync] aviso de pausa:', e))
+      return true
+    }
 
     // Sem assinatura, mas o teste grátis do CADASTRO ainda vale: a pessoa abriu
     // o pagamento e desistiu (o cliente no Stripe nasce antes do cartão). Ela

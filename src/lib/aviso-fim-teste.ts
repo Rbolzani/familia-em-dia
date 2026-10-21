@@ -1,6 +1,11 @@
 // Server-only: o aviso "seu teste grátis termina em 3 dias", por WhatsApp e
 // e-mail, a quem está no teste do Família e ainda não assinou.
 //
+// ⚠️ SÓ PARA AS CONTAS DO MODELO ANTIGO (teste sem cartão, criadas antes da
+// virada para a oferta de 20/10/2026). Elas vão para o gratuito ao fim do teste
+// (Termos 5.12). As contas novas têm seus próprios avisos de cobrança em
+// src/lib/avisos-conta.ts (avisarAntesDaCobranca).
+//
 // É comunicação sobre o estado da conta que a pessoa abriu — não depende do
 // opt-in de comunicações promocionais.
 // ⚠️ Mudar aqui é mudar o que o cliente lê: o Rogério aprova o texto.
@@ -74,7 +79,7 @@ const DEPOIS_DO_BOTAO = 'Ficou com alguma dúvida? É só responder este e-mail.
 const RODAPE = 'Você recebeu este e-mail porque está no teste grátis de uma conta em familiaemdia.com.br.'
 
 export function emailEmTexto(nome: string | null, fim: Date, token?: string): string {
-  const tabela = COMPARATIVO.map(l => `${l.recurso}: Gratuito ${txt(l.gratuito)} · Família ${txt(l.familia)} · Plus ${txt(l.plus)}`).join('\n')
+  const tabela = COMPARATIVO.map(l => `${l.recurso}: Básico ${txt(l.basico)} · Família ${txt(l.familia)} · Plus ${txt(l.plus)}`).join('\n')
   return [
     ...paragrafos(nome, fim),
     PERDE_NO_GRATUITO.map(i => `• ${i}`).join('\n'),
@@ -95,8 +100,8 @@ export function emailEmHtml(nome: string | null, fim: Date, token?: string): str
   const cel = (v: Celula, destaque: boolean) =>
     `<td style="padding:7px 4px;text-align:center;font:${destaque ? 700 : 400} 12.5px/1.3 ${fonte};color:${v === false ? '#B8BFB5' : '#1A2B1C'};border-top:1px solid #EFE8DA;${destaque ? 'background:#EEF4EE;' : ''}">${v === true ? '✓' : v === false ? '—' : v}</td>`
   const tabela = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
-      <tr><td style="padding:0 0 6px;font:600 11px ${fonte};color:#7A8577"></td><td style="text-align:center;font:700 12.5px ${fonte};color:#1A2B1C;padding:0 4px 6px">Gratuito</td><td style="text-align:center;font:800 12.5px ${fonte};color:#2C4A2E;padding:6px 4px;background:#EEF4EE;border-radius:8px 8px 0 0">Família</td><td style="text-align:center;font:700 12.5px ${fonte};color:#1A2B1C;padding:0 4px 6px">Plus</td></tr>
-      ${COMPARATIVO.map(l => `<tr><td style="padding:7px 6px 7px 0;font:400 12.5px/1.3 ${fonte};color:#4A5A4C;border-top:1px solid #EFE8DA">${l.recurso}</td>${cel(l.gratuito, false)}${cel(l.familia, true)}${cel(l.plus, false)}</tr>`).join('\n      ')}
+      <tr><td style="padding:0 0 6px;font:600 11px ${fonte};color:#7A8577"></td><td style="text-align:center;font:700 12.5px ${fonte};color:#1A2B1C;padding:0 4px 6px">Básico</td><td style="text-align:center;font:800 12.5px ${fonte};color:#2C4A2E;padding:6px 4px;background:#EEF4EE;border-radius:8px 8px 0 0">Família</td><td style="text-align:center;font:700 12.5px ${fonte};color:#1A2B1C;padding:0 4px 6px">Plus</td></tr>
+      ${COMPARATIVO.map(l => `<tr><td style="padding:7px 6px 7px 0;font:400 12.5px/1.3 ${fonte};color:#4A5A4C;border-top:1px solid #EFE8DA">${l.recurso}</td>${cel(l.basico, false)}${cel(l.familia, true)}${cel(l.plus, false)}</tr>`).join('\n      ')}
     </table>`
   return `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#F8F3EA;padding:24px 12px">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;padding:22px 24px">

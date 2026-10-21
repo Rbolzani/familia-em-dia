@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       error: 'LIMIT_PARTNERS',
       plan,
       limit: 0,
-      message: 'Compartilhamento não está disponível no plano gratuito.',
+      message: 'A rede de apoio faz parte dos planos Família e Plus.',
     }, { status: 402 })
   }
 

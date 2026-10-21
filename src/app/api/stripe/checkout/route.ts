@@ -1,9 +1,22 @@
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { stripe, precoVigenteId, type PlanId, type BillingInterval } from '@/lib/stripe'
+import { stripe, precoVigenteId, type PlanoPagoId, type BillingInterval } from '@/lib/stripe'
 import { reconcileUserFromStripe } from '@/lib/stripe-sync'
 import { dadosFiscais, camposDoCliente, sincronizarClienteStripe, nomeCompleto } from '@/lib/stripe-customer'
+import { ajustesParaPlano, textoAjustes } from '@/lib/oferta-v2'
+import { DIAS_TESTE } from '@/lib/planos-oferta'
+
+// Assinar, trocar de plano/ciclo e reativar — modelo antigo (v1) e novo (v2).
+//
+// Modelo novo (cadastro com cartão, aprovado em 20/10/2026):
+//  · conta "incompleto" → Checkout com 14 dias grátis e cartão obrigatório.
+//    Hoje R$ 0,00; a primeira cobrança é automática no 15º dia.
+//  · `semTeste: true` → Checkout sem teste (cartão que já usou o teste, T5).
+//  · conta "pausada" → reativar = Checkout sem teste (o teste vale uma vez).
+//  · troca de plano EM TESTE → vale na hora, sem cobrança; o teste continua até
+//    a mesma data e a primeira cobrança sai no valor do plano novo.
+// Modelo antigo: igual a antes (o teste é do app; o Checkout só preserva a data).
 
 export async function POST(request: Request) {
   // 1. Sessão
@@ -11,44 +24,39 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // 2. Corpo: plano + intervalo (a elegibilidade de trial é decidida no servidor,
-  // nunca pelo cliente — ver passo 5).
-  let plan: PlanId
+  // 2. Corpo
+  let plan: PlanoPagoId
   let interval: BillingInterval
-  // De onde veio (tela Planos do app, botão do WhatsApp ou do e-mail de fim do
-  // teste). Vai para a metadata da assinatura e aparece no Painel do negócio.
+  let semTeste = false
+  // De onde veio (tela Planos, botão do WhatsApp ou do e-mail). Vai para a
+  // metadata da assinatura e aparece no Painel do negócio.
   let origem: 'app' | 'whatsapp' | 'email' = 'app'
   try {
     const body = await request.json()
     plan      = body.plan
     interval  = body.interval
+    semTeste  = body.semTeste === true
     if (body.origem === 'whatsapp' || body.origem === 'email') origem = body.origem
   } catch {
     return NextResponse.json({ error: 'Requisição inválida' }, { status: 400 })
   }
-
-  if ((plan !== 'familia' && plan !== 'plus') || (interval !== 'month' && interval !== 'year')) {
+  if ((plan !== 'basico' && plan !== 'familia' && plan !== 'plus') || (interval !== 'month' && interval !== 'year')) {
     return NextResponse.json({ error: 'Plano inválido' }, { status: 400 })
   }
 
-  // Preço vigente (Família R$ 19,90 · Plus R$ 29,90; anual −20%). A oferta de
-  // lançamento foi encerrada em 16/10/2026: ninguém tinha assinado por ela.
-  const priceId = await precoVigenteId(plan as 'familia' | 'plus', interval).catch(e => { console.error('[stripe-checkout] preço vigente:', e); return null })
-  if (!priceId) {
-    return NextResponse.json({ error: 'Preço não configurado' }, { status: 500 })
-  }
+  const priceId = await precoVigenteId(plan, interval).catch(e => { console.error('[stripe-checkout] preço vigente:', e); return null })
+  if (!priceId) return NextResponse.json({ error: 'Preço não configurado' }, { status: 500 })
 
   const admin = createAdminClient()
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin
 
   try {
-    // 3. Buscar/garantir o Stripe customer do usuário
     const { data: sub } = await admin
       .from('subscriptions')
-      .select('stripe_customer_id, status, trial_ends_at, plan')
+      .select('stripe_customer_id, status, trial_ends_at, plan, oferta')
       .eq('user_id', user.id)
       .maybeSingle()
-
+    const v2 = sub?.oferta === 'v2'
     let customerId = sub?.stripe_customer_id as string | null | undefined
 
     // Conta cortesia: plano pago gravado no banco, sem cliente no Stripe.
@@ -60,11 +68,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // A nota fiscal sai com nome completo, CPF e endereço. A conta grátis não
-    // pede nenhum dos três: são cobrados aqui, na hora de assinar. A tela de
-    // planos reconhece o código e abre "Dados para a assinatura".
+    // Dados da nota fiscal. No modelo novo o CPF vem do cadastro e o endereço
+    // é pedido pela própria tela do Stripe (decisão 20/10/2026); no antigo,
+    // os três são cobrados aqui e a tela de planos abre "Dados para a assinatura".
     const fiscais = await dadosFiscais(user.id)
-    if (!nomeCompleto(fiscais.nome) || !fiscais.cpf || !fiscais.endereco) {
+    if (!nomeCompleto(fiscais.nome) || !fiscais.cpf || (!v2 && !fiscais.endereco)) {
       return NextResponse.json(
         { error: 'Antes de assinar, informe nome completo, CPF e endereço. Eles são usados na nota fiscal.', code: 'dados_pendentes' },
         { status: 400 },
@@ -78,77 +86,93 @@ export async function POST(request: Request) {
         metadata: { user_id: user.id },
       })
       customerId = customer.id
-
       await admin
         .from('subscriptions')
         .upsert({ user_id: user.id, stripe_customer_id: customerId }, { onConflict: 'user_id' })
     }
-
     // Mantém o Customer em dia com o cadastro (e registra o CPF como Tax ID).
     await sincronizarClienteStripe(customerId, user.id, fiscais)
 
-    // 4. Decidir entre: trocar de plano/intervalo, reativar, ou criar checkout novo.
-    if (customerId) {
-      const [activeList, trialingList] = await Promise.all([
-        stripe.subscriptions.list({ customer: customerId, status: 'active', limit: 10 }),
-        stripe.subscriptions.list({ customer: customerId, status: 'trialing', limit: 10 }),
-      ])
-      const liveSubs = [...activeList.data, ...trialingList.data]
-      const current = liveSubs.find(s => !s.cancel_at_period_end) ?? liveSubs.find(s => s.cancel_at_period_end)
+    // 3. Já tem assinatura viva? → trocar de plano/ciclo ou reativar.
+    const listas = await Promise.all(['active', 'trialing', 'past_due'].map(st =>
+      stripe.subscriptions.list({ customer: customerId!, status: st as Stripe.SubscriptionListParams.Status, limit: 10 })))
+    const liveSubs = listas.flatMap(l => l.data)
+    const current = liveSubs.find(s => !s.cancel_at_period_end) ?? liveSubs.find(s => s.cancel_at_period_end)
 
-      if (current) {
-        const currentItem = current.items.data[0]
-        const currentPriceId = currentItem?.price?.id
-        // Toda troca vai para o preço vigente do plano/intervalo escolhido —
-        // inclusive de quem ainda está num preço antigo.
-        const alvoId = priceId
+    if (current) {
+      const currentItem = current.items.data[0]
+      const currentPriceId = currentItem?.price?.id
 
-        // 4a. Mesmo plano/intervalo → nada a trocar.
-        if (currentPriceId === alvoId && !current.cancel_at_period_end) {
-          return NextResponse.json({ url: `${baseUrl}/planos` })
+      // 3a. Mesmo plano/intervalo e não cancelando → nada a trocar.
+      if (currentPriceId === priceId && !current.cancel_at_period_end) {
+        return NextResponse.json({ url: `${baseUrl}/planos` })
+      }
+
+      if (currentPriceId !== priceId) {
+        // Plano menor com filhos/rede acima do limite: a pessoa ajusta antes (T14).
+        const ajustes = await ajustesParaPlano(user.id, plan)
+        if (ajustes) {
+          return NextResponse.json({ error: 'Ajuste a conta antes de mudar de plano.', code: 'ajustar_conta', itens: textoAjustes(plan, ajustes) }, { status: 409 })
         }
-
-        // 4b. Plano ou intervalo diferente → modifica a assinatura existente.
-        // A própria sub já tem o método de pagamento, então NÃO pede cartão.
-        // Trocar o item de preço por um de intervalo diferente faz a sub adotar
-        // o novo intervalo; billing_cycle_anchor:'now' inicia o ciclo já e cobra
-        // a diferença proporcional. Reconcilia do Stripe para refletir no banco.
-        if (currentPriceId !== alvoId) {
-          const hasPm = !!current.default_payment_method
-          if (hasPm) {
-            await stripe.subscriptions.update(current.id, {
-              items: [{ id: currentItem.id, price: alvoId }],
-              proration_behavior: 'create_prorations',
-              billing_cycle_anchor: 'now',
-              cancel_at_period_end: false,
-              metadata: { user_id: user.id, plan },
-            })
-            await reconcileUserFromStripe(user.id)
-            return NextResponse.json({ url: `${baseUrl}/planos?billing=plano-alterado` })
-          }
-          // Sem método de pagamento na sub (ex: só teve trial, nunca pagou) →
-          // vai para o checkout normal (passo 5), que coleta o cartão.
-        }
-
-        // 4c. Mesmo preço mas estava cancelando → reativar.
-        if (currentPriceId === alvoId && current.cancel_at_period_end) {
-          await stripe.subscriptions.update(current.id, { cancel_at_period_end: false })
+        const hasPm = !!current.default_payment_method
+        if (current.status === 'trialing') {
+          // 3b. Em teste: troca na hora, sem cobrança, mantendo a data do teste.
+          await stripe.subscriptions.update(current.id, {
+            items: [{ id: currentItem.id, price: priceId }],
+            proration_behavior: 'none',
+            cancel_at_period_end: false,
+            metadata: { ...current.metadata, user_id: user.id, plan },
+          })
           await reconcileUserFromStripe(user.id)
-          return NextResponse.json({ url: `${baseUrl}/planos?billing=reativado` })
+          return NextResponse.json({ url: `${baseUrl}/planos?billing=plano-alterado` })
         }
+        if (hasPm) {
+          // 3c. Pagando: troca com proração; billing_cycle_anchor:'now' inicia o
+          // ciclo já e cobra a diferença proporcional, sem pedir cartão.
+          await stripe.subscriptions.update(current.id, {
+            items: [{ id: currentItem.id, price: priceId }],
+            proration_behavior: 'create_prorations',
+            billing_cycle_anchor: 'now',
+            cancel_at_period_end: false,
+            metadata: { ...current.metadata, user_id: user.id, plan },
+          })
+          await reconcileUserFromStripe(user.id)
+          return NextResponse.json({ url: `${baseUrl}/planos?billing=plano-alterado` })
+        }
+        // Sem método de pagamento na sub (modelo antigo, só teve trial) →
+        // segue para o Checkout, que coleta o cartão.
+      }
+
+      // 3d. Mesmo preço mas estava cancelando → reativar.
+      if (currentPriceId === priceId && current.cancel_at_period_end) {
+        await stripe.subscriptions.update(current.id, { cancel_at_period_end: false })
+        await reconcileUserFromStripe(user.id)
+        return NextResponse.json({ url: `${baseUrl}/planos?billing=reativado` })
       }
     }
 
-    // 5. Sessão de checkout — modo assinatura.
-    // Elegibilidade de trial é decidida AQUI, no servidor, a partir do banco.
-    // Regra: o trial só preserva o fim do trial ORIGINAL do cadastro
-    // (status='trialing' com trial_ends_at no futuro). Nunca concede um trial
-    // novo — quem já passou pelos 14 dias é cobrado imediatamente, sem exceção.
-    let trialEnd: number | undefined
-    if (sub?.status === 'trialing' && sub.trial_ends_at) {
-      const endsMs = new Date(sub.trial_ends_at).getTime()
-      if (endsMs > Date.now() + 48 * 60 * 60 * 1000) {
-        trialEnd = Math.floor(endsMs / 1000)
+    // 4. Sessão de Checkout nova.
+    const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
+      metadata: { user_id: user.id, plan, origem, oferta: v2 ? 'v2' : 'v1' },
+    }
+    if (v2) {
+      // Teste de 14 dias só para quem ainda não teve (conta "incompleto").
+      // Conta pausada reativa sem teste; T5 (cartão já usado) também.
+      if (sub?.status === 'incompleto' && !semTeste) {
+        subscriptionData.trial_period_days = DIAS_TESTE
+        // Se o teste terminar sem cartão válido, a assinatura cancela sozinha.
+        subscriptionData.trial_settings = { end_behavior: { missing_payment_method: 'cancel' } }
+      }
+      // Guarda a escolha (a tela /assinar e os avisos mostram plano e ciclo).
+      if (sub?.status === 'incompleto') {
+        await admin.from('subscriptions').update({ plan, billing_interval: interval }).eq('user_id', user.id)
+      }
+    } else {
+      // Modelo antigo: o teste é do app. O Checkout só preserva o fim do teste
+      // original (nunca concede um novo).
+      if (sub?.status === 'trialing' && sub.trial_ends_at) {
+        const endsMs = new Date(sub.trial_ends_at).getTime()
+        if (endsMs > Date.now() + 48 * 60 * 60 * 1000) subscriptionData.trial_end = Math.floor(endsMs / 1000)
       }
     }
 
@@ -157,18 +181,21 @@ export async function POST(request: Request) {
       customer: customerId,
       client_reference_id: user.id,
       line_items: [{ price: priceId, quantity: 1 }],
-      subscription_data: {
-        ...(trialEnd ? { trial_end: trialEnd } : {}),
-        metadata: { user_id: user.id, plan, origem },
-      },
+      subscription_data: subscriptionData,
       metadata: { user_id: user.id, plan, interval, origem },
       allow_promotion_codes: true,
-      // Passa por /api/stripe/return: ele reconcilia o plano com o Stripe
-      // (protege contra webhook atrasado) e entrega o Início. Antes vinha
-      // direto para /configuracoes — que reconcilia, mas deixava a pessoa em
-      // "Compartilhar acesso" logo após assinar.
-      success_url: `${baseUrl}/api/stripe/return`,
-      cancel_url: `${baseUrl}/planos?billing=cancelado`,
+      locale: 'pt-BR',
+      ...(v2 ? {
+        payment_method_collection: 'always' as const,
+        billing_address_collection: 'required' as const,
+        customer_update: { address: 'auto' as const, name: 'auto' as const },
+      } : {}),
+      // /api/stripe/return reconcilia com o Stripe (protege contra webhook
+      // atrasado), confere o cartão do teste e entrega o Início.
+      success_url: `${baseUrl}/api/stripe/return?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: v2 && sub?.status !== 'trialing' && sub?.status !== 'active'
+        ? `${baseUrl}/assinar?billing=cancelado`
+        : `${baseUrl}/planos?billing=cancelado`,
     })
 
     return NextResponse.json({ url: session.url })

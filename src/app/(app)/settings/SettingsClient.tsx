@@ -6,6 +6,8 @@ import {
   FileText, Shield, ChevronRight, LogOut, ExternalLink, ChartPie,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useUpsell } from '@/components/billing/Upsell'
+import { PLAN_LIMITS } from '@/lib/planos-limites'
 
 interface SettingsItem {
   href?: string
@@ -24,6 +26,9 @@ interface SettingsSection {
 
 export default function SettingsClient({ isAdmin = false }: { isAdmin?: boolean }) {
   const router = useRouter()
+  // Cadeado: sem resumo no WhatsApp no plano, o item abre a caixa de upsell.
+  const { plano, abrir } = useUpsell()
+  const travaWhatsapp = plano !== 'pausada' && !PLAN_LIMITS[plano].whatsapp
 
   async function handleLogout() {
     await createClient().auth.signOut()
@@ -36,7 +41,9 @@ export default function SettingsClient({ isAdmin = false }: { isAdmin?: boolean 
       items: [
         { href: '/conta',   label: 'Minha Conta', icon: UserCog },
         { href: '/planos',  label: 'Planos',       icon: Star },
-        { href: '/alertas', label: 'Alertas',      icon: Bell, badge: 'WhatsApp' },
+        travaWhatsapp
+          ? { label: 'Alertas no WhatsApp', icon: Bell, badge: '🔒', onClick: () => abrir('whatsapp') }
+          : { href: '/alertas', label: 'Alertas no WhatsApp', icon: Bell },
       ],
     },
     {

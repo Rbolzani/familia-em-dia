@@ -17,6 +17,10 @@ export async function GET(request: Request) {
     .from('subscriptions')
     .select('user_id')
     .eq('status', 'trialing')
+    // Só o teste do MODELO ANTIGO (sem cartão) termina aqui. O teste do modelo
+    // novo é do Stripe: ao fim dele a assinatura cobra sozinha (ou cancela), e
+    // o webhook atualiza a conta — esta rotina não pode transformá-la em gratuita.
+    .eq('oferta', 'v1')
     .lt('trial_ends_at', now)
 
   if (trialErr) {

@@ -1,4 +1,5 @@
 'use client'
+import { useUpsell } from '@/components/billing/Upsell'
 import React, { useMemo, useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -44,6 +45,7 @@ function formatBytes(bytes: number): string {
 }
 
 export default function VaultClient({ children, documents: initialDocuments, canOcr, canSearch, storageUsedBytes, storageLimitBytes }: Props) {
+  const { abrir: abrirUpsell } = useUpsell()
   const router = useRouter()
   const { canEdit } = useAccess()
   const [documents, setDocuments] = useState<DocSummary[]>(initialDocuments)
@@ -332,7 +334,7 @@ export default function VaultClient({ children, documents: initialDocuments, can
           return (
             <div className="animate-fade-up" style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 12, padding: '10px 14px' }}>
               <p style={{ fontSize: 12, color: '#991b1b', lineHeight: 1.5 }}>
-                O envio de arquivos ao cofre faz parte dos planos Família e Plus.{' '}
+                O envio de arquivos ao cofre faz parte dos planos pagos.{' '}
                 <a href="/planos" style={{ fontWeight: 700, textDecoration: 'underline' }}>Ver planos</a>
               </p>
             </div>
@@ -370,9 +372,11 @@ export default function VaultClient({ children, documents: initialDocuments, can
               <p className="mt-2" style={{ fontSize: 12, color: '#991b1b', lineHeight: 1.5 }}>
                 <strong>Seus documentos continuam guardados e acessíveis.</strong>{' '}
                 {semCota
-                  ? <>Para enviar novos arquivos, assine o plano Família ou Plus.</>
-                  : <>Para enviar novos, libere espaço ou faça upgrade.</>}{' '}
-                <a href="/planos" style={{ fontWeight: 700, textDecoration: 'underline' }}>Ver planos</a>
+                  ? <>Para enviar novos arquivos, assine um plano.</>
+                  : <>Para enviar novos, libere espaço ou mude de plano.</>}{' '}
+                {semCota
+                  ? <a href="/planos" style={{ fontWeight: 700, textDecoration: 'underline' }}>Ver planos</a>
+                  : <button type="button" onClick={() => abrirUpsell('cofre')} style={{ fontWeight: 700, textDecoration: 'underline', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit' }}>Ver planos</button>}
               </p>
             )}
           </div>
