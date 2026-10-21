@@ -42,7 +42,7 @@
 <body>
 
 <h1>Família em Dia — Análise de Custos de Produção</h1>
-<p class="meta">Atualizado em 16/10/2026 · Produto em produção desde out/2026 (Stripe LIVE em 06/10/2026) · Preços vigentes: Família R$ 19,90/mês, Plus R$ 29,90/mês, anual −20%.<br>
+<p class="meta">Atualizado em 21/10/2026 · Produto em produção desde out/2026 (Stripe LIVE em 06/10/2026) · Preços vigentes (nova oferta): Básico R$ 19,90, Família R$ 24,90 e Plus R$ 34,90 por mês, anual −20%, teste de 14 dias com cartão, sem plano gratuito para contas novas.<br>
 Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajustar ao câmbio do dia). Custos fixos vêm das faturas e planos contratados; custos por uso (IA, voz, WhatsApp) são estimativas a partir da tabela de cada fornecedor e do uso medido no banco.</p>
 
 <div class="section">
@@ -59,13 +59,13 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
     </div>
     <div class="card">
       <div class="card-label">Custo variável por assinante</div>
-      <div class="card-value" style="color:#185FA5;">R$ 4,42</div>
-      <div class="card-sub">Família mensal: WhatsApp R$ 1,40 + IA R$ 1,50 + voz R$ 0,20 + Stripe R$ 1,32</div>
+      <div class="card-value" style="color:#185FA5;">R$ 4,66</div>
+      <div class="card-sub">Família mensal: WhatsApp R$ 1,40 + IA R$ 1,50 + voz R$ 0,20 + Stripe R$ 1,56 · Básico R$ 2,82 · Plus R$ 5,13</div>
     </div>
     <div class="card">
       <div class="card-label">Break-even</div>
-      <div class="card-value">19 assinantes</div>
-      <div class="card-sub">no Família mensal (R$ 19,90), já com 6% de imposto · 18 no mix realista</div>
+      <div class="card-value">15 assinantes</div>
+      <div class="card-sub">no Família mensal (R$ 24,90), já com 10% de imposto (DAS) · 16 no mix realista</div>
     </div>
   </div>
 </div>
@@ -87,7 +87,7 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
         <tr class="grupo"><td colspan="5">Infraestrutura (custo fixo)</td></tr>
         <tr>
           <td><strong>Vercel</strong></td>
-          <td>Hospedagem do app e do site, deploy automático, crons (resumo diário, avisos, expiração do teste), Web Analytics</td>
+          <td>Hospedagem do app e do site, deploy automático, crons (resumo diário, avisos antes da cobrança, cartão recusado e pausa, expiração do teste do modelo antigo), Web Analytics</td>
           <td>Pro, US$ 20/mês (desde 05/10/2026)</td>
           <td class="num">R$ 108,00</td>
           <td><span class="badge badge-red">Pago</span></td>
@@ -124,7 +124,7 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
         </tr>
         <tr>
           <td><strong>Meta — WhatsApp Cloud API</strong></td>
-          <td>Resumo diário, avisos de conta, avisos de fim do teste, logística</td>
+          <td>Resumo diário, avisos de conta, avisos antes da cobrança e de cartão recusado (Utilidade), cadastro não concluído (Marketing), logística</td>
           <td>Por mensagem entregue: Utilidade ~US$ 0,0068 · Marketing ~US$ 0,0625 (tabela Brasil)</td>
           <td class="num">~R$ 4</td>
           <td><span class="badge badge-amber">Por uso</span></td>
@@ -138,14 +138,14 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
         </tr>
         <tr>
           <td><strong>Stripe</strong></td>
-          <td>Assinaturas, cobrança no cartão, reembolsos (conta da Bonju Serviços Ltda.)</td>
+          <td>Assinaturas, cartão no cadastro com 14 dias grátis, cobrança automática, novas tentativas (Smart Retries), recibos, reembolsos (conta da Bonju Serviços Ltda.)</td>
           <td>3,99% + R$ 0,39 por cobrança + 0,7% de Billing. Taxa não volta em estorno.</td>
           <td class="num">R$ 0</td>
           <td><span class="badge badge-amber">Por venda</span></td>
         </tr>
         <tr>
           <td><strong>Resend</strong></td>
-          <td>E-mails do login (SMTP do Supabase), lembrete de cadastro, avisos de fim do teste, respostas de dpo@/suporte@</td>
+          <td>E-mails do login (SMTP do Supabase), confirmação do teste, avisos antes da cobrança (7, 3 e 1 dia), cartão recusado, cancelamento, pausa e exclusão, cadastro não concluído, respostas de dpo@/suporte@</td>
           <td>Gratuito: 3.000 e-mails/mês e <strong>100/dia</strong>. Pro US$ 20/mês se exceder.</td>
           <td class="num">R$ 0</td>
           <td><span class="badge badge-green">Gratuito</span></td>
@@ -183,20 +183,20 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
   <div class="section-title">Custo variável por pessoa</div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Item</th><th>Premissa de uso</th><th class="num">Família mensal</th><th class="num">Plus mensal</th><th class="num">Família anual</th><th class="num">Plus anual</th></tr></thead>
+      <thead><tr><th>Item</th><th>Premissa de uso</th><th class="num">Básico mensal</th><th class="num">Família mensal</th><th class="num">Plus mensal</th><th class="num">Básico anual</th><th class="num">Família anual</th><th class="num">Plus anual</th></tr></thead>
       <tbody>
-        <tr><td>WhatsApp (Meta)</td><td>30 resumos/mês (Utilidade) + avisos e logística</td><td class="num">R$ 1,40</td><td class="num">R$ 1,40</td><td class="num">R$ 1,40</td><td class="num">R$ 1,40</td></tr>
-        <tr><td>IA (Anthropic)</td><td>~10 capturas e leituras de documento por mês</td><td class="num">R$ 1,50</td><td class="num">R$ 1,50</td><td class="num">R$ 1,50</td><td class="num">R$ 1,50</td></tr>
-        <tr><td>Voz (Groq)</td><td>~5 minutos de áudio por mês</td><td class="num">R$ 0,20</td><td class="num">R$ 0,20</td><td class="num">R$ 0,20</td><td class="num">R$ 0,20</td></tr>
-        <tr><td>Stripe</td><td>3,99% + R$ 0,39 + 0,7% (anual: uma cobrança por ano, rateada)</td><td class="num">R$ 1,32</td><td class="num">R$ 1,79</td><td class="num">R$ 0,78</td><td class="num">R$ 1,15</td></tr>
+        <tr><td>WhatsApp (Meta)</td><td>30 resumos/mês (Utilidade) + avisos e logística — Família e Plus</td><td class="num">—</td><td class="num">R$ 1,40</td><td class="num">R$ 1,40</td><td class="num">—</td><td class="num">R$ 1,40</td><td class="num">R$ 1,40</td></tr>
+        <tr><td>IA (Anthropic)</td><td>~10 reconhecimentos por mês (Básico: teto de 30)</td><td class="num">R$ 1,50</td><td class="num">R$ 1,50</td><td class="num">R$ 1,50</td><td class="num">R$ 1,50</td><td class="num">R$ 1,50</td><td class="num">R$ 1,50</td></tr>
+        <tr><td>Voz (Groq)</td><td>~5 minutos de áudio por mês — Família e Plus</td><td class="num">—</td><td class="num">R$ 0,20</td><td class="num">R$ 0,20</td><td class="num">—</td><td class="num">R$ 0,20</td><td class="num">R$ 0,20</td></tr>
+        <tr><td>Stripe</td><td>3,99% + R$ 0,39 + 0,7% (anual: uma cobrança por ano, rateada)</td><td class="num">R$ 1,32</td><td class="num">R$ 1,56</td><td class="num">R$ 2,03</td><td class="num">R$ 0,78</td><td class="num">R$ 0,97</td><td class="num">R$ 1,34</td></tr>
       </tbody>
       <tfoot>
-        <tr><td>Total variável/mês</td><td></td><td class="num">R$ 4,42</td><td class="num">R$ 4,89</td><td class="num">R$ 3,88</td><td class="num">R$ 4,25</td></tr>
+        <tr><td>Total variável/mês</td><td></td><td class="num">R$ 2,82</td><td class="num">R$ 4,66</td><td class="num">R$ 5,13</td><td class="num">R$ 2,28</td><td class="num">R$ 4,07</td><td class="num">R$ 4,44</td></tr>
       </tfoot>
     </table>
   </div>
   <div class="info" style="margin-top:12px;">
-    <strong>Custo de quem ainda não paga.</strong> Cada cadastro em teste (14 dias) custa cerca de <strong>R$ 1,70</strong>: 14 resumos no WhatsApp (R$ 0,51), os 2 avisos de fim do teste pelo modelo de Marketing (R$ 0,68) e o uso de IA (~R$ 0,50). Quem fica no Gratuito custa quase nada: sem WhatsApp, IA limitada a 5 usos/mês (~R$ 0,25) e sem envio de arquivos.
+    <strong>Custo de quem ainda não paga.</strong> Cada teste de 14 dias custa cerca de <strong>R$ 1,10</strong> no Família e no Plus (14 resumos no WhatsApp R$ 0,51 + 2 avisos de Utilidade antes da cobrança R$ 0,07 + IA ~R$ 0,50) e <strong>~R$ 0,50</strong> no Básico (só IA). Quem sai antes de cadastrar o cartão custa um WhatsApp de Marketing (<code>continuar_cadastro</code>, ~R$ 0,34) e um e-mail. Com cartão no cadastro, a maior parte dos testes vira assinatura. As contas do modelo antigo que ficaram no Gratuito custam quase nada (IA limitada a 5 usos/mês, sem WhatsApp).
   </div>
 </div>
 
@@ -214,36 +214,36 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
         <tr><td>WhatsApp (Meta)</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 70</td><td class="num">R$ 280</td><td class="num">R$ 700</td></tr>
         <tr><td>IA (Anthropic)</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 75</td><td class="num">R$ 300</td><td class="num">R$ 750</td></tr>
         <tr><td>Voz (Groq)</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 10</td><td class="num">R$ 40</td><td class="num">R$ 100</td></tr>
-        <tr><td>Stripe</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 66</td><td class="num">R$ 264</td><td class="num">R$ 660</td></tr>
+        <tr><td>Stripe</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 78</td><td class="num">R$ 312</td><td class="num">R$ 780</td></tr>
         <tr><td>Resend</td><td>Fixo a partir de ~100 e-mails/dia</td><td class="num">R$ 0</td><td class="num">R$ 0</td><td class="num">R$ 0</td><td class="num">R$ 108</td></tr>
       </tbody>
       <tfoot>
-        <tr><td><strong>Custo total/mês</strong></td><td></td><td class="num">R$ 261</td><td class="num">R$ 482</td><td class="num">R$ 1.145</td><td class="num">R$ 2.579</td></tr>
-        <tr style="font-size:12px; color:#888;"><td>Receita bruta (R$ 19,90)</td><td></td><td class="num">R$ 0</td><td class="num">R$ 995</td><td class="num">R$ 3.980</td><td class="num">R$ 9.950</td></tr>
-        <tr style="font-size:12px;"><td><strong>Margem antes de imposto</strong></td><td></td><td class="num" style="color:#A32D2D;">—</td><td class="num" style="color:#3B6D11;">52%</td><td class="num" style="color:#3B6D11;">71%</td><td class="num" style="color:#3B6D11;">74%</td></tr>
+        <tr><td><strong>Custo total/mês</strong></td><td></td><td class="num">R$ 261</td><td class="num">R$ 494</td><td class="num">R$ 1.193</td><td class="num">R$ 2.699</td></tr>
+        <tr style="font-size:12px; color:#888;"><td>Receita bruta (R$ 24,90)</td><td></td><td class="num">R$ 0</td><td class="num">R$ 1.245</td><td class="num">R$ 4.980</td><td class="num">R$ 12.450</td></tr>
+        <tr style="font-size:12px;"><td><strong>Margem antes de imposto</strong></td><td></td><td class="num" style="color:#A32D2D;">—</td><td class="num" style="color:#3B6D11;">60%</td><td class="num" style="color:#3B6D11;">76%</td><td class="num" style="color:#3B6D11;">78%</td></tr>
       </tfoot>
     </table>
   </div>
-  <p class="nota">Imposto (Simples Nacional, Anexo III, 6%) e o resultado depois dele estão no Business Plan. Acima de ~500 assinantes o Supabase pode pedir um computador maior e o fixo sobe em degraus.</p>
+  <p class="nota">Imposto (DAS de 10% sobre a receita bruta, premissa do Business Plan) e o resultado depois dele estão no Business Plan e na Oferta Comercial. Acima de ~500 assinantes o Supabase pode pedir um computador maior e o fixo sobe em degraus.</p>
 </div>
 
 <div class="section">
-  <div class="section-title">Cálculo do break-even</div>
+<div class="section-title">Cálculo do break-even</div>
   <div class="breakeven-box">
     Custo fixo mensal: <strong>R$ 261,33</strong> (Vercel R$ 108 + Supabase R$ 135 + chip R$ 15 + domínio R$ 3,33)<br>
-    Família mensal: R$ 19,90 − R$ 4,42 de variável − R$ 1,19 de imposto (6%) = <strong>R$ 14,29 por assinante</strong><br>
-    Break-even: R$ 261,33 ÷ R$ 14,29 = 18,3 → <strong>19 assinantes</strong><br>
-    <span style="color:#777;">Outros planos: Plus mensal 12 · Plus anual 15 · Família anual 24 · mix realista (75% Família, 25% Plus; 60% mensal, 40% anual) 18.</span>
+    Família mensal: R$ 24,90 − R$ 4,66 de variável − R$ 2,49 de imposto (10%) = <strong>R$ 17,75 por assinante</strong><br>
+    Break-even: R$ 261,33 ÷ R$ 17,75 = 14,7 → <strong>15 assinantes</strong><br>
+    <span style="color:#777;">Outros planos: Básico mensal 18 · Básico anual 22 · Família anual 19 · Plus mensal 10 · Plus anual 13 · mix realista (30% Básico, 55% Família, 15% Plus; 65% mensal, 35% anual) 16.</span>
   </div>
 </div>
 
 <div class="alert">
   <strong>Pontos de atenção de custo:</strong>
   <ul class="l" style="margin-top:6px;">
-    <li><strong>Resend gratuito vai até 100 e-mails por dia.</strong> Com o lembrete de cadastro e os dois avisos de fim do teste, um dia com mais de ~30 cadastros em fim de teste já encosta no limite. Passar para o Pro (US$ 20/mês) quando os cadastros crescerem.</li>
-    <li><strong>O aviso de fim do teste usa o modelo de Marketing</strong>, que custa ~9× uma mensagem de Utilidade (US$ 0,0625 contra US$ 0,0068). Ainda assim são ~R$ 0,68 por cadastro.</li>
+    <li><strong>Resend gratuito vai até 100 e-mails por dia.</strong> O modelo com cartão manda mais e-mails por cliente (confirmação do teste e avisos de 7, 3 e 1 dia antes da cobrança, além de cartão recusado, cancelamento e pausa). Com ~25 testes terminando no mesmo dia já encosta no limite. Passar para o Pro (US$ 20/mês) quando os cadastros crescerem.</li>
+    <li><strong>Os avisos antes da cobrança e de cartão recusado usam modelos de Utilidade</strong> (~US$ 0,0068 cada). Só o <code>continuar_cadastro</code> é de Marketing (~US$ 0,0625, ~9× mais caro), e sai uma única vez por cadastro interrompido.</li>
     <li><strong>O chip pré-pago precisa de recarga</strong> para a linha não ser cancelada. Perder o número derruba o WhatsApp do produto.</li>
-    <li><strong>A taxa do Stripe não volta no reembolso</strong> de 7 dias: cada arrependimento custa ~R$ 1,32 no Família mensal.</li>
+    <li><strong>A taxa do Stripe não volta no reembolso.</strong> Com o teste de 14 dias, o reembolso automático só existe para quem contrata sem teste (reativação, "assinar sem teste", contas antigas) e cancela em até 7 dias: cada um custa ~R$ 1,56 no Família mensal.</li>
     <li><strong>Sentry ainda sem DSN:</strong> o custo é zero, mas os erros de produção não estão sendo capturados.</li>
   </ul>
 </div>

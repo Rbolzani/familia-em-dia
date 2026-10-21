@@ -21,7 +21,8 @@
   .section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #aaa; margin-bottom: 4px; }
 
   /* Cards de planos */
-  .plans { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 1.25rem 0; max-width: 700px; }
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 1.25rem 0; }
+  @media (max-width: 860px) { .plans { grid-template-columns: 1fr; } }
   @media (max-width: 700px) { .plans { grid-template-columns: 1fr; } }
   .plan { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 18px; }
   .plan.featured { border: 2px solid #185FA5; }
@@ -102,8 +103,8 @@
 <body>
 
 <h1>Família em Dia — Oferta Comercial</h1>
-<p class="meta">Versão 3.0 · 16/10/2026 — Família R$ 19,90/mês · Plus R$ 29,90/mês · anual −20% · teste de 14 dias sem cartão · oferta de lançamento encerrada</p>
-<p class="doc-desc">Estratégia de precificação, racional de cada decisão comercial, regras de assinatura, benchmarks e análise financeira com cenários de margem e break-even. Custos detalhados na Análise de Custos de Produção; tributos e escala no Business Plan.</p>
+<p class="meta">Versão 4.0 · 21/10/2026 — Básico R$ 19,90 · Família R$ 24,90 (Recomendado) · Plus R$ 34,90 · anual −20% · teste de 14 dias com cartão no plano escolhido · sem plano gratuito para contas novas</p>
+<p class="doc-desc">Estratégia de precificação, racional de cada decisão comercial, regras de assinatura, benchmarks e análise financeira com cenários de margem e break-even. Substitui a versão 3.0 (16/10/2026: Família R$ 19,90 e Plus R$ 29,90, teste sem cartão e plano gratuito). Custos detalhados na Análise de Custos de Produção; tributos, conversão e escala no Business Plan.</p>
 
 <!-- DIFERENCIAIS -->
 <div class="section" style="margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid #e5e5e5;">
@@ -112,12 +113,12 @@
   <p>O produto combina funcionalidades que não existem juntas em nenhum app de gestão familiar hoje:</p>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Diferencial</th><th>O que resolve</th><th>Percepção de valor</th></tr></thead>
+      <thead><tr><th>Diferencial</th><th>O que resolve</th><th>Percepção de valor</th><th>Planos</th></tr></thead>
       <tbody>
-        <tr><td><strong>IA com foto, texto e voz</strong></td><td>Uma foto da agenda escolar vira a semana organizada, sem digitar</td><td class="green">Alto — economiza 10–20 min/semana</td></tr>
-        <tr><td><strong>Resumo diário no WhatsApp</strong></td><td>A informação chega onde a família já está, no horário escolhido</td><td class="green">Muito alto — WhatsApp é o canal primário no BR</td></tr>
-        <tr><td><strong>Rede de apoio em tempo real</strong></td><td>Pai, avó e babá na mesma agenda, com níveis de acesso e leva/busca combinados</td><td class="green">Alto</td></tr>
-        <tr><td><strong>Cofre de documentos e mensalidades</strong></td><td>Documentos e pagamentos recorrentes dos filhos num só lugar, com alertas</td><td style="color:#555;">Médio</td></tr>
+        <tr><td><strong>Reconhecimento de foto, print, texto e documentos</strong></td><td>Uma foto da agenda escolar vira a semana organizada, sem digitar</td><td class="green">Alto — economiza 10–20 min/semana</td><td>Básico (30/mês) · Família e Plus (ilimitado)</td></tr>
+        <tr><td><strong>Resumo diário no WhatsApp</strong></td><td>A informação chega onde a família já está, no horário escolhido</td><td class="green">Muito alto — WhatsApp é o canal primário no BR</td><td>Família e Plus</td></tr>
+        <tr><td><strong>Rede de apoio e logística de leva e busca</strong></td><td>Pai, avó e babá na mesma agenda, com níveis de acesso e leva/busca combinados</td><td class="green">Alto</td><td>Família (você + 1) · Plus (ilimitada)</td></tr>
+        <tr><td><strong>Cofre de documentos e mensalidades</strong></td><td>Documentos e pagamentos recorrentes dos filhos num só lugar, com alertas</td><td style="color:#555;">Médio</td><td>Todos (200 MB · 1 GB · 5 GB)</td></tr>
       </tbody>
     </table>
   </div>
@@ -128,13 +129,13 @@
   <ol>
     <li><a href="#estrutura">Estrutura de planos</a></li>
     <li><a href="#racional-precos">Racional dos preços e análise preço × demanda</a></li>
-    <li><a href="#ancoragem">Ancoragem e psicologia de preço</a></li>
+    <li><a href="#ancoragem">Ancoragem e psicologia de preço (efeito anzol)</a></li>
     <li><a href="#benchmarks">Benchmarks de mercado</a></li>
     <li><a href="#desconto-anual">Desconto anual</a></li>
-    <li><a href="#acesso">Modelo de acesso: teste + Gratuito</a></li>
-    <li><a href="#trial-14">Teste de 14 dias e avisos de fim do teste</a></li>
+    <li><a href="#acesso">Modelo de acesso: teste com cartão, sem gratuito</a></li>
+    <li><a href="#trial-14">Teste de 14 dias e avisos antes da cobrança</a></li>
     <li><a href="#regras">Regras de assinatura</a></li>
-    <li><a href="#lancamento">Oferta de lançamento (encerrada)</a></li>
+    <li><a href="#antigas">Contas do modelo anterior</a></li>
     <li><a href="#financeiro">Análise financeira</a></li>
     <li><a href="#cenarios">Cenários de margem e break-even</a></li>
     <li><a href="#comparativo">Comparativo consolidado</a></li>
@@ -145,34 +146,52 @@
 <div class="section" id="estrutura">
   <div class="section-label">Seção 1</div>
   <h2>Estrutura de planos</h2>
+  <p>Sempre apresentados nesta ordem — Básico, Família, Plus — no site, no cadastro, na tela de Planos e no Stripe.</p>
 
   <div class="plans">
-    <div class="plan featured">
-      <span class="plan-badge b-blue">Mais popular · 14 dias grátis</span>
-      <div class="plan-name">Família</div>
-      <div class="plan-tagline">Para a família que quer a rotina dos filhos organizada com IA e WhatsApp</div>
+    <div class="plan">
+      <span class="plan-badge b-green">Entrada · 14 dias grátis</span>
+      <div class="plan-name">Básico</div>
+      <div class="plan-tagline">Para organizar a rotina dos filhos sozinho(a)</div>
       <div class="price-main">R$19,90</div>
       <div class="price-period">/mês</div>
       <div class="price-annual">Anual: R$15,90/mês (R$190,80/ano) · −20%</div>
       <hr class="divider">
       <ul class="feat-list">
         <li><span class="ok">✓</span> Até 2 filhos</li>
-        <li><span class="ok hi">✓</span> <span class="hi">Captura por IA (foto e texto) ilimitada</span></li>
-        <li><span class="ok hi">✓</span> <span class="hi">Captura por voz</span></li>
+        <li><span class="ok">✓</span> 30 reconhecimentos de foto, print, texto e documentos por mês</li>
+        <li><span class="ok">✓</span> Cofre de documentos (200 MB)</li>
+        <li><span class="ok">✓</span> Calendário, mensalidades e alertas no app</li>
+      </ul>
+    </div>
+
+    <div class="plan featured">
+      <span class="plan-badge b-blue">Recomendado · 14 dias grátis</span>
+      <div class="plan-name">Família</div>
+      <div class="plan-tagline">Você + quem ajuda, com IA e WhatsApp</div>
+      <div class="price-main">R$24,90</div>
+      <div class="price-period">/mês</div>
+      <div class="price-annual">Anual: R$19,90/mês (R$238,80/ano) · −20%</div>
+      <hr class="divider">
+      <ul class="feat-list">
+        <li><span class="ok">✓</span> Até 3 filhos</li>
+        <li><span class="ok hi">✓</span> <span class="hi">Rede de apoio: você + 1 pessoa</span></li>
+        <li><span class="ok hi">✓</span> <span class="hi">Reconhecimento ilimitado de foto, print, texto e documentos</span></li>
+        <li><span class="ok hi">✓</span> <span class="hi">Reconhecimento por voz</span></li>
         <li><span class="ok hi">✓</span> <span class="hi">Resumo diário no WhatsApp</span></li>
-        <li><span class="ok hi">✓</span> <span class="hi">Rede de apoio: 1 pessoa (pai, avó, babá)</span></li>
-        <li><span class="ok hi">✓</span> <span class="hi">Cofre de documentos (500 MB)</span></li>
-        <li><span class="ok">✓</span> Agenda, logística leva/busca e mensalidades</li>
+        <li><span class="ok hi">✓</span> <span class="hi">Logística de leva e busca</span></li>
+        <li><span class="ok hi">✓</span> <span class="hi">Cofre de documentos (1 GB)</span></li>
+        <li><span class="ok">✓</span> Calendário, mensalidades e alertas no app</li>
       </ul>
     </div>
 
     <div class="plan">
-      <span class="plan-badge b-green">Premium</span>
+      <span class="plan-badge b-green">Premium · 14 dias grátis</span>
       <div class="plan-name">Família Plus</div>
       <div class="plan-tagline">Famílias maiores ou com avós, babá e escola no mesmo ambiente</div>
-      <div class="price-main">R$29,90</div>
+      <div class="price-main">R$34,90</div>
       <div class="price-period">/mês</div>
-      <div class="price-annual">Anual: R$23,90/mês (R$286,80/ano) · −20%</div>
+      <div class="price-annual">Anual: R$27,90/mês (R$334,80/ano) · −20%</div>
       <hr class="divider">
       <ul class="feat-list">
         <li><span class="ok">✓</span> <strong>Tudo do plano Família</strong></li>
@@ -187,22 +206,24 @@
   <h3>Tabela comparativa (a mesma do site e da tela de Planos)</h3>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Recurso</th><th>Gratuito <span style="font-weight:400">(após os 14 dias)</span></th><th>Família</th><th>Plus</th></tr></thead>
+      <thead><tr><th>Recurso</th><th>Básico</th><th>Família <span style="font-weight:400">(Recomendado)</span></th><th>Plus</th></tr></thead>
       <tbody>
-        <tr><td>Preço mensal</td><td>Grátis</td><td><strong>R$19,90</strong></td><td>R$29,90</td></tr>
-        <tr><td>No plano anual (−20%)</td><td>—</td><td><strong>R$15,90/mês</strong></td><td>R$23,90/mês</td></tr>
-        <tr><td>Filhos</td><td>até 2</td><td>até 2</td><td>ilimitados</td></tr>
-        <tr><td>Rede de apoio (pai, avó, babá)</td><td>—</td><td>1 pessoa</td><td>ilimitada</td></tr>
-        <tr><td>Captura por IA (foto e texto)</td><td>5 por mês</td><td>ilimitada</td><td>ilimitada</td></tr>
-        <tr><td>Captura por voz</td><td>—</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Mensal</td><td>R$19,90</td><td><strong>R$24,90</strong></td><td>R$34,90</td></tr>
+        <tr><td>Anual (−20%)</td><td>R$15,90/mês</td><td><strong>R$19,90/mês</strong></td><td>R$27,90/mês</td></tr>
+        <tr><td>Filhos</td><td>até 2</td><td>até 3</td><td>ilimitados</td></tr>
+        <tr><td>Rede de apoio</td><td>— (só você)</td><td>você + 1 pessoa</td><td>ilimitada</td></tr>
+        <tr><td>Reconhecimento de foto, print, texto e documentos</td><td>30 por mês</td><td>ilimitado</td><td>ilimitado</td></tr>
+        <tr><td>Reconhecimento por voz</td><td>—</td><td>✓</td><td>✓</td></tr>
         <tr><td>Resumo diário no WhatsApp</td><td>—</td><td>✓</td><td>✓</td></tr>
-        <tr><td>Cofre de documentos</td><td>sem envio de arquivos</td><td>500 MB</td><td>5 GB</td></tr>
-        <tr><td>Agenda, logística e mensalidades</td><td>✓</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Cofre de documentos</td><td>200 MB</td><td>1 GB</td><td>5 GB</td></tr>
+        <tr><td>Logística de leva e busca</td><td>—</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Calendário, mensalidades e alertas no app</td><td>✓</td><td>✓</td><td>✓</td></tr>
         <tr><td>Suporte prioritário</td><td>—</td><td>—</td><td>✓</td></tr>
       </tbody>
     </table>
   </div>
-  <div class="box box-gray">Dias 1 a 14: tudo do plano Família, grátis e sem cartão → depois, assina o Família ou o Plus, ou continua no Gratuito. Se não assinar, a conta passa para o Gratuito automaticamente. Seus dados nunca somem. Sem fidelidade: cancele quando quiser.</div>
+  <div class="box box-gray">Dias 1 a 14: tudo do plano escolhido, sem pagar nada → dia 15: primeira cobrança automática no plano escolhido → quando quiser: troca de plano ou cancela no app. O cartão é pedido no cadastro; nada é cobrado durante o teste. Sem fidelidade.</div>
+  <div class="box box-blue"><strong>Recursos fora do plano aparecem com cadeado.</strong> Ao tocar, abre uma caixa explicando o recurso, com o botão "Assinar o Família" (no Básico) ou "Mudar para o Plus" (no Família). No Básico, a Logística aparece com cadeado na barra lateral e os botões de leva e busca ficam ocultos.</div>
 </div>
 
 <!-- 2. RACIONAL DOS PREÇOS -->
@@ -211,43 +232,44 @@
   <h2>Racional dos preços e análise preço × demanda</h2>
 
   <h3>Público-alvo e disposição a pagar</h3>
-  <p>Pais e mães brasileiros, classe B/C+, filhos em idade escolar. Já pagam mensalmente por Spotify (R$22–34), Netflix (R$22–55), iCloud (R$6–35) e apps de saúde e nutrição (R$30–80). A disposição a pagar por um app que economiza tempo fica em <strong>R$20–R$60/mês</strong>; a decisão é mais fácil abaixo de R$20.</p>
+  <p>Pais e mães brasileiros, classe B/C+, filhos em idade escolar. Já pagam mensalmente por Spotify (R$22–34), Netflix (R$22–55), iCloud (R$6–35) e apps de saúde e nutrição (R$30–80). A disposição a pagar por um app que economiza tempo fica em <strong>R$20–R$60/mês</strong>; a decisão é mais fácil abaixo de R$20 e confortável até R$25.</p>
 
-  <h3>Por que R$19,90 para o plano Família (decisão de 16/10/2026; antes R$39,90)</h3>
+  <h3>Por que três planos (decisão de 21/10/2026)</h3>
   <ul class="bullets">
-    <li><strong>Limiar de R$20:</strong> abaixo dele o preço deixa de ser objeção. Equivale a R$0,66 por dia.</li>
-    <li><strong>O momento da compra é o dia 14:</strong> como o teste é sem cartão, a pessoa decide comparando o Família com o Gratuito, depois de já ter visto a IA e o WhatsApp funcionando. Preço baixo nesse momento reduz a desistência.</li>
-    <li><strong>Faixa de streaming:</strong> fica ao lado de serviços que a família já paga sem pensar.</li>
-    <li><strong>Sem impacto em clientes:</strong> a mudança foi feita antes do primeiro assinante.</li>
-    <li><strong>Custo:</strong> a margem por assinante cai de ~R$30,50 para R$14,29 (depois de variável e imposto) e o break-even sobe de 8 para 19 assinantes. A aposta só se paga se a conversão do teste mais que dobrar.</li>
+    <li><strong>Porta de entrada abaixo de R$20:</strong> o Básico (R$19,90) tira a objeção de preço na hora de cadastrar o cartão — o primeiro número que o cliente vê é "menos de R$20".</li>
+    <li><strong>O plano que queremos vender é o Família:</strong> por R$5 a mais que o Básico, entrega WhatsApp, voz, IA ilimitada, rede de apoio e logística — os recursos que criam o hábito diário e seguram o cliente.</li>
+    <li><strong>O Plus volta a ser âncora de valor:</strong> R$34,90 faz o Família parecer o meio-termo sensato.</li>
+    <li><strong>Sem gratuito:</strong> com o cartão no cadastro, o teste já é o "grátis"; um plano gratuito permanente só competiria com o Básico.</li>
   </ul>
 
-  <h3>Por que R$29,90 para o Família Plus</h3>
+  <h3>Por que R$24,90 para o Família (antes R$19,90)</h3>
   <ul class="bullets">
-    <li>50% acima do Família — justificado por filhos ilimitados, rede de apoio ilimitada, 10× mais espaço (500 MB → 5 GB) e suporte prioritário.</li>
-    <li>Âncora: quem vê o Plus avalia o Família como "a escolha inteligente da maioria".</li>
-    <li>Distribuição esperada: 70–80% Família / 20–30% Plus.</li>
+    <li>Com o cartão no cadastro, o momento da compra muda do dia 14 para o dia 1: quem chega até o pagamento já decidiu experimentar e o preço do Família pesa menos do que no modelo sem cartão.</li>
+    <li>A margem por assinante sobe de R$14,29 para R$17,75 (depois de variável e de 10% de imposto) e o break-even cai de 19 para 15 assinantes.</li>
+    <li>Continua abaixo de R$25, no limite da faixa "confortável, sem atrito".</li>
+  </ul>
+
+  <h3>Por que R$34,90 para o Família Plus (antes R$29,90)</h3>
+  <ul class="bullets">
+    <li>40% acima do Família — filhos e rede de apoio ilimitados, 5× mais espaço (1 GB → 5 GB) e suporte prioritário.</li>
+    <li>Distribuição esperada: ~30% Básico / ~55% Família / ~15% Plus.</li>
   </ul>
 
   <h3>Análise de elasticidade de preço (estimativa qualitativa)</h3>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Faixa de preço</th><th>Percepção</th><th>Conversão relativa estimada</th></tr></thead>
+      <thead><tr><th>Faixa de preço</th><th>Percepção</th><th>Papel na oferta</th></tr></thead>
       <tbody>
-        <tr><td>R$14,90</td><td>"Barato demais — será que é bom?"</td><td>Alta, mas âncora baixa e margem apertada</td></tr>
-        <tr style="background:#EAF3DE;"><td><strong>R$19,90 ← vigente</strong></td><td>"Menos de R$20, vale continuar"</td><td class="green"><strong>Alta — tira a objeção de preço no fim do teste</strong></td></tr>
-        <tr><td>R$24,90</td><td>Confortável, sem atrito</td><td>Alta</td></tr>
-        <tr><td>R$29,90</td><td>"Razoável — menos de R$1/dia"</td><td>Queda leve</td></tr>
-        <tr><td>R$39,90 (preço antigo)</td><td>"Caro, mas justificado se eu usar"</td><td>Queda moderada (~20–25%)</td></tr>
-        <tr><td>R$49,90</td><td>"Preciso ter certeza antes de assinar"</td><td style="color:#A32D2D;">Queda significativa como plano base</td></tr>
+        <tr><td>R$14,90</td><td>"Barato demais — será que é bom?"</td><td>Não usada: âncora baixa e margem apertada</td></tr>
+        <tr style="background:#EAF3DE;"><td><strong>R$19,90 ← Básico</strong></td><td>"Menos de R$20, dá para testar"</td><td class="green"><strong>Porta de entrada: tira a objeção de preço no cadastro</strong></td></tr>
+        <tr style="background:#E6F1FB;"><td><strong>R$24,90 ← Família</strong></td><td>"Só R$5 a mais e vem tudo"</td><td class="blue"><strong>Plano recomendado, onde a maioria deve ficar</strong></td></tr>
+        <tr><td>R$29,90</td><td>"Razoável — menos de R$1/dia"</td><td>—</td></tr>
+        <tr><td><strong>R$34,90 ← Plus</strong></td><td>"Para quem precisa de mais"</td><td>Âncora de valor e plano de famílias maiores</td></tr>
+        <tr><td>R$39,90 ou mais</td><td>"Preciso ter certeza antes de assinar"</td><td style="color:#A32D2D;">Queda significativa como plano principal</td></tr>
       </tbody>
     </table>
   </div>
-  <div class="box box-gray">Não há dado próprio de conversão ainda: a tabela é uma estimativa. O Painel do negócio mede o funil real (cadastros → teste → assinatura, por origem) e é ele que deve confirmar ou corrigir o preço.</div>
-
-  <div class="box box-blue" style="margin-top:0.75rem;">
-    <strong>Síntese:</strong> R$19,90 e R$29,90 colocam o produto no preço de um app de agenda entregando IA + WhatsApp. O risco é a âncora de valor baixa; ele é compensado pelo teste de 14 dias, pela tabela comparativa clara e pelo Plus ao lado.
-  </div>
+  <div class="box box-gray">Não há dado próprio de conversão ainda: a tabela é uma estimativa. O Painel do negócio mede o funil real (cadastros → cartão → teste → primeira cobrança, por plano e por origem) e é ele que deve confirmar ou corrigir os preços.</div>
 </div>
 
 <!-- 3. ANCORAGEM -->
@@ -257,32 +279,32 @@
 
   <div class="two-col">
     <div class="col-box">
-      <div class="col-box-title">1. Efeito de contraste</div>
+      <div class="col-box-title">1. Efeito anzol (ordem dos planos)</div>
       <ul class="bullets">
-        <li>Plus (R$29,90) existe para fazer o Família (R$19,90) parecer a escolha óbvia.</li>
-        <li>R$19,90 não é avaliado em termos absolutos — é "R$10 a menos que o Plus, com tudo que eu preciso".</li>
-        <li>A presença de uma opção mais cara aumenta a conversão do plano do meio.</li>
+        <li>O primeiro preço que o cliente vê é R$19,90: "dá para pagar".</li>
+        <li>Logo ao lado, o Família com o selo Recomendado: "por R$5 a mais vem WhatsApp, voz, IA ilimitada e rede de apoio".</li>
+        <li>Por isso a ordem é sempre Básico → Família → Plus, inclusive no celular.</li>
       </ul>
     </div>
     <div class="col-box">
-      <div class="col-box-title">2. Custo por dia</div>
+      <div class="col-box-title">2. Efeito de contraste (Plus)</div>
       <ul class="bullets">
-        <li>R$19,90/mês = R$0,66/dia; no anual, R$0,53/dia.</li>
-        <li>Comunicação possível: "menos de um real por dia para organizar a rotina dos seus filhos".</li>
+        <li>O Plus (R$34,90) faz o Família (R$24,90) parecer o meio-termo sensato.</li>
+        <li>A presença de uma opção mais cara aumenta a escolha do plano do meio.</li>
       </ul>
     </div>
     <div class="col-box">
-      <div class="col-box-title">3. Perda concreta no fim do teste</div>
+      <div class="col-box-title">3. Custo por dia</div>
       <ul class="bullets">
-        <li>Os avisos e a tabela listam o que deixa de funcionar: resumo no WhatsApp, voz, IA ilimitada, rede de apoio, envio de arquivos.</li>
-        <li>E o que continua (agenda, 2 filhos, mensalidades, documentos guardados), para não soar como perda total.</li>
+        <li>Básico R$0,66/dia · Família R$0,83/dia (R$0,66 no anual) · Plus R$1,16/dia.</li>
+        <li>Comunicação possível: "menos de um real por dia".</li>
       </ul>
     </div>
     <div class="col-box">
-      <div class="col-box-title">4. Só mensal e anual</div>
+      <div class="col-box-title">4. Cadeado no que falta</div>
       <ul class="bullets">
-        <li>Cada período adicional cria atrito na decisão.</li>
-        <li>Toda a energia de comunicação vai para converter mensal → anual.</li>
+        <li>No Básico, cada recurso do Família aparece com cadeado e uma explicação curta: o cliente vê, durante o uso, o que ganharia.</li>
+        <li>Só mensal e anual: toda a energia vai para converter mensal → anual.</li>
       </ul>
     </div>
   </div>
@@ -303,46 +325,22 @@
         <tr><td>OurFamilyWizard</td><td style="color:#ccc;">✗</td><td style="color:#ccc;">✗</td><td>US$12–17/mês ≈ R$72–102/mês</td></tr>
         <tr><td>FamilyWall</td><td style="color:#ccc;">✗</td><td style="color:#ccc;">✗</td><td>€2,99/mês ≈ R$18/mês</td></tr>
         <tr><td>Agenda escolar BR (média)</td><td style="color:#ccc;">✗</td><td style="color:#ccc;">✗</td><td>R$15–39/mês</td></tr>
-        <tr style="background:#EAF3DE;"><td><strong>Família em Dia</strong></td><td class="green">✅</td><td class="green">✅</td><td><strong>R$19,90/mês</strong> (R$15,90 no anual)</td></tr>
+        <tr style="background:#EAF3DE;"><td><strong>Família em Dia</strong></td><td class="green">✅</td><td class="green">✅ (Família e Plus)</td><td><strong>R$19,90 · R$24,90 · R$34,90/mês</strong></td></tr>
       </tbody>
     </table>
   </div>
   <div class="box box-amber">
-    <strong>Conclusão:</strong> a R$19,90 o Família em Dia fica no meio da faixa dos apps de família — e é o único com IA e WhatsApp. Deixou de ser "o mais caro da categoria" para ser "o mais completo pelo mesmo preço".
+    <strong>Conclusão:</strong> o Básico entra no preço dos apps de agenda (com IA); o Família, a R$24,90, é o único com IA e WhatsApp na faixa dos R$20–25.
   </div>
 
   <h3>Apps com IA real — referência de categoria</h3>
   <div class="benchmark-grid">
-    <div class="benchmark-card">
-      <div class="benchmark-name">Motion (agenda IA)</div>
-      <div class="benchmark-price">US$19–34/mês</div>
-      <div class="benchmark-note">IA que reorganiza agenda. Sem família, sem WhatsApp.</div>
-    </div>
-    <div class="benchmark-card">
-      <div class="benchmark-name">Otter.ai (transcrição)</div>
-      <div class="benchmark-price">US$8–20/mês</div>
-      <div class="benchmark-note">Só transcrição de voz.</div>
-    </div>
-    <div class="benchmark-card">
-      <div class="benchmark-name">Mem.ai (notas IA)</div>
-      <div class="benchmark-price">US$14,99/mês</div>
-      <div class="benchmark-note">Notas com IA. Sem família, sem WhatsApp, sem cofre.</div>
-    </div>
-    <div class="benchmark-card">
-      <div class="benchmark-name">Notion AI (add-on)</div>
-      <div class="benchmark-price">US$10/mês</div>
-      <div class="benchmark-note">IA cobrada à parte. Mostra que as pessoas pagam por IA em ferramentas de organização.</div>
-    </div>
-    <div class="benchmark-card">
-      <div class="benchmark-name">Reclaim.ai</div>
-      <div class="benchmark-price">US$8–16/mês</div>
-      <div class="benchmark-note">Agenda inteligente para profissionais. Sem família, sem documentos, sem WhatsApp.</div>
-    </div>
-    <div class="benchmark-card">
-      <div class="benchmark-name" style="color:#3B6D11;">Família em Dia</div>
-      <div class="benchmark-price" style="color:#3B6D11;">R$19,90/mês</div>
-      <div class="benchmark-note"><strong>IA (foto/texto/voz) + WhatsApp + cofre + rede de apoio + logística + mensalidades.</strong></div>
-    </div>
+    <div class="benchmark-card"><div class="benchmark-name">Motion (agenda IA)</div><div class="benchmark-price">US$19–34/mês</div><div class="benchmark-note">IA que reorganiza agenda. Sem família, sem WhatsApp.</div></div>
+    <div class="benchmark-card"><div class="benchmark-name">Otter.ai (transcrição)</div><div class="benchmark-price">US$8–20/mês</div><div class="benchmark-note">Só transcrição de voz.</div></div>
+    <div class="benchmark-card"><div class="benchmark-name">Mem.ai (notas IA)</div><div class="benchmark-price">US$14,99/mês</div><div class="benchmark-note">Notas com IA. Sem família, sem WhatsApp, sem cofre.</div></div>
+    <div class="benchmark-card"><div class="benchmark-name">Notion AI (add-on)</div><div class="benchmark-price">US$10/mês</div><div class="benchmark-note">IA cobrada à parte. Mostra que as pessoas pagam por IA em ferramentas de organização.</div></div>
+    <div class="benchmark-card"><div class="benchmark-name">Reclaim.ai</div><div class="benchmark-price">US$8–16/mês</div><div class="benchmark-note">Agenda inteligente para profissionais. Sem família, sem documentos, sem WhatsApp.</div></div>
+    <div class="benchmark-card"><div class="benchmark-name" style="color:#3B6D11;">Família em Dia (Família)</div><div class="benchmark-price" style="color:#3B6D11;">R$24,90/mês</div><div class="benchmark-note"><strong>IA (foto/texto/voz) + WhatsApp + cofre + rede de apoio + logística + mensalidades.</strong></div></div>
   </div>
 
   <h3>Apps que usam WhatsApp como canal principal (BR)</h3>
@@ -357,7 +355,7 @@
     </table>
   </div>
   <div class="box box-green">
-    <strong>Dado relevante:</strong> o WhatsApp está em 93% dos smartphones no BR. Entregar valor por ele tem custo cognitivo zero — o usuário não abre outro app — e aumenta o valor percebido muito acima do custo real (~R$1,40 por assinante/mês).
+    <strong>Dado relevante:</strong> o WhatsApp está em 93% dos smartphones no BR. O resumo diário é o recurso que mais diferencia o Família do Básico, e custa ~R$1,40 por assinante/mês.
   </div>
 </div>
 
@@ -365,72 +363,66 @@
 <div class="section" id="desconto-anual">
   <div class="section-label">Seção 5</div>
   <h2>Desconto anual de 20%</h2>
-
   <div class="two-col">
     <div class="col-box">
       <div class="col-box-title">Por que 20%</div>
       <ul class="bullets">
         <li><strong>Abaixo de 15%:</strong> não move comportamento.</li>
-        <li><strong>20%:</strong> mínimo que muda a decisão de mensal → anual em SaaS B2C. Economia de R$48/ano no Família e R$72/ano no Plus (≈ 2,4 meses grátis).</li>
+        <li><strong>20%:</strong> mínimo que muda a decisão de mensal → anual em SaaS B2C. Economia de R$48/ano no Básico, R$60/ano no Família e R$84/ano no Plus (≈ 2,4 meses grátis).</li>
         <li><strong>Acima de 25%:</strong> desvaloriza o preço cheio e comprime a margem sem necessidade.</li>
       </ul>
     </div>
     <div class="col-box">
       <div class="col-box-title">Benefícios operacionais</div>
       <ul class="bullets">
-        <li><strong>Caixa adiantado:</strong> R$190,80 (Família) ou R$286,80 (Plus) no ato. 50 assinantes anuais do Família = R$9.540 no dia 1.</li>
+        <li><strong>Caixa adiantado</strong> na primeira cobrança (dia 15): R$190,80 (Básico), R$238,80 (Família) ou R$334,80 (Plus). 50 assinantes anuais do Família = R$11.940.</li>
         <li><strong>Menos cancelamento:</strong> 12 meses para consolidar o hábito.</li>
-        <li><strong>Taxa do Stripe menor:</strong> uma cobrança por ano (R$0,78/mês no Família anual contra R$1,32 no mensal).</li>
+        <li><strong>Taxa do Stripe menor:</strong> uma cobrança por ano (R$0,97/mês no Família anual contra R$1,56 no mensal).</li>
       </ul>
     </div>
   </div>
-
-  <div class="box box-green">
-    <strong>Comunicação atual:</strong> "economize 20%" no site e "−20%" na tela de Planos, com o valor por mês em destaque e o total do ano logo abaixo ("R$ 190,80 por ano").
-  </div>
+  <div class="box box-green"><strong>Comunicação:</strong> "economize 20%" no site e "−20%" no cadastro e na tela de Planos, com o valor por mês em destaque e o total do ano logo abaixo.</div>
 </div>
 
 <!-- 6. MODELO DE ACESSO -->
 <div class="section" id="acesso">
   <div class="section-label">Seção 6</div>
-  <h2>Modelo de acesso: teste único + Gratuito</h2>
+  <h2>Modelo de acesso: teste com cartão, sem gratuito</h2>
 
   <h3>Funil</h3>
   <div class="box box-blue" style="margin-bottom:0.75rem;">
-    <strong>Cadastro (só nome, família, e-mail, senha, celular) → 14 dias do Família completo, sem cartão → avisos faltando 3 dias e na véspera → assina (Família ou Plus) ou passa sozinho para o Gratuito, sem cobrança e sem perder dados.</strong> Não há escolha de plano na entrada. O resumo diário no WhatsApp já nasce ligado no cadastro, às 7h.
+    <strong>Cadastro (plano e ciclo, nome, família, e-mail, celular, CPF, senha, origem) → tela de pagamento do Stripe (cartão e endereço; "R$ 0,00 hoje") → 14 dias do plano escolhido → avisos 7, 3 e 1 dia antes → primeira cobrança automática no dia 15.</strong> Quem sai antes do cartão fica com a conta "cadastro não concluído" e recebe um e-mail e um WhatsApp após 24h com o link "Continuar cadastro".
   </div>
 
   <div class="two-col">
     <div class="col-box">
-      <div class="col-box-title">Por que sem cartão</div>
+      <div class="col-box-title">Por que com cartão</div>
       <ul class="bullets">
-        <li>Exigir cartão na entrada reduz o topo do funil em 40–60% no BR.</li>
-        <li>A desconfiança de cobrança automática é alta; "Sem cartão de crédito" é a frase mais importante da tela de cadastro.</li>
-        <li>Objetivo: levar o máximo de pessoas ao momento "uau" (a primeira foto da agenda virando atividades).</li>
+        <li>Benchmark: com cartão no cadastro, 25–35% dos testes viram assinatura, contra 4–8% sem cartão.</li>
+        <li>O topo do funil encolhe (1/3 a 1/5 dos cadastros), mas quem entra já decidiu testar a sério.</li>
+        <li>Resultado esperado: mais assinantes por cadastro e menos custo com testes que nunca convertem.</li>
       </ul>
     </div>
     <div class="col-box">
-      <div class="col-box-title">Por que o Gratuito agora aparece na tabela</div>
+      <div class="col-box-title">Por que sem gratuito</div>
       <ul class="bullets">
-        <li>Antes ficava só num rodapé. Agora é a coluna "após os 14 dias" da tabela comparativa, no site e na tela de Planos.</li>
-        <li>Mostra lado a lado o que se perde — essa perda concreta é o argumento de conversão.</li>
-        <li>Deixa claro que nada é cobrado sozinho, o que gera confiança no cadastro sem cartão.</li>
-        <li>Não é card de plano nem opção de entrada: é o destino de quem não assina.</li>
+        <li>O teste de 14 dias já cumpre o papel de "experimentar de graça".</li>
+        <li>Um gratuito permanente competiria com o Básico e daria custo sem receita.</li>
+        <li>Contas antigas mantêm o gratuito (Seção 9).</li>
       </ul>
     </div>
     <div class="col-box">
-      <div class="col-box-title">IA no Gratuito: 5 por mês · sem voz</div>
+      <div class="col-box-title">Um teste por pessoa</div>
       <ul class="bullets">
-        <li>IA é o principal diferencial — sem experimentá-la, não se entende o valor.</li>
-        <li>5 por mês cobre o uso casual e é pouco para o uso ativo → gatilho de assinatura.</li>
-        <li>Voz e WhatsApp ficam nos planos pagos: têm custo real e são o hábito diário mais forte.</li>
+        <li>Um teste por CPF e por cartão (identificação do cartão gerada pelo Stripe, sem o número).</li>
+        <li>Quem já usou o teste assina direto, sem teste ("Assinar sem teste").</li>
       </ul>
     </div>
     <div class="col-box">
-      <div class="col-box-title">Rede de apoio no Gratuito: não</div>
+      <div class="col-box-title">Conta pausada</div>
       <ul class="bullets">
-        <li>Convidados perdem o acesso 5 dias depois de o dono sair do plano pago (carência avisada no app e no WhatsApp).</li>
-        <li>Agenda, logística e mensalidades continuam para o dono da conta.</li>
+        <li>Assinatura encerrada (cancelamento ou cartão não regularizado): o dono e os convidados só visualizam.</li>
+        <li>Reativa quando quiser, com nova cobrança e sem novo teste. Depois de 90 dias de pausa, a conta é apagada, com e-mail 30 e 7 dias antes.</li>
       </ul>
     </div>
   </div>
@@ -439,39 +431,24 @@
 <!-- 7. TESTE DE 14 DIAS -->
 <div class="section" id="trial-14">
   <div class="section-label">Seção 7</div>
-  <h2>Teste de 14 dias e avisos de fim do teste</h2>
-
-  <h3>Por que 14 e não 7 ou 30</h3>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Duração</th><th>Problema</th></tr></thead>
-      <tbody>
-        <tr><td>7 dias</td><td>Cobre só uma semana escolar. Pouco tempo para IA, rede de apoio e WhatsApp.</td></tr>
-        <tr style="background:#EAF3DE;"><td><strong>14 dias ← mantido</strong></td><td>Duas semanas escolares: cadastrar filhos, capturar a agenda por IA, convidar alguém, receber 14 resumos no WhatsApp.</td></tr>
-        <tr><td>30 dias</td><td>Decisão adiada e esquecida. Atrai quem não pretende pagar.</td></tr>
-      </tbody>
-    </table>
-  </div>
-
+  <h2>Teste de 14 dias e avisos antes da cobrança</h2>
   <h3>Fluxo do teste (como está no app)</h3>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Dia</th><th>Ação</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>Cadastro → Família por 14 dias. Resumo diário ligado às 7h. Banner com os dias restantes e "Assinar agora". Tutorial "Primeiros passos" na bolinha "?".</td></tr>
-        <tr><td>2</td><td>Quem ainda não cadastrou filho recebe um e-mail único de suporte@ (lembrete de cadastro).</td></tr>
-        <tr><td>11</td><td>Faltando 3 dias, às 11h: WhatsApp (modelo de Marketing <code>fim_teste</code>, com botão "Assinar o plano Família") + e-mail com o que deixa de funcionar, o preço e a tabela.</td></tr>
-        <tr><td>13</td><td>Na véspera, às 11h: o mesmo aviso de novo.</td></tr>
-        <tr><td>15</td><td>Sem assinatura → Gratuito automático (até 2 filhos, IA 5 por mês, sem voz, sem WhatsApp, sem rede de apoio, sem envio de arquivos). Dados preservados. Convidados têm 5 dias de carência.</td></tr>
+        <tr><td>1</td><td>Cadastro + cartão → plano escolhido por 14 dias. E-mail de confirmação do teste (com a data e o valor da primeira cobrança). Banner com os dias restantes. Resumo diário ligado às 7h (Família e Plus).</td></tr>
+        <tr><td>2</td><td>Quem saiu antes do cartão: um e-mail e um WhatsApp com "Continuar cadastro".</td></tr>
+        <tr><td>8</td><td>Faltando 7 dias: e-mail (regra da Visa).</td></tr>
+        <tr><td>12</td><td>Faltando 3 dias: e-mail + WhatsApp (<code>aviso_cobranca</code>, botão "Gerenciar assinatura").</td></tr>
+        <tr><td>14</td><td>Véspera: e-mail + WhatsApp.</td></tr>
+        <tr><td>15</td><td>Primeira cobrança automática; o Stripe envia o recibo. Na fatura do cartão aparece "teste encerrado".</td></tr>
       </tbody>
     </table>
   </div>
-  <div class="box box-blue">
-    <strong>Medição:</strong> o Painel do negócio mostra, para os avisos, quem recebeu por e-mail e WhatsApp, quem abriu ou leu, quem clicou e quem assinou — e, para cada assinatura, se veio do app, do WhatsApp ou do e-mail. Quem abre o pagamento e não conclui continua no teste e aparece num bloco próprio do Painel.
-  </div>
-  <div class="box box-gray">
-    <strong>Princípio central:</strong> perder dados gera raiva e abandono. Perder funcionalidades gera saudade e eventual conversão. O usuário nunca perde o acesso ao app — perde os recursos pagos.
-  </div>
+  <h3>Cartão recusado</h3>
+  <p>O cliente continua usando por 7 dias. Avisos por e-mail e WhatsApp (<code>aviso_pagamento</code>) no dia da recusa e no 5º dia. O Stripe tenta de novo até 4 vezes na semana (Smart Retries). Sem regularização, a conta é pausada no 7º dia; se o cartão for atualizado depois, a fatura é paga e a conta volta sozinha.</p>
+  <div class="box box-blue"><strong>Medição:</strong> o Painel do negócio mostra pagantes por plano, quem está em teste, quem saiu antes do cartão, cartões recusados, contas pausadas, os avisos enviados e o motivo de cada cancelamento.</div>
 </div>
 
 <!-- 8. REGRAS -->
@@ -479,177 +456,151 @@
   <div class="section-label">Seção 8</div>
   <h2>Regras de assinatura</h2>
   <ul class="bullets">
-    <li><strong>Sem fidelidade:</strong> cancela quando quiser, pela tela de Planos (o portal do Stripe não tem botão de cancelar, para não duplicar).</li>
-    <li><strong>Arrependimento em 7 dias:</strong> cancelar em até 7 dias da cobrança devolve tudo o que foi cobrado nesse prazo (contratação e upgrades) e encerra na hora (CDC art. 49). Renovação automática não abre novo prazo.</li>
-    <li><strong>Depois de 7 dias:</strong> o acesso continua até o fim do período pago, sem novas cobranças. Dá para reativar antes do fim.</li>
-    <li><strong>Troca de plano e de ciclo sem novo cartão:</strong> upgrade e mensal↔anual cobram a diferença proporcional; downgrade vira crédito para as próximas faturas (nunca devolução no cartão).</li>
-    <li><strong>Assinou no teste:</strong> só é cobrado quando o teste termina; pode cancelar antes sem pagar nada.</li>
-    <li><strong>Dados pedidos só na assinatura:</strong> nome completo, CPF e endereço (para a nota fiscal da Bonju Serviços Ltda.).</li>
-    <li><strong>Cupom:</strong> o pagamento aceita código promocional, para campanhas futuras.</li>
+    <li><strong>Sem fidelidade:</strong> cancela quando quiser, pela tela de Planos, com motivo obrigatório (o portal do Stripe não tem botão de cancelar, para não duplicar).</li>
+    <li><strong>Cancelou no teste:</strong> nada é cobrado e o uso continua até o fim dos 14 dias.</li>
+    <li><strong>Cancelou depois do teste:</strong> o uso continua até o fim do período pago, sem reembolso proporcional; depois a conta é pausada.</li>
+    <li><strong>Arrependimento (CDC art. 49):</strong> os 7 dias correm dentro do teste grátis. Quem contrata sem teste (reativação, "assinar sem teste", contas antigas) e cancela em até 7 dias da cobrança recebe tudo de volta, automaticamente.</li>
+    <li><strong>Troca de plano:</strong> no teste, sem custo e mantendo o fim do teste; depois, upgrade cobra a diferença proporcional e downgrade vira crédito (nunca devolução no cartão). Downgrade bloqueado se a conta passar dos limites do plano de destino (filhos, rede de apoio).</li>
+    <li><strong>Dados:</strong> CPF no cadastro (nota fiscal e um teste por pessoa); endereço e cartão na tela do Stripe. Nota fiscal emitida pela Bonju Serviços Ltda.</li>
     <li><strong>Plano da família:</strong> quem é convidado usa o plano de quem convidou; não assina nada.</li>
-    <li><strong>Exclusão da conta</strong> cancela a assinatura na hora (com reembolso se dentro dos 7 dias).</li>
+    <li><strong>Exclusão da conta</strong> cancela a assinatura na hora, sem reembolso de período já pago.</li>
   </ul>
 </div>
 
-<!-- 9. LANÇAMENTO -->
-<div class="section" id="lancamento">
+<!-- 9. CONTAS ANTIGAS -->
+<div class="section" id="antigas">
   <div class="section-label">Seção 9</div>
-  <h2>Oferta de lançamento: encerrada</h2>
-  <p>A versão anterior desta oferta (04/10/2026) dava aos 20 primeiros assinantes ~25% de desconto para sempre sobre os preços antigos (Família R$29,90 em vez de R$39,90; Plus R$44,90 em vez de R$59,90). Ela foi encerrada em 16/10/2026, junto com a mudança de preço:</p>
-  <ul class="bullets">
-    <li>O preço novo do Família (R$19,90) já é menor que o antigo preço de lançamento (R$29,90): a oferta perdeu o sentido.</li>
-    <li>Ninguém tinha assinado por ela, então não há cliente com preço especial a manter.</li>
-    <li>A escassez artificial ("restam X vagas") saiu da tela de Planos; o argumento passou a ser o preço baixo e o teste sem cartão.</li>
-    <li>Para campanhas pontuais, o checkout aceita cupons do Stripe — sem desconto permanente.</li>
-  </ul>
+  <h2>Contas do modelo anterior</h2>
+  <p>Contas criadas antes de 21/10/2026 mantêm as condições com que foram criadas (Termos 5.12): teste de 14 dias sem cartão e plano gratuito ao fim do teste (até 2 filhos, IA 5 por mês, sem voz, sem WhatsApp, sem rede de apoio). Ao assinar, escolhem entre os três planos atuais. Histórico de preços: Família R$39,90 e Plus R$59,90 (até 16/10/2026); Família R$19,90 e Plus R$29,90 (16 a 21/10/2026); oferta de lançamento encerrada sem nenhuma assinatura.</p>
 </div>
 
 <!-- 10. ANÁLISE FINANCEIRA -->
 <div class="section" id="financeiro">
   <div class="section-label">Seção 10</div>
   <h2>Análise financeira — base de custo</h2>
-
   <div class="metrics">
-    <div class="metric">
-      <div class="metric-label">Custo fixo/mês</div>
-      <div class="metric-value">R$261</div>
-      <div class="metric-sub">Vercel + Supabase + chip do WhatsApp + domínio</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Custo variável/assinante</div>
-      <div class="metric-value" style="color:#3B6D11;">R$4,42</div>
-      <div class="metric-sub">WhatsApp + IA + voz + Stripe (Família mensal)</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Margem por assinante</div>
-      <div class="metric-value" style="color:#185FA5;">R$14,29</div>
-      <div class="metric-sub">Família mensal, depois de 6% de imposto</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Break-even</div>
-      <div class="metric-value">19</div>
-      <div class="metric-sub">assinantes no Família mensal</div>
-    </div>
+    <div class="metric"><div class="metric-label">Custo fixo/mês</div><div class="metric-value">R$261</div><div class="metric-sub">Vercel + Supabase + chip do WhatsApp + domínio</div></div>
+    <div class="metric"><div class="metric-label">Custo variável/assinante</div><div class="metric-value" style="color:#3B6D11;">R$2,82 · R$4,66 · R$5,13</div><div class="metric-sub">Básico · Família · Plus (mensal)</div></div>
+    <div class="metric"><div class="metric-label">Margem por assinante</div><div class="metric-value" style="color:#185FA5;">R$17,75</div><div class="metric-sub">Família mensal, depois de 10% de imposto</div></div>
+    <div class="metric"><div class="metric-label">Break-even</div><div class="metric-value">16</div><div class="metric-sub">assinantes no mix realista</div></div>
   </div>
-
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Componente</th><th>Tipo</th><th>Custo/mês</th><th>Por assinante</th></tr></thead>
+      <thead><tr><th>Componente</th><th>Tipo</th><th>Custo/mês</th><th>Básico</th><th>Família</th><th>Plus</th></tr></thead>
       <tbody>
-        <tr><td>Supabase Pro (banco, login, arquivos, tempo real) — US$25</td><td>Fixo</td><td>R$135,00</td><td>—</td></tr>
-        <tr><td>Vercel Pro (hospedagem, crons, analytics) — US$20</td><td>Fixo</td><td>R$108,00</td><td>—</td></tr>
-        <tr><td>Chip Claro do WhatsApp (recargas)</td><td>Fixo</td><td>~R$15,00</td><td>—</td></tr>
-        <tr><td>Domínio (Registro.br, R$40/ano)</td><td>Fixo</td><td>R$3,33</td><td>—</td></tr>
-        <tr><td>Meta WhatsApp (30 resumos de Utilidade + avisos)</td><td>Variável</td><td>—</td><td>R$1,40</td></tr>
-        <tr><td>Claude Haiku (IA de captura e documentos)</td><td>Variável</td><td>—</td><td>R$1,50</td></tr>
-        <tr><td>Groq Whisper (voz)</td><td>Variável</td><td>—</td><td>R$0,20</td></tr>
-        <tr><td>Stripe (3,99% + R$0,39 + 0,7%)</td><td>Variável</td><td>—</td><td>R$1,32</td></tr>
-        <tr class="total"><td>Total</td><td></td><td>R$261,33/mês</td><td>R$4,42/assinante</td></tr>
+        <tr><td>Supabase Pro (banco, login, arquivos, tempo real) — US$25</td><td>Fixo</td><td>R$135,00</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Vercel Pro (hospedagem, crons, analytics) — US$20</td><td>Fixo</td><td>R$108,00</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Chip Claro do WhatsApp (recargas)</td><td>Fixo</td><td>~R$15,00</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Domínio (Registro.br, R$40/ano)</td><td>Fixo</td><td>R$3,33</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Meta WhatsApp (30 resumos + avisos)</td><td>Variável</td><td>—</td><td>—</td><td>R$1,40</td><td>R$1,40</td></tr>
+        <tr><td>Claude Haiku (reconhecimento)</td><td>Variável</td><td>—</td><td>R$1,50</td><td>R$1,50</td><td>R$1,50</td></tr>
+        <tr><td>Groq Whisper (voz)</td><td>Variável</td><td>—</td><td>—</td><td>R$0,20</td><td>R$0,20</td></tr>
+        <tr><td>Stripe (3,99% + R$0,39 + 0,7%) — mensal</td><td>Variável</td><td>—</td><td>R$1,32</td><td>R$1,56</td><td>R$2,03</td></tr>
+        <tr class="total"><td>Total</td><td></td><td>R$261,33/mês</td><td>R$2,82</td><td>R$4,66</td><td>R$5,13</td></tr>
       </tbody>
     </table>
   </div>
-
-  <div class="box box-gray">
-    <strong>Notas:</strong> câmbio de referência US$1 = R$5,40. Uso assumido: ~10 capturas de IA, 30 resumos no WhatsApp e ~5 min de voz por mês. Imposto: Simples Nacional, Anexo III (6%). Cada cadastro em teste custa ~R$1,70 (14 resumos + 2 avisos de Marketing + IA). O Resend passa a custar US$20/mês acima de 100 e-mails por dia (incluído nos cenários a partir de 500 assinantes).
-  </div>
+  <div class="box box-gray"><strong>Notas:</strong> câmbio de referência US$1 = R$5,40. Uso assumido: ~10 reconhecimentos, 30 resumos no WhatsApp e ~5 min de voz por mês. Imposto: DAS de 10% sobre a receita bruta (premissa do Business Plan; antes este documento usava 6%). Cada teste custa ~R$1,70 (14 resumos + avisos + IA); com cartão no cadastro, a maior parte dos testes vira assinatura. O Resend passa a custar US$20/mês acima de 100 e-mails por dia (incluído nos cenários a partir de 500 assinantes).</div>
 </div>
 
 <!-- 11. CENÁRIOS -->
 <div class="section" id="cenarios">
   <div class="section-label">Seção 11</div>
   <h2>Cenários de margem e break-even</h2>
-  <p style="font-size:12px;color:#888;">Lucro depois do custo fixo, do custo variável e de 6% de imposto.</p>
+  <p style="font-size:12px;color:#888;">Lucro depois do custo fixo, do custo variável e de 10% de imposto.</p>
 
-  <h3>Cenário A — Família mensal (R$19,90/mês)</h3>
-  <div class="scenario-tag tag-blue">Margem: R$14,29/assinante · Break-even: 19 assinantes</div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Assinantes</th><th>Receita/mês</th><th>Custo fixo</th><th>Variável</th><th>Imposto</th><th>Custo total</th><th>Lucro/mês</th><th>Margem</th></tr></thead>
-      <tbody>
-        <tr><td>10</td><td>R$199</td><td>R$261</td><td>R$44</td><td>R$12</td><td>R$317</td><td class="red">−R$118</td><td class="red">negativo</td></tr>
-        <tr><td><strong>19</strong></td><td>R$378</td><td>R$261</td><td>R$84</td><td>R$23</td><td>R$368</td><td class="green"><strong>+R$10 ✓</strong></td><td class="green"><strong>break-even</strong></td></tr>
-        <tr><td>50</td><td>R$995</td><td>R$261</td><td>R$221</td><td>R$60</td><td>R$542</td><td class="green">+R$453</td><td class="green">45,5%</td></tr>
-        <tr><td>100</td><td>R$1.990</td><td>R$261</td><td>R$442</td><td>R$119</td><td>R$823</td><td class="green">+R$1.167</td><td class="green">58,7%</td></tr>
-        <tr><td>200</td><td>R$3.980</td><td>R$261</td><td>R$884</td><td>R$239</td><td>R$1.384</td><td class="green">+R$2.596</td><td class="green">65,2%</td></tr>
-        <tr><td>500</td><td>R$9.950</td><td>R$369</td><td>R$2.210</td><td>R$597</td><td>R$3.176</td><td class="green">+R$6.774</td><td class="green">68,1%</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <h3>Cenário A — Básico mensal (R$19,90/mês)</h3>
+  <div class="scenario-tag tag-amber">Margem: R$15,09/assinante · Break-even: 18 assinantes</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Assinantes</th><th>Receita/mês</th><th>Custo fixo</th><th>Variável</th><th>Imposto</th><th>Custo total</th><th>Lucro/mês</th><th>Margem</th></tr></thead>
+    <tbody>
+      <tr><td>10</td><td>R$199</td><td>R$261</td><td>R$28</td><td>R$20</td><td>R$309</td><td class="red">−R$110</td><td class="red">negativo</td></tr>
+      <tr><td><strong>18</strong></td><td>R$358</td><td>R$261</td><td>R$51</td><td>R$36</td><td>R$348</td><td class="green"><strong>+R$10 ✓</strong></td><td class="green"><strong>break-even</strong></td></tr>
+      <tr><td>50</td><td>R$995</td><td>R$261</td><td>R$141</td><td>R$100</td><td>R$502</td><td class="green">+R$493</td><td class="green">49,5%</td></tr>
+      <tr><td>100</td><td>R$1.990</td><td>R$261</td><td>R$282</td><td>R$199</td><td>R$743</td><td class="green">+R$1.247</td><td class="green">62,7%</td></tr>
+      <tr><td>200</td><td>R$3.980</td><td>R$261</td><td>R$565</td><td>R$398</td><td>R$1.224</td><td class="green">+R$2.756</td><td class="green">69,2%</td></tr>
+      <tr><td>500</td><td>R$9.950</td><td>R$369</td><td>R$1.412</td><td>R$995</td><td>R$2.776</td><td class="green">+R$7.174</td><td class="green">72,1%</td></tr>
+    </tbody>
+  </table></div>
 
-  <h3 style="margin-top:1.25rem;">Cenário B — Família anual (R$15,90/mês · R$190,80/ano)</h3>
-  <div class="scenario-tag tag-green">Margem: R$11,07/assinante · Break-even: 24 assinantes · Caixa adiantado: R$190,80/assinante</div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Assinantes</th><th>Receita/mês</th><th>Custo total</th><th>Lucro/mês</th><th>Margem</th><th>Caixa adiantado total</th></tr></thead>
-      <tbody>
-        <tr><td>10</td><td>R$159</td><td>R$310</td><td class="red">−R$151</td><td class="red">negativo</td><td>R$1.908</td></tr>
-        <tr><td><strong>24</strong></td><td>R$382</td><td>R$377</td><td class="green"><strong>+R$4 ✓</strong></td><td class="green"><strong>break-even</strong></td><td>R$4.579</td></tr>
-        <tr><td>50</td><td>R$795</td><td>R$503</td><td class="green">+R$292</td><td class="green">36,7%</td><td>R$9.540</td></tr>
-        <tr><td>100</td><td>R$1.590</td><td>R$745</td><td class="green">+R$845</td><td class="green">53,2%</td><td>R$19.080</td></tr>
-        <tr><td>200</td><td>R$3.180</td><td>R$1.228</td><td class="green">+R$1.952</td><td class="green">61,4%</td><td>R$38.160</td></tr>
-        <tr><td>500</td><td>R$7.950</td><td>R$2.786</td><td class="green">+R$5.164</td><td class="green">65,0%</td><td>R$95.400</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <h3 style="margin-top:1.25rem;">Cenário B — Família mensal (R$24,90/mês)</h3>
+  <div class="scenario-tag tag-blue">Margem: R$17,75/assinante · Break-even: 15 assinantes</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Assinantes</th><th>Receita/mês</th><th>Custo fixo</th><th>Variável</th><th>Imposto</th><th>Custo total</th><th>Lucro/mês</th><th>Margem</th></tr></thead>
+    <tbody>
+      <tr><td>10</td><td>R$249</td><td>R$261</td><td>R$47</td><td>R$25</td><td>R$333</td><td class="red">−R$84</td><td class="red">negativo</td></tr>
+      <tr><td><strong>15</strong></td><td>R$374</td><td>R$261</td><td>R$70</td><td>R$37</td><td>R$369</td><td class="green"><strong>+R$5 ✓</strong></td><td class="green"><strong>break-even</strong></td></tr>
+      <tr><td>50</td><td>R$1.245</td><td>R$261</td><td>R$233</td><td>R$124</td><td>R$619</td><td class="green">+R$626</td><td class="green">50,3%</td></tr>
+      <tr><td>100</td><td>R$2.490</td><td>R$261</td><td>R$466</td><td>R$249</td><td>R$976</td><td class="green">+R$1.514</td><td class="green">60,8%</td></tr>
+      <tr><td>200</td><td>R$4.980</td><td>R$261</td><td>R$932</td><td>R$498</td><td>R$1.691</td><td class="green">+R$3.289</td><td class="green">66,0%</td></tr>
+      <tr><td>500</td><td>R$12.450</td><td>R$369</td><td>R$2.329</td><td>R$1.245</td><td>R$3.943</td><td class="green">+R$8.507</td><td class="green">68,3%</td></tr>
+    </tbody>
+  </table></div>
 
-  <h3 style="margin-top:1.25rem;">Cenário C — Mix realista (75% Família, 25% Plus; 60% mensal, 40% anual)</h3>
-  <div class="scenario-tag tag-purple">Preço médio: R$20,60 · Margem: R$15,05/assinante · Break-even: 18 assinantes</div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Assinantes</th><th>Receita/mês</th><th>Custo total</th><th>Lucro/mês</th><th>Margem</th></tr></thead>
-      <tbody>
-        <tr><td>10</td><td>R$206</td><td>R$317</td><td class="red">−R$111</td><td class="red">negativo</td></tr>
-        <tr><td><strong>18</strong></td><td>R$371</td><td>R$361</td><td class="green"><strong>+R$10 ✓ break-even</strong></td><td class="green">2,6%</td></tr>
-        <tr><td>50</td><td>R$1.030</td><td>R$539</td><td class="green">+R$491</td><td class="green">47,7%</td></tr>
-        <tr><td>100</td><td>R$2.060</td><td>R$816</td><td class="green">+R$1.244</td><td class="green">60,4%</td></tr>
-        <tr><td>200</td><td>R$4.120</td><td>R$1.371</td><td class="green">+R$2.749</td><td class="green">66,7%</td></tr>
-        <tr><td>500</td><td>R$10.300</td><td>R$3.142</td><td class="green">+R$7.158</td><td class="green">69,5%</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="box box-gray" style="font-size:12px;">Preço médio = 0,75 × (0,6 × R$19,90 + 0,4 × R$15,90) + 0,25 × (0,6 × R$29,90 + 0,4 × R$23,90) = 0,75 × R$18,30 + 0,25 × R$27,50 = R$20,60/mês. É o cenário mais provável no primeiro ano.</div>
+  <h3 style="margin-top:1.25rem;">Cenário C — Família anual (R$19,90/mês · R$238,80/ano)</h3>
+  <div class="scenario-tag tag-green">Margem: R$13,84/assinante · Break-even: 19 assinantes · Caixa adiantado: R$238,80/assinante</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Assinantes</th><th>Receita/mês</th><th>Custo total</th><th>Lucro/mês</th><th>Margem</th><th>Caixa adiantado total</th></tr></thead>
+    <tbody>
+      <tr><td>10</td><td>R$199</td><td>R$322</td><td class="red">−R$123</td><td class="red">negativo</td><td>R$2.388</td></tr>
+      <tr><td><strong>19</strong></td><td>R$378</td><td>R$376</td><td class="green"><strong>+R$2 ✓</strong></td><td class="green"><strong>break-even</strong></td><td>R$4.537</td></tr>
+      <tr><td>50</td><td>R$995</td><td>R$564</td><td class="green">+R$431</td><td class="green">43,3%</td><td>R$11.940</td></tr>
+      <tr><td>100</td><td>R$1.990</td><td>R$867</td><td class="green">+R$1.123</td><td class="green">56,4%</td><td>R$23.880</td></tr>
+      <tr><td>200</td><td>R$3.980</td><td>R$1.472</td><td class="green">+R$2.508</td><td class="green">63,0%</td><td>R$47.760</td></tr>
+      <tr><td>500</td><td>R$9.950</td><td>R$3.397</td><td class="green">+R$6.553</td><td class="green">65,9%</td><td>R$119.400</td></tr>
+    </tbody>
+  </table></div>
 
-  <h3 style="margin-top:1.25rem;">Cenário D — Família Plus mensal (R$29,90/mês)</h3>
-  <div class="scenario-tag tag-teal">Margem: R$23,22/assinante · Break-even: 12 assinantes</div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Assinantes Plus</th><th>Receita/mês</th><th>Custo total</th><th>Lucro/mês</th><th>Margem</th></tr></thead>
-      <tbody>
-        <tr><td>5</td><td>R$150</td><td>R$295</td><td class="red">−R$145</td><td class="red">negativo</td></tr>
-        <tr><td><strong>12</strong></td><td>R$359</td><td>R$342</td><td class="green"><strong>+R$17 ✓</strong></td><td class="green"><strong>break-even</strong></td></tr>
-        <tr><td>20</td><td>R$598</td><td>R$395</td><td class="green">+R$203</td><td class="green">33,9%</td></tr>
-        <tr><td>50</td><td>R$1.495</td><td>R$596</td><td class="green">+R$899</td><td class="green">60,2%</td></tr>
-        <tr><td>100</td><td>R$2.990</td><td>R$930</td><td class="green">+R$2.060</td><td class="green">68,9%</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <h3 style="margin-top:1.25rem;">Cenário D — Mix realista (30% Básico, 55% Família, 15% Plus; 65% mensal, 35% anual)</h3>
+  <div class="scenario-tag tag-purple">Preço médio: R$23,15 · Margem: R$16,86/assinante · Break-even: 16 assinantes</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Assinantes</th><th>Receita/mês</th><th>Custo total</th><th>Lucro/mês</th><th>Margem</th></tr></thead>
+    <tbody>
+      <tr><td>10</td><td>R$232</td><td>R$324</td><td class="red">−R$93</td><td class="red">negativo</td></tr>
+      <tr><td><strong>16</strong></td><td>R$370</td><td>R$362</td><td class="green"><strong>+R$9 ✓ break-even</strong></td><td class="green">2,3%</td></tr>
+      <tr><td>50</td><td>R$1.158</td><td>R$576</td><td class="green">+R$582</td><td class="green">50,3%</td></tr>
+      <tr><td>100</td><td>R$2.315</td><td>R$890</td><td class="green">+R$1.425</td><td class="green">61,6%</td></tr>
+      <tr><td>200</td><td>R$4.630</td><td>R$1.518</td><td class="green">+R$3.112</td><td class="green">67,2%</td></tr>
+      <tr><td>500</td><td>R$11.575</td><td>R$3.512</td><td class="green">+R$8.063</td><td class="green">69,7%</td></tr>
+    </tbody>
+  </table></div>
+  <div class="box box-gray" style="font-size:12px;">Preço médio = 0,30 × (0,65 × R$19,90 + 0,35 × R$15,90) + 0,55 × (0,65 × R$24,90 + 0,35 × R$19,90) + 0,15 × (0,65 × R$34,90 + 0,35 × R$27,90) = R$23,15/mês. É o cenário mais provável no primeiro ano.</div>
+
+  <h3 style="margin-top:1.25rem;">Cenário E — Família Plus mensal (R$34,90/mês)</h3>
+  <div class="scenario-tag tag-teal">Margem: R$26,28/assinante · Break-even: 10 assinantes</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Assinantes Plus</th><th>Receita/mês</th><th>Custo total</th><th>Lucro/mês</th><th>Margem</th></tr></thead>
+    <tbody>
+      <tr><td><strong>10</strong></td><td>R$349</td><td>R$347</td><td class="green"><strong>+R$2 ✓</strong></td><td class="green"><strong>break-even</strong></td></tr>
+      <tr><td>50</td><td>R$1.745</td><td>R$692</td><td class="green">+R$1.053</td><td class="green">60,3%</td></tr>
+      <tr><td>100</td><td>R$3.490</td><td>R$1.123</td><td class="green">+R$2.367</td><td class="green">67,8%</td></tr>
+      <tr><td>200</td><td>R$6.980</td><td>R$1.985</td><td class="green">+R$4.995</td><td class="green">71,6%</td></tr>
+    </tbody>
+  </table></div>
 </div>
 
 <!-- 12. COMPARATIVO FINAL -->
 <div class="section" id="comparativo">
   <div class="section-label">Seção 12</div>
   <h2>Comparativo consolidado</h2>
-
   <div class="table-wrap">
     <table>
-      <thead>
-        <tr><th>Plano / Preço por mês</th><th>Margem/assinante</th><th>Break-even</th><th>Margem c/ 50</th><th>Margem c/ 100</th><th>Margem c/ 500</th></tr>
-      </thead>
+      <thead><tr><th>Plano / Preço por mês</th><th>Margem/assinante</th><th>Break-even</th><th>Margem c/ 50</th><th>Margem c/ 100</th><th>Margem c/ 500</th></tr></thead>
       <tbody>
-        <tr><td>Família anual R$15,90</td><td>R$11,07</td><td>24 assinantes</td><td>37%</td><td>53%</td><td>65%</td></tr>
-        <tr style="background:#E6F1FB;"><td><strong>Família mensal R$19,90</strong></td><td><strong>R$14,29</strong></td><td class="green"><strong>19 assinantes</strong></td><td class="green"><strong>46%</strong></td><td class="green"><strong>59%</strong></td><td class="green"><strong>68%</strong></td></tr>
-        <tr><td>Mix realista R$20,60</td><td>R$15,05</td><td>18 assinantes</td><td>48%</td><td>60%</td><td>69%</td></tr>
-        <tr><td>Plus anual R$23,90</td><td>R$18,22</td><td>15 assinantes</td><td>54%</td><td>65%</td><td>73%</td></tr>
-        <tr><td>Plus mensal R$29,90</td><td>R$23,22</td><td>12 assinantes</td><td>60%</td><td>69%</td><td>75%</td></tr>
+        <tr><td>Básico anual R$15,90</td><td>R$12,03</td><td>22 assinantes</td><td>43%</td><td>59%</td><td>71%</td></tr>
+        <tr><td>Básico mensal R$19,90</td><td>R$15,09</td><td>18 assinantes</td><td>50%</td><td>63%</td><td>72%</td></tr>
+        <tr><td>Família anual R$19,90</td><td>R$13,84</td><td>19 assinantes</td><td>43%</td><td>56%</td><td>66%</td></tr>
+        <tr style="background:#E6F1FB;"><td><strong>Família mensal R$24,90</strong></td><td><strong>R$17,75</strong></td><td class="green"><strong>15 assinantes</strong></td><td class="green"><strong>50%</strong></td><td class="green"><strong>61%</strong></td><td class="green"><strong>68%</strong></td></tr>
+        <tr><td>Mix realista R$23,15</td><td>R$16,86</td><td>16 assinantes</td><td>50%</td><td>62%</td><td>70%</td></tr>
+        <tr><td>Plus anual R$27,90</td><td>R$20,67</td><td>13 assinantes</td><td>55%</td><td>65%</td><td>71%</td></tr>
+        <tr><td>Plus mensal R$34,90</td><td>R$26,28</td><td>10 assinantes</td><td>60%</td><td>68%</td><td>73%</td></tr>
       </tbody>
     </table>
   </div>
-
   <div class="box box-green" style="margin-top:0.75rem;">
-    <strong>Conclusão financeira:</strong> com custo variável de R$4,42 por assinante, a margem depois do imposto chega a ~68% em escala no plano principal. Em relação ao preço antigo (R$39,90), o break-even subiu de 8 para 19 assinantes e são precisos ~2,15× mais assinantes para o mesmo lucro. A aposta do preço novo é que a conversão do teste mais que dobre — e o Painel do negócio mede isso desde o primeiro cadastro.
+    <strong>Conclusão financeira:</strong> o Básico tem custo variável baixo (sem WhatsApp nem voz) e margem parecida com a do Família, então o cliente que fica no Básico continua rentável. O ganho principal do modelo novo não está na margem, e sim na conversão: com cartão no cadastro, a expectativa é de 25–35% dos testes virarem assinatura. O Painel do negócio mede isso desde o primeiro cadastro.
   </div>
-
-  <p style="margin-top:1.25rem; font-size:11px; color:#aaa;">Elaborado em 16/10/2026. Custos fixos: Supabase Pro R$135 + Vercel Pro R$108 + chip Claro ~R$15 + domínio R$3,33 = R$261,33/mês. Variável (Família mensal): WhatsApp R$1,40 + IA R$1,50 + voz R$0,20 + Stripe R$1,32 = R$4,42. Imposto 6% (Simples, Anexo III). Câmbio US$1 = R$5,40. Preços no app: src/lib/planos-oferta.ts.</p>
+  <p style="margin-top:1.25rem; font-size:11px; color:#aaa;">Elaborado em 21/10/2026. Custos fixos: Supabase Pro R$135 + Vercel Pro R$108 + chip Claro ~R$15 + domínio R$3,33 = R$261,33/mês. Variável mensal: Básico R$2,82 · Família R$4,66 · Plus R$5,13. Imposto 10% (DAS). Câmbio US$1 = R$5,40. Preços no app: src/lib/planos-oferta.ts.</p>
 </div>
 
 </body>
