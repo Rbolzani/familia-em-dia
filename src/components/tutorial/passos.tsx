@@ -115,21 +115,21 @@ export const PASSOS: Passo[] = [
     ir: { rotulo: 'Ir para Meus Filhos', href: '/children' },
   },
   {
-    id: 'alertas', titulo: 'Ajuste o resumo diário do WhatsApp', onde: ['☰ Menu', 'Configurações', 'Alertas'],
+    id: 'alertas', titulo: 'Ajuste o resumo diário do WhatsApp', onde: ['☰ Menu', 'Configurações', 'Alertas no WhatsApp'],
     pago: 'O resumo diário no WhatsApp está disponível somente nos planos Família e Plus.', recurso: 'whatsapp',
     guia: {
       img: <Menu itens={['menu-config']} />,
       celular: <>Abra o menu <B>☰</B> e toque em <B>Configurações</B>, no pé do menu.</>,
-      computador: <>No pé do menu à esquerda, clique em <B>Configurações</B> e depois em <B>Alertas</B>.</>,
+      computador: <>No pé do menu à esquerda, clique em <B>Configurações</B> e depois em <B>Alertas no WhatsApp</B>.</>,
     },
     quadros: [
-      { txt: <>Em Configurações, toque em <B>Alertas</B>.</>,
-        img: <Foto arq="config" y0={0.258} y1={0.598} alvos={['config']} alt="Tela Configurações, com o item Alertas contornado" /> },
+      { txt: <>Em Configurações, toque em <B>Alertas no WhatsApp</B>.</>,
+        img: <Foto arq="config" y0={0.258} y1={0.598} alvos={['config']} alt="Tela Configurações, com o item Alertas no WhatsApp contornado" /> },
       { txt: <>Confira o número e o <B>horário do envio</B>. Depois toque em <B>Enviar resumo de teste agora</B>.</>,
-        img: <Foto arq="alertas" y0={0.4} y1={0.87} alvos={['alertas']} alt="Tela Alertas, com o botão de enviar resumo de teste contornado" /> },
+        img: <Foto arq="alertas" y0={0.4} y1={0.87} alvos={['alertas']} alt="Tela Alertas no WhatsApp, com o botão de enviar resumo de teste contornado" /> },
     ],
     dica: 'Dá para desligar ou trocar o horário quando quiser.',
-    ir: { rotulo: 'Ir para Alertas', href: '/alertas' },
+    ir: { rotulo: 'Ir para Alertas no WhatsApp', href: '/alertas' },
   },
   {
     id: 'compartilhar', titulo: 'Compartilhe com sua rede de apoio', onde: ['☰ Menu', 'Compartilhar Acesso'], exige: 'dono',

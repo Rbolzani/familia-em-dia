@@ -103,7 +103,7 @@ export default function AlertasClient({ userId, userEmail, whatsapp, prefilledFr
           🔔 Notificações
         </p>
         <h1 style={{ fontFamily: 'var(--font-lora)', fontSize: 24, fontWeight: 700, color: '#1A2B1C' }}>
-          Alertas
+          Alertas no WhatsApp
         </h1>
         <p style={{ fontSize: 13, color: 'rgba(26,43,28,0.45)', marginTop: 2 }}>
           {userEmail}

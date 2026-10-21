@@ -34,7 +34,7 @@ interface Props {
   isAdmin?: boolean
   /** Usuário logado: chave das preferências do tutorial neste navegador. */
   userId?: string
-  /** Plano da família: decide os cadeados (Logística, Alertas no WhatsApp). */
+  /** Plano da família: decide os cadeados (Logística, Compartilhar Acesso, Alertas no WhatsApp). */
   plano?: PlanId
 }
 
@@ -55,6 +55,8 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
   const { abrir: abrirUpsell } = useUpsell()
   const travaLogistica: RecursoUpsell | undefined = plano !== 'pausada' && !PLAN_LIMITS[plano].logistics ? 'logistica' : undefined
   const travaWhatsapp: RecursoUpsell | undefined = plano !== 'pausada' && !PLAN_LIMITS[plano].whatsapp ? 'whatsapp' : undefined
+  // Plano sem rede de apoio (Básico): "Compartilhar Acesso" com cadeado, como a Logística.
+  const travaRede: RecursoUpsell | undefined = plano !== 'pausada' && PLAN_LIMITS[plano].partners === 0 ? 'rede' : undefined
   const pathname = usePathname()
   const router   = useRouter()
 
@@ -371,7 +373,7 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
                   rodapé, e dois elementos com o mesmo data-tour fariam o tour
                   apontar para o primeiro do DOM. */}
               <NavItem href="/children"      label="Meus Filhos"        icon={Users} />
-              <NavItem href="/configuracoes" label="Compartilhar Acesso" icon={UserPlus} tourId="nav-invite" />
+              <NavItem href="/configuracoes" label="Compartilhar Acesso" icon={UserPlus} tourId="nav-invite" trava={travaRede} />
             </div>
           </nav>
 
@@ -667,7 +669,7 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
           <div style={{ height:1, background:'rgba(91,143,94,0.18)', margin:'6px 16px' }} />
 
           <MobileNavItem href="/children"      icon={Users}    label="Meus Filhos"        tourId="nav-children" />
-          <MobileNavItem href="/configuracoes" icon={UserPlus} label="Compartilhar Acesso" tourId="nav-invite" />
+          <MobileNavItem href="/configuracoes" icon={UserPlus} label="Compartilhar Acesso" tourId="nav-invite" trava={travaRede} />
         </div>
 
         {/* Footer: Configurações → /settings + Sair */}

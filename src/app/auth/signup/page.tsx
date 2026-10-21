@@ -21,6 +21,7 @@ export default function SignupPage() {
   const [familyName, setFamilyName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [password2, setPassword2] = useState('')
   const [phone, setPhone] = useState('')
   const [cpf, setCpf] = useState('')
   const [endereco, setEndereco] = useState<Address>(EMPTY_ADDRESS)
@@ -49,6 +50,7 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (password.length < 8) { setError('A senha deve ter pelo menos 8 caracteres.'); return }
+    if (password !== password2) { setError('As senhas não conferem. Digite a mesma senha nos dois campos.'); return }
     if (!isValidPhoneBR(phone)) { setError('Celular inválido. Use DDD + número.'); return }
     if (!source) { setError('Conte como você nos conheceu.'); return }
     if (!isInvite && name.trim().split(/\s+/).filter(p => p.length >= 2).length < 2) { setError('Informe seu nome e sobrenome.'); return }
@@ -318,7 +320,7 @@ export default function SignupPage() {
               <div>
                 <label className="block text-xs font-semibold mb-2" style={{ color: '#8585A8' }}>Senha</label>
                 <div className="relative">
-                  <input type={showPw ? 'text' : 'password'} required value={password}
+                  <input type={showPw ? 'text' : 'password'} required value={password} autoComplete="new-password"
                     onChange={e => setPassword(e.target.value)}
                     placeholder="Mínimo 8 caracteres" className="input-field pr-11" />
                   <button type="button" onClick={() => setShowPw(!showPw)} tabIndex={-1}
@@ -334,6 +336,16 @@ export default function SignupPage() {
                         style={{ background: password.length >= n * 2 ? (password.length >= 8 ? '#A8DDB5' : '#FFE4A0') : '#E8E4FF' }} />
                     ))}
                   </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-2" style={{ color: '#8585A8' }}>Repita a senha</label>
+                <input type={showPw ? 'text' : 'password'} required value={password2} autoComplete="new-password"
+                  onChange={e => setPassword2(e.target.value)}
+                  placeholder="Digite a senha de novo" className="input-field" />
+                {password2.length > 0 && password2 !== password && (
+                  <p className="text-xs mt-1.5" style={{ color: '#C2410C' }}>As senhas não conferem.</p>
                 )}
               </div>
 
