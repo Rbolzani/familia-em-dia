@@ -65,3 +65,23 @@
 - ⏳ WhatsApp: configurar credenciais (Twilio sandbox p/ teste OU Meta Cloud
   API com template aprovado) — sem isso o envio falha com
   "WHATSAPP_TOKEN/WHATSAPP_PHONE_ID não configurados"
+
+---
+
+## Modelo com cartão (nova oferta, contas `oferta = 'v2'`) — testado em 20–21/10/2026
+Stripe sandbox + banco de produção (dados de teste apagados ao final). O modelo novo só vale para quem cria a conta pela tela nova (`oferta: 'v2'` nos metadados), então dá para testar sem afetar contas reais.
+
+- ✅ Cadastro com CPF → Checkout mostra "14 dias grátis, R$ 0,00 hoje" → app em teste no plano escolhido
+- ✅ Saiu antes do cartão → conta `incompleto`, layout manda para `/assinar` (T7)
+- ✅ Mesmo cartão em segunda conta → assinatura cancelada na hora, tela T5 "Assinar sem teste", nada cobrado
+- ✅ CPF repetido recusado (T6)
+- ✅ Básico: cadeado + caixa de upgrade em logística, voz, WhatsApp, rede de apoio, 3º filho, 31º reconhecimento, cofre acima de 200 MB
+- ✅ Troca de plano no teste mantém o fim do teste; nova primeira cobrança no valor do plano novo
+- ✅ Downgrade bloqueado quando filhos/rede passam do limite do plano de destino (T14)
+- ✅ Cancelar no teste: motivo obrigatório, T13, motivo gravado no Stripe, acesso até o fim do teste
+- ✅ Cartão recusado → `past_due`, banner com prazo; aviso do 5º dia; pausa no 7º dia; cartão atualizado → volta a `active`
+- ✅ Conta pausada: dono e convidados só visualizam (bloqueio no banco, `familia_pode_editar`); reativação devolve o nível anterior do convidado
+- ✅ Exclusão: aviso de 30 dias; exclusão no dia 90 cancela o Stripe e grava o registro anônimo
+- ✅ Conta do modelo antigo continua com banner antigo, gratuito ao fim do teste e consegue assinar
+- ⏳ E-mails e WhatsApp do modelo novo (sem chaves no ambiente local) — conferir em produção depois da virada
+- ⏳ Arrependimento só para quem contratou sem teste (reembolso em até 7 dias da cobrança) — conferir no sandbox

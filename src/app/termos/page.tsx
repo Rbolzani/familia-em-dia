@@ -80,7 +80,9 @@ export default function TermosPage() {
           continua até o fim do período já pago, sem reembolso proporcional do período restante.</Li>
         <Li><strong>5.6 Direito de arrependimento.</strong> O prazo de 7 dias do art. 49 do Código de Defesa do
           Consumidor, contado da contratação, transcorre integralmente dentro do teste gratuito, período em
-          que o cancelamento não gera nenhuma cobrança.</Li>
+          que o cancelamento não gera nenhuma cobrança. Quando a assinatura é contratada sem teste
+          gratuito (por exemplo, numa reativação), o cancelamento em até 7 dias da cobrança devolve o
+          valor integral e encerra o acesso na hora.</Li>
         <Li><strong>5.7 Troca de plano.</strong> Mudar para um plano superior após o teste gera cobrança
           proporcional ao período restante; mudar para um plano inferior gera crédito para as faturas
           seguintes, nunca devolução no cartão. A mudança para um plano inferior exige que a conta esteja

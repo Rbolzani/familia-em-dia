@@ -136,6 +136,8 @@ export default function PlanosClient({
   const [error,    setError]    = useState<string | null>(null)
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [canceladoAte, setCanceladoAte] = useState<string | null>(null)   // T13
+  // Contratou sem teste e cancelou em até 7 dias da cobrança: valor devolvido (CDC art. 49).
+  const [reembolsado, setReembolsado] = useState<number | null>(null)
   const [ajustes, setAjustes] = useState<{ plano: string; itens: string[] } | null>(null)  // T14
   // Plano que a pessoa tentou assinar sem ter nome completo, CPF e endereço.
   const [dadosPara, setDadosPara] = useState<PlanoPago | null>(null)
@@ -212,7 +214,8 @@ export default function PlanosClient({
       setCancelModalOpen(false)
       setLoading(null)
       // T13 — confirmação clara antes de recarregar a tela.
-      setCanceladoAte(isTrialing ? trialEndsAt : currentPeriodEnd)
+      if (typeof data.reembolsado === 'number' && data.reembolsado > 0) setReembolsado(data.reembolsado)
+      setCanceladoAte((isTrialing ? trialEndsAt : currentPeriodEnd) ?? '')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro desconhecido')
       setLoading(null)
@@ -550,7 +553,9 @@ export default function PlanosClient({
       <Modal open={canceladoAte !== null} onClose={() => window.location.reload()} title="Sua assinatura foi cancelada." size="sm">
         <div className="space-y-3">
           <p className="text-sm" style={{ color: 'rgba(26,43,28,0.75)', lineHeight: 1.55 }}>
-            {isTrialing
+            {reembolsado !== null
+              ? <>Como a contratação foi há menos de 7 dias, devolvemos <strong>{(reembolsado / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong> no seu cartão (pode levar alguns dias para aparecer na fatura). O acesso ao plano foi encerrado.</>
+              : isTrialing
               ? <>Nenhuma cobrança será feita. Você continua usando o plano {nomeAtual} normalmente até <strong>{fmtDateShort(canceladoAte)}</strong>.</>
               : <>Não haverá novas cobranças. Você continua usando o plano {nomeAtual} até <strong>{fmtDateShort(canceladoAte)}</strong>, fim do período já pago.</>}
           </p>
