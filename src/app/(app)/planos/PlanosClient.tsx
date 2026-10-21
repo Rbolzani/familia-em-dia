@@ -82,6 +82,7 @@ const PLANS: { id: PlanoPago; name: string; tagline: string; icon: React.Element
       { text: 'Resumo diário no WhatsApp', bold: true },
       { text: 'Logística de leva e busca', bold: true },
       { text: 'Cofre de documentos (1 GB)', bold: true },
+      { text: 'Calendário, mensalidades e alertas no app', bold: false },
     ],
   },
   {
