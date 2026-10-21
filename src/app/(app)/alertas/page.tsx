@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AlertasClient from './AlertasClient'
-import { getFamilyPlan } from '@/lib/billing'
+import { getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
 import { toWhatsAppNumber } from '@/lib/cpf'
 
 export default async function AlertasPage() {
@@ -45,7 +45,7 @@ export default async function AlertasPage() {
       prefilledFromCadastro={prefilledFromCadastro}
       twilioMode={twilioMode}
       twilioKeyword={twilioKeyword}
-      whatsappBlocked={plan === 'free'}
+      whatsappBlocked={!PLAN_LIMITS[plan].whatsapp}
     />
   )
 }

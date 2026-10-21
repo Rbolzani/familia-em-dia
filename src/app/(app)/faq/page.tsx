@@ -72,7 +72,7 @@ const SECTIONS: FAQSection[] = [
       },
       {
         q: 'Quantas capturas por IA posso fazer?',
-        a: 'No plano Gratuito, 5 capturas por mês. Nos planos Família e Plus, uso ilimitado.',
+        a: 'No plano Básico, 30 reconhecimentos por mês (fotos, prints, textos e documentos somam juntos). Nos planos Família e Plus, uso ilimitado.',
       },
     ],
   },
@@ -101,8 +101,8 @@ const SECTIONS: FAQSection[] = [
         a: 'Sim. Os arquivos ficam em armazenamento privado — ninguém de fora consegue acessar. O download usa links temporários que expiram em 1 hora.',
       },
       {
-        q: 'O plano Gratuito permite guardar documentos?',
-        a: 'O Gratuito não permite upload de arquivos. Você pode cadastrar os dados dos documentos (nome, número, validade), mas o anexo do arquivo (foto/PDF) exige plano Família ou Plus.',
+        q: 'Quanto espaço tenho para guardar documentos?',
+        a: 'O cofre tem 200 MB no Básico, 1 GB no Família e 5 GB no Plus. Se o espaço acabar, nenhum arquivo é apagado: só os novos envios ficam bloqueados até liberar espaço ou mudar de plano.',
       },
     ],
   },
@@ -180,7 +180,7 @@ const SECTIONS: FAQSection[] = [
       },
       {
         q: 'O resumo é gratuito?',
-        a: 'O resumo diário de atividades é exclusivo dos planos Família e Plus. O plano Gratuito não recebe.',
+        a: 'O resumo diário de atividades faz parte dos planos Família e Plus. O plano Básico não tem o resumo no WhatsApp.',
       },
       {
         q: 'Não estou recebendo as mensagens. O que fazer?',
@@ -194,23 +194,35 @@ const SECTIONS: FAQSection[] = [
     items: [
       {
         q: 'Quais são os planos disponíveis?',
-        a: `Gratuito (sem custo), Família (${reais(precoPorMes('familia', 'month'))}/mês) e Família Plus (${reais(precoPorMes('plus', 'month'))}/mês). No plano anual há ${DESCONTO_ANUAL_PCT}% de desconto: ${reais(precoPorMes('familia', 'year'))}/mês no Família e ${reais(precoPorMes('plus', 'year'))}/mês no Plus. A comparação completa está em Planos.`,
+        a: `Básico (${reais(precoPorMes('basico', 'month'))}/mês), Família (${reais(precoPorMes('familia', 'month'))}/mês, o recomendado) e Família Plus (${reais(precoPorMes('plus', 'month'))}/mês). No plano anual há ${DESCONTO_ANUAL_PCT}% de desconto. A comparação completa está em Planos.`,
       },
       {
-        q: 'Posso testar antes de assinar?',
-        a: `Sim. Toda conta nova já começa com ${DIAS_TESTE} dias do plano Família completo, sem cartão de crédito. Se você não assinar, a conta passa sozinha para o Gratuito, sem nenhuma cobrança. O teste é concedido uma única vez.`,
+        q: 'Preciso cadastrar o cartão?',
+        a: `Sim. O cartão é pedido no cadastro, mas nada é cobrado nos ${DIAS_TESTE} dias de teste. Você recebe avisos 7 dias, 3 dias e 1 dia antes da primeira cobrança.`,
       },
       {
-        q: 'Como cancelo minha assinatura?',
-        a: 'Em Configurações → Planos, toque em cancelar. Se a cobrança foi feita há até 7 dias, o valor volta integralmente para o cartão. Depois disso, você continua com acesso até o fim do período já pago, sem novas cobranças.',
+        q: 'Como cancelo?',
+        a: 'Na tela Planos do app, a qualquer momento. Cancelando durante o teste, nada é cobrado e você usa até o fim dos 14 dias.',
       },
       {
-        q: 'Posso trocar de plano sem perder acesso?',
-        a: 'Sim. Upgrades e downgrades são aplicados imediatamente com ajuste proporcional.',
+        q: 'Existe plano gratuito?',
+        a: `Não. Todos os planos têm ${DIAS_TESTE} dias grátis para você conhecer antes de pagar.`,
       },
       {
-        q: 'Se eu cancelar, o parceiro perde o acesso na hora?',
-        a: 'Não. Existe um período de carência de 5 dias após a perda do plano pago, durante os quais o parceiro ainda tem acesso. Após esse prazo, o acesso é encerrado automaticamente.',
+        q: 'Posso trocar de plano?',
+        a: 'Sim, a qualquer momento, inclusive durante o teste — sem custo até a primeira cobrança.',
+      },
+      {
+        q: 'O que acontece se eu cancelar?',
+        a: 'Você usa até o fim do período (ou do teste). Depois, a conta fica pausada: dá para ver tudo por 90 dias e reativar quando quiser.',
+      },
+      {
+        q: 'Meu cartão foi recusado. E agora?',
+        a: 'Você tem 7 dias para atualizar o cartão em Planos, sem perder o acesso. Avisamos por e-mail e WhatsApp.',
+      },
+      {
+        q: 'Tenho reembolso?',
+        a: 'Os 14 dias grátis servem para você conhecer o app antes de pagar, e você recebe avisos antes da primeira cobrança. Depois da cobrança não há reembolso proporcional; se algo deu errado, fale com o suporte.',
       },
     ],
   },

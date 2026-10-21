@@ -3,11 +3,17 @@ import { redirect } from 'next/navigation'
 import LogisticaClient from './LogisticaClient'
 import { getActiveFamily } from '@/lib/access'
 import { SCHOOL_KIND_GERAL_FILTER } from '@/lib/types'
+import { getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
+import { RecursoTravado } from '@/components/billing/Upsell'
 
 export default async function LogisticaPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
+
+  // Básico: sem logística de leva e busca — mostra o cadeado (T10).
+  const plano = await getFamilyPlan()
+  if (plano !== 'pausada' && !PLAN_LIMITS[plano].logistics) return <RecursoTravado recurso="logistica" />
 
   const todayStr = new Intl.DateTimeFormat('fr-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
 

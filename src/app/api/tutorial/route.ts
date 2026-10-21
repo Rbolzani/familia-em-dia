@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan } from '@/lib/billing'
+import { getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
 
 // Estado do tutorial "Primeiros passos": plano da família (para o aviso de
 // recurso pago) e quais passos a pessoa já fez. Só é chamado quando o tutorial
@@ -28,7 +28,15 @@ export async function GET() {
   ])
 
   return NextResponse.json({
-    gratuito: plano === 'free',
+    // Recursos que o plano da família não tem (aviso curto em cada passo).
+    // Conta pausada: sem avisos — a faixa do topo já explica a situação.
+    semRecurso: plano === 'pausada' ? {} : {
+      whatsapp: !PLAN_LIMITS[plano].whatsapp,
+      rede: PLAN_LIMITS[plano].partners === 0,
+      voz: !PLAN_LIMITS[plano].voice,
+      cofre: PLAN_LIMITS[plano].storageLimitBytes === 0,
+      logistica: !PLAN_LIMITS[plano].logistics,
+    },
     feitos: {
       filhos,
       alertas: !!alerta.data?.daily_summary_enabled && !!alerta.data?.whatsapp_number,

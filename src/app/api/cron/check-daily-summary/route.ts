@@ -21,6 +21,7 @@ const CRONS: { name: string; maxAtrasoMin: number; descricao: string }[] = [
   // Vercel Cron nativo, 1x/dia às 13:00 UTC (10h de Brasília)
   { name: 'lembrete-cadastro', maxAtrasoMin: 27 * 60, descricao: 'lembrete a quem não cadastrou filho' },
   { name: 'aviso-fim-teste', maxAtrasoMin: 27 * 60, descricao: 'aviso de fim do teste grátis' },
+  { name: 'cobranca', maxAtrasoMin: 27 * 60, descricao: 'rotina de cobrança (cartão recusado, pausa, exclusão, cadastro interrompido)' },
 ]
 
 export async function GET(request: Request) {

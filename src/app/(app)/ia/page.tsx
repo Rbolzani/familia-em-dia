@@ -11,6 +11,7 @@ import {
 import Link from 'next/link'
 import { formatBRL } from '@/lib/payments'
 import { useAccess } from '@/components/access/AccessContext'
+import { useUpsell } from '@/components/billing/Upsell'
 import { VoiceInputButton } from '@/components/ui/VoiceInputButton'
 import { chamarExtracaoIa, lerParaMemoria, prepararImagem } from '@/lib/ia-cliente'
 
@@ -192,9 +193,12 @@ export default function IAPage() {
   const [aiUsed,  setAiUsed]  = useState<number | null>(null)
   const [aiLimit, setAiLimit] = useState<number | null>(null)
   const [voiceBlocked, setVoiceBlocked] = useState(false)
+  // Conta pausada (modelo novo): não reconhece nada até reativar.
+  const [pausada, setPausada] = useState(false)
+  const { abrir: abrirUpsell } = useUpsell()
 
   const hasResults = activities !== null || reminders !== null || documents !== null || payments !== null
-  const aiBlocked  = aiLimit !== null && aiUsed !== null && aiUsed >= aiLimit
+  const aiBlocked  = pausada || (aiLimit !== null && aiUsed !== null && aiUsed >= aiLimit)
   // Nada pode ser salvo sem ao menos um filho: todo item extraido e
   // atribuido a um. Trava a captura ANTES de consumir a cota de IA.
   const semFilhos  = filhosCarregados && children.length === 0
@@ -207,7 +211,8 @@ export default function IAPage() {
     })
     fetch('/api/billing/status').then(r => r.json()).then(d => {
       if (d.ai) { setAiUsed(d.ai.used); setAiLimit(d.ai.limit) }
-      if (d.plan === 'free') setVoiceBlocked(true)
+      if (d.voice === false) setVoiceBlocked(true)
+      if (d.pausada) setPausada(true)
     }).catch(() => {})
   }, [])
 
@@ -276,7 +281,8 @@ export default function IAPage() {
           const { status, data } = await chamarExtracaoIa(fd) as { status: number; data: any }
           if (status === 402) {
             setAiUsed(data.used ?? aiLimit ?? 5)
-            throw new Error(`Limite de ${data.limit} capturas por mês atingido. Faça upgrade para continuar.`)
+            abrirUpsell('reconhecimentos')
+            throw new Error(`Você usou os ${data.limit} reconhecimentos deste mês.`)
           }
           if (status !== 200) throw new Error(data.error || 'Erro ao processar imagem')
           allActs = [...allActs, ...(data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds, school_kind: kindPadrao(a) }))]
@@ -292,7 +298,8 @@ export default function IAPage() {
         const { status, data } = await chamarExtracaoIa(fd) as { status: number; data: any }
         if (status === 402) {
           setAiUsed(data.used ?? aiLimit ?? 5)
-          throw new Error(`Limite de ${data.limit} capturas por mês atingido. Faça upgrade para continuar.`)
+          abrirUpsell('reconhecimentos')
+          throw new Error(`Você usou os ${data.limit} reconhecimentos deste mês.`)
         }
         if (status !== 200) throw new Error(data.error || 'Erro desconhecido')
         allActs = (data.activities ?? []).map((a: any) => ({ ...a, selected: true, child_ids: selectedChildIds, school_kind: kindPadrao(a) }))
@@ -631,13 +638,13 @@ export default function IAPage() {
               ou grave um áudio
             </p>
             {voiceBlocked ? (
-              <div className="flex flex-col items-center gap-2 text-center">
+              <button type="button" onClick={() => abrirUpsell('voz')} className="flex flex-col items-center gap-2 text-center" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(107,114,128,0.10)' }}>
                   <Lock size={20} color="rgba(107,114,128,0.60)" />
                 </div>
-                <p className="text-xs font-semibold" style={{ color: 'rgba(26,43,28,0.45)' }}>Entrada por voz disponível no plano Família</p>
-                <a href="/planos" className="text-xs font-bold underline" style={{ color: '#3D6641' }}>Ver planos</a>
-              </div>
+                <p className="text-xs font-semibold" style={{ color: 'rgba(26,43,28,0.45)' }}>Reconhecimento por voz disponível no plano Família</p>
+                <span className="text-xs font-bold underline" style={{ color: '#3D6641' }}>Conhecer o Família</span>
+              </button>
             ) : (
               <VoiceInputButton
                 onTranscript={t => setText(prev => prev ? `${prev} ${t}` : t)}
@@ -656,18 +663,14 @@ export default function IAPage() {
         </div>
       )}
 
-      {/* Badge de uso de IA (só plano free) */}
-      {aiLimit !== null && (
+      {/* Contador dos planos com limite (Básico: 30; gratuito antigo: 5) — T11 */}
+      {aiLimit !== null && aiLimit > 0 && (
         <div className="flex items-center justify-between px-1">
           <span style={{ fontSize: 12, color: 'rgba(26,43,28,0.50)', fontWeight: 500 }}>
-            Capturas de IA este mês
+            <strong style={{ color: aiBlocked ? '#DC2626' : '#3D6641' }}>{aiUsed ?? '–'} de {aiLimit}</strong> reconhecimentos usados este mês
           </span>
-          <span style={{
-            fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-            background: aiBlocked ? 'rgba(220,38,38,0.10)' : 'rgba(61,102,65,0.10)',
-            color: aiBlocked ? '#DC2626' : '#3D6641',
-          }}>
-            {aiUsed ?? '–'} / {aiLimit}
+          <span style={{ fontSize: 11.5, color: 'rgba(26,43,28,0.45)' }}>
+            volta a zero em {(() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 1); return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) })()}
           </span>
         </div>
       )}
@@ -714,8 +717,15 @@ export default function IAPage() {
         </div>
       )}
 
+      {pausada && (
+        <div className="rounded-2xl p-4 animate-fade-up" style={{ background: 'linear-gradient(135deg,#FEF3C7,#FDE68A)', border: '1px solid rgba(245,158,11,0.40)' }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: '#92400E', margin: 0 }}>Sua conta está pausada.</p>
+          <p style={{ fontSize: 13, color: '#92400E', margin: '4px 0 0', lineHeight: 1.5 }}>Reative a assinatura para voltar a usar o reconhecimento.</p>
+        </div>
+      )}
+
       {/* Upgrade prompt quando IA bloqueada */}
-      {aiBlocked && (
+      {aiBlocked && !pausada && (
         <div className="rounded-2xl p-4 animate-fade-up" style={{
           background: 'linear-gradient(135deg,rgba(196,154,108,0.12),rgba(61,102,65,0.08))',
           border: '1px solid rgba(196,154,108,0.35)',
@@ -730,16 +740,16 @@ export default function IAPage() {
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: '#1A2B1C', margin: '0 0 4px' }}>
-                Limite de {aiLimit} capturas atingido
+                Você usou os {aiLimit} reconhecimentos deste mês
               </p>
               <p style={{ fontSize: 13, color: 'rgba(26,43,28,0.60)', margin: '0 0 12px', lineHeight: 1.5 }}>
-                Seu limite mensal de capturas por IA foi atingido. Faça upgrade para capturas ilimitadas.
+                No Família, fotos, prints, textos e documentos são reconhecidos sem limite.
               </p>
-              <a href="/planos"
+              <button type="button" onClick={() => abrirUpsell('reconhecimentos')}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110"
-                style={{ background: 'linear-gradient(140deg,#C49A6C,#A07848)', textDecoration: 'none' }}>
-                Ver planos →
-              </a>
+                style={{ background: 'linear-gradient(140deg,#C49A6C,#A07848)', border: 'none', cursor: 'pointer' }}>
+                Conhecer o Família →
+              </button>
             </div>
           </div>
         </div>

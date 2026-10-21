@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import LegalLayout from '@/components/legal/LegalLayout'
-import { LEGAL_ENTITY } from '@/lib/legal'
+import { LEGAL_ENTITY, LEGAL_EFFECTIVE_DATE } from '@/lib/legal'
 
 export const metadata: Metadata = { title: 'Termos de Uso · Família em Dia' }
 
@@ -39,7 +39,7 @@ export default function TermosPage() {
       <P>
         Para usar o Serviço, o Usuário deve ser <strong>maior de 18 anos</strong> e plenamente capaz.
         O Usuário compromete-se a fornecer informações verídicas, completas e atualizadas (nome,
-        e-mail e telefone no cadastro; nome completo, CPF e endereço ao assinar um plano pago) e a mantê-las atualizadas. O Usuário é
+        e-mail, telefone e CPF no cadastro; endereço e dados do cartão na tela de pagamento) e a mantê-las atualizadas. O Usuário é
         responsável pela confidencialidade de suas credenciais e por toda atividade realizada em sua conta.
       </P>
 
@@ -61,29 +61,49 @@ export default function TermosPage() {
         qualquer tempo.
       </P>
 
-      <H>5. Planos, assinatura, cobrança e cancelamento</H>
+      <H>5. Planos, teste grátis, cobrança e cancelamento</H>
       <ul>
-        <Li>O Serviço oferece um plano gratuito e planos pagos (Família e Família Plus), em ciclos mensal
-          ou anual, conforme os preços exibidos na Plataforma.</Li>
-        <Li>Todo novo cadastro recebe, uma única vez, <strong>14 dias de teste gratuito do plano
-          Família</strong>, sem cartão de crédito. Se o Usuário não assinar até o fim do teste, a conta
-          passa automaticamente para o plano gratuito, <strong>sem nenhuma cobrança</strong>. Quem assina
-          durante o teste só é cobrado quando o teste termina, no plano e ciclo escolhidos.</Li>
-        <Li>Os pagamentos são processados por operador externo (Stripe). A assinatura é
-          <strong> recorrente</strong> e renovada automaticamente até o cancelamento.</Li>
-        <Li>O Usuário pode cancelar a qualquer momento. Fora do prazo de arrependimento descrito abaixo,
-          o acesso pago permanece até o fim do período já pago, sem novas cobranças. Trocas de plano
-          podem gerar cobrança proporcional (proração).</Li>
-        <Li><strong>Direito de arrependimento (7 dias).</strong> Em até <strong>7 dias corridos contados
-          da cobrança</strong>, o cancelamento feito pela Plataforma devolve <strong>integralmente</strong>
-          o valor pago, por estorno no mesmo meio de pagamento, e encerra a assinatura
-          <strong> imediatamente</strong> — já que o valor é devolvido, o acesso pago não continua.
-          O prazo vale para a contratação e para trocas de plano que gerem nova cobrança; a
-          <strong> renovação automática não abre novo prazo</strong>, por não se tratar de nova
-          contratação. Direito previsto no art. 49 do Código de Defesa do Consumidor.</Li>
-        <Li><strong>Exclusão da conta encerra a cobrança.</strong> Ao excluir a conta, a assinatura é
-          cancelada de imediato; se a exclusão ocorrer dentro do prazo de arrependimento, o valor é
-          devolvido na mesma operação.</Li>
+        <Li><strong>5.1 Planos.</strong> O Serviço é oferecido nos planos Básico, Família e Família Plus, em
+          ciclos mensal ou anual, com os recursos e preços exibidos na Plataforma no momento da contratação.</Li>
+        <Li><strong>5.2 Teste grátis.</strong> Toda assinatura nova começa com <strong>14 dias de teste
+          gratuito</strong>, concedido uma única vez por pessoa (CPF) e por cartão. Durante o teste, o Usuário
+          usa os recursos do plano escolhido e pode trocar de plano sem custo.</Li>
+        <Li><strong>5.3 Cartão e cobrança automática.</strong> O cartão de crédito é cadastrado na contratação,
+          mas nada é cobrado durante o teste. Ao fim dos 14 dias, a primeira cobrança é feita
+          automaticamente no plano e ciclo vigentes, e a assinatura passa a ser <strong>renovada
+          automaticamente</strong> a cada ciclo, até o cancelamento. O Usuário é avisado por e-mail 7 dias
+          antes do fim do teste e, por e-mail e WhatsApp, 3 dias antes e na véspera.</Li>
+        <Li><strong>5.4 Cancelamento durante o teste.</strong> O Usuário pode cancelar a qualquer momento pela
+          Plataforma. Cancelando durante o teste, <strong>nenhuma cobrança é feita</strong>, e o acesso ao plano
+          continua até o fim dos 14 dias.</Li>
+        <Li><strong>5.5 Cancelamento após o teste.</strong> O cancelamento encerra as renovações; o acesso
+          continua até o fim do período já pago, sem reembolso proporcional do período restante.</Li>
+        <Li><strong>5.6 Direito de arrependimento.</strong> O prazo de 7 dias do art. 49 do Código de Defesa do
+          Consumidor, contado da contratação, transcorre integralmente dentro do teste gratuito, período em
+          que o cancelamento não gera nenhuma cobrança. Quando a assinatura é contratada sem teste
+          gratuito (por exemplo, numa reativação), o cancelamento em até 7 dias da cobrança devolve o
+          valor integral e encerra o acesso na hora.</Li>
+        <Li><strong>5.7 Troca de plano.</strong> Mudar para um plano superior após o teste gera cobrança
+          proporcional ao período restante; mudar para um plano inferior gera crédito para as faturas
+          seguintes, nunca devolução no cartão. A mudança para um plano inferior exige que a conta esteja
+          dentro dos limites do novo plano (filhos, rede de apoio).</Li>
+        <Li><strong>5.8 Falha de pagamento.</strong> Se a cobrança for recusada, o Usuário mantém o acesso por
+          7 dias para atualizar o cartão, sendo avisado por e-mail e WhatsApp. Sem regularização nesse prazo,
+          a conta é pausada.</Li>
+        <Li><strong>5.9 Conta pausada.</strong> Na conta pausada (fim de assinatura cancelada ou falha de
+          pagamento não regularizada), o Usuário e seus convidados podem visualizar os dados, mas não criar
+          nem editar conteúdo. A conta pode ser reativada a qualquer tempo, com nova cobrança e sem novo
+          teste. Após <strong>90 dias de pausa</strong>, a conta e seus dados são eliminados, com aviso por
+          e-mail 30 e 7 dias antes.</Li>
+        <Li><strong>5.10 Convidados.</strong> O convidado usa o plano de quem o convidou e não é cobrado. Se a
+          conta de quem convidou for pausada, o acesso do convidado também fica limitado à visualização.</Li>
+        <Li><strong>5.11 Pagamentos.</strong> São processados por operador externo (Stripe). A nota fiscal é
+          emitida pela {LEGAL_ENTITY.razaoSocial}.</Li>
+        <Li><strong>5.12 Contas anteriores.</strong> Contas criadas antes de {LEGAL_EFFECTIVE_DATE}, no modelo
+          anterior (teste sem cartão), mantêm as condições com que foram criadas, incluindo o plano gratuito
+          ao fim do teste.</Li>
+        <Li><strong>5.13 Exclusão da conta.</strong> Ao excluir a conta, a assinatura é cancelada de imediato,
+          sem reembolso de período já pago.</Li>
       </ul>
 
       <H>6. Inteligência artificial</H>

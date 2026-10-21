@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom'
 import { Car, Home, ChevronDown, Clock, Check, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from '@/components/ui/Toast'
+import { useUpsell } from '@/components/billing/Upsell'
+import { PLAN_LIMITS } from '@/lib/planos-limites'
 import { useAccess } from '@/components/access/AccessContext'
 
 export interface LogisticsSuggestion {
@@ -52,6 +54,10 @@ export default function LogChip({
 }: Props) {
   const supabase = createClient()
   const { canLogistics } = useAccess()
+  // Básico não tem logística de leva e busca: as marcações nem aparecem (o
+  // cadeado fica no item Logística da barra lateral).
+  const { plano } = useUpsell()
+  const semLogistica = plano !== 'pausada' && !PLAN_LIMITS[plano].logistics
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -207,6 +213,8 @@ export default function LogChip({
       setLoading(false)
     }
   }
+
+  if (semLogistica) return null
 
   const icon = field === 'takes_user_id' ? <Car size={11} /> : <Home size={11} />
   const slotLabel = field === 'takes_user_id' ? 'LEVA' : 'BUSCA'

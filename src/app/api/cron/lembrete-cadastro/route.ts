@@ -50,6 +50,9 @@ export async function GET(request: Request) {
   for (let de = 0; ; de += 1000) {
     const { data, error } = await admin
       .from('subscriptions').select('user_id').eq('status', 'trialing')
+      // Só contas do modelo antigo (o texto fala do teste sem cartão). O modelo
+      // novo tem o aviso de cadastro interrompido em /api/cron/cobranca.
+      .eq('oferta', 'v1')
       .gt('trial_ends_at', new Date(agora).toISOString()).order('user_id').range(de, de + 999)
     if (error) {
       console.error('[lembrete-cadastro] erro ao ler assinaturas:', error.code)

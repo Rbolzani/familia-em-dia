@@ -77,18 +77,62 @@ verifico por aqui.
 Você mesmo cancela pelo app, em Planos → Cancelar assinatura. Não precisa
 falar com ninguém.
 
-Se a contratação foi há menos de 7 dias, o cancelamento devolve o valor
-integral e encerra na hora (direito de arrependimento). Passados os 7 dias,
-o acesso continua até o fim do período já pago, sem nova cobrança.
+Cancelando durante os 14 dias grátis, nada é cobrado e você usa até o fim do
+teste. Depois do teste, o acesso continua até o fim do período já pago, sem
+nova cobrança. Depois disso a conta fica pausada: dá para ver tudo por 90 dias
+e reativar quando quiser.
 ```
+*(Internamente: quem contratou SEM teste — conta antiga, "assinar sem teste",
+reativação — e cancela em até 7 dias da cobrança recebe o valor de volta na
+hora, automaticamente; é o arrependimento do CDC, Termos 5.6.)*
 
-### Quero reembolso (fora dos 7 dias)
+### Quero reembolso
 ```
-Entendo. Fora do prazo de 7 dias a regra é o acesso seguir até o fim do
-período já pago, sem nova cobrança — é o que está nos Termos.
+Entendo. Os 14 dias grátis existem justamente para conhecer o app antes de
+pagar, e por isso, depois da primeira cobrança, a regra é o acesso seguir até
+o fim do período já pago, sem nova cobrança — é o que está nos Termos.
 
 Me conta o que motivou? Se foi algo que não funcionou como deveria, quero
 corrigir, e aí avalio o reembolso caso a caso.
+```
+
+### Fui cobrado e não queria / esqueci de cancelar
+```
+A primeira cobrança acontece no 15º dia, e avisamos 7 dias, 3 dias e 1 dia
+antes, por e-mail e WhatsApp. Posso cancelar agora para não haver novas
+cobranças, e você continua usando até o fim do período pago.
+
+Me conta o que aconteceu que eu avalio o seu caso.
+```
+*(Internamente: reembolso fora da regra é decisão manual no painel do Stripe —
+Pagamentos → Reembolsar. A taxa do Stripe não volta.)*
+
+### Meu cartão foi recusado
+```
+Quando a cobrança é recusada, você tem 7 dias para atualizar o cartão, sem
+perder nada. É só entrar em Planos → Atualizar cartão. Assim que o novo cartão
+é aceito, a cobrança é feita e tudo segue normal.
+
+Se passar dos 7 dias, a conta fica pausada (só visualização), e dá para
+reativar em Planos a qualquer momento.
+```
+
+### Minha conta está pausada / não consigo editar
+```
+A conta fica pausada quando a assinatura termina (cancelamento ou cartão não
+atualizado). Seus dados continuam guardados e você consegue ver tudo, mas não
+criar nem editar. Quem você convidou também fica só com visualização.
+
+Para voltar, é só reativar em Planos — escolhe o plano e cadastra o cartão.
+Os dados ficam guardados por 90 dias depois da pausa; avisamos por e-mail 30
+e 7 dias antes de apagar.
+```
+
+### Não consigo usar o teste grátis de novo
+```
+O teste grátis é um por pessoa (CPF) e por cartão. Como ele já foi usado,
+a assinatura começa direto, sem teste — e, nesse caso, se você cancelar em até
+7 dias da cobrança, devolvemos o valor integral.
 ```
 
 ### O resumo no WhatsApp não chegou

@@ -86,14 +86,18 @@ export interface Passo {
   onde: string[]
   /** Onde fica: foto do menu (ou da barra do topo) + a instrução para chegar. */
   guia: { rotulo?: string; largo?: boolean; img: ReactNode; celular: ReactNode; computador: ReactNode }
-  quadros: { txt: ReactNode; img: ReactNode; pago?: string }[]
+  quadros: { txt: ReactNode; img: ReactNode; pago?: string; recurso?: RecursoDoPlano }[]
   dica: string
   ir: { rotulo: string; href: string }
-  /** Recurso de plano pago: aviso curto mostrado a quem está no gratuito. */
+  /** Recurso que nem todo plano tem: aviso curto mostrado a quem não tem. */
   pago?: string
+  recurso?: RecursoDoPlano
   /** Quem vê o passo: convidados só veem o que podem executar. */
   exige?: 'dono' | 'editar' | 'logistica'
 }
+
+/** Recursos que dependem do plano (ver PLAN_LIMITS). */
+export type RecursoDoPlano = 'whatsapp' | 'rede' | 'voz' | 'cofre' | 'logistica'
 
 export const PASSOS: Passo[] = [
   {
@@ -112,7 +116,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'alertas', titulo: 'Ajuste o resumo diário do WhatsApp', onde: ['☰ Menu', 'Configurações', 'Alertas'],
-    pago: 'O resumo diário no WhatsApp está disponível somente nos planos pagos.',
+    pago: 'O resumo diário no WhatsApp está disponível somente nos planos Família e Plus.', recurso: 'whatsapp',
     guia: {
       img: <Menu itens={['menu-config']} />,
       celular: <>Abra o menu <B>☰</B> e toque em <B>Configurações</B>, no pé do menu.</>,
@@ -129,7 +133,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'compartilhar', titulo: 'Compartilhe com sua rede de apoio', onde: ['☰ Menu', 'Compartilhar Acesso'], exige: 'dono',
-    pago: 'O compartilhamento de acesso está disponível somente nos planos pagos.',
+    pago: 'A rede de apoio está disponível somente nos planos Família e Plus.', recurso: 'rede',
     guia: {
       img: <Menu itens={['menu-compartilhar']} />,
       celular: <>Abra o menu <B>☰</B> e toque em <B>Compartilhar Acesso</B>.</>,
@@ -154,7 +158,7 @@ export const PASSOS: Passo[] = [
       { txt: <><B>Foto ou print:</B> na aba Foto / Imagem, toque em <B>Tirar foto</B> ou escolha imagens da galeria. No computador, dá para colar um print.</>,
         img: <Foto arq="ia-foto" y0={0.2} y1={0.62} alvos={['ia-foto']} alt="Captura por IA, aba Foto / Imagem, com o botão Tirar foto contornado" /> },
       { txt: <><B>Áudio:</B> na aba Texto livre ou áudio, <B>segure o microfone</B>, fale (&quot;natação do Pedro quinta às 17h&quot;) e solte.</>,
-        pago: 'A captura por áudio está disponível somente nos planos pagos.',
+        pago: 'O reconhecimento por voz está disponível somente nos planos Família e Plus.', recurso: 'voz',
         img: <Foto arq="ia-voz" y0={0.38} y1={0.84} alvos={['ia-voz']} alt="Captura por IA, aba Texto livre ou áudio, com o microfone contornado" /> },
       { txt: <>Toque em <B>Analisar e classificar com IA</B>.</>,
         img: <Foto arq="ia-analisar" y0={0.62} alvos={['ia-analisar']} alt="Botão Analisar e classificar com IA contornado" /> },
@@ -198,6 +202,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'logistica', titulo: 'Combine quem leva e quem busca', onde: ['☰ Menu', 'Logística'], exige: 'logistica',
+    pago: 'A logística de leva e busca está disponível somente nos planos Família e Plus.', recurso: 'logistica',
     guia: {
       img: <Menu itens={['menu-logistica']} />,
       celular: <>Abra o menu <B>☰</B> e toque em <B>Logística</B>.</>,
@@ -214,7 +219,7 @@ export const PASSOS: Passo[] = [
   },
   {
     id: 'documentos', titulo: 'Guarde documentos pela IA', onde: ['✨ Captura IA', 'e', '☰ Menu', 'Documentos'], exige: 'editar',
-    pago: 'O envio de arquivos ao cofre de documentos está disponível somente nos planos pagos.',
+    pago: 'O envio de arquivos ao cofre de documentos está disponível somente nos planos pagos.', recurso: 'cofre',
     guia: {
       img: <Menu itens={['menu-documentos']} />,
       celular: <>Você envia o documento pela <B>Captura IA</B> (botão coral no topo) e ele fica guardado em <B>Documentos</B>, no menu <B>☰</B>.</>,

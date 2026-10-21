@@ -8,10 +8,47 @@ import { AccessProvider } from '@/components/access/AccessContext'
 import PartnerBanner from '@/components/access/PartnerBanner'
 import TrialBanner from '@/components/billing/TrialBanner'
 import GraceBanner from '@/components/billing/GraceBanner'
-import { PLAN_LABELS, getEffectiveSubscription } from '@/lib/billing'
+import { PLAN_LABELS, getEffectiveSubscription, getFamilyPlan, planoQueLibera, type PlanId } from '@/lib/billing'
+import CobrancaBanner, { type FaixaCobranca } from '@/components/billing/CobrancaBanner'
+import { UpsellProvider } from '@/components/billing/Upsell'
+import { NOME_PLANO, valorDaCobranca, type PlanoPago } from '@/lib/planos-oferta'
+import { DIAS_CARENCIA_CARTAO } from '@/lib/oferta-v2'
 import { signChildAvatars } from '@/lib/avatars'
 import { ehFundador } from '@/lib/admin-ids'
 import { concluirCadastroPelosMetadados, conviteGuardado } from '@/lib/cadastro'
+
+const dataCurta = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })
+
+// Faixa do topo do modelo novo (T8, T9, T15, T16, T17). Fora do componente:
+// depende do relógio, e o React pede que o render em si seja puro.
+function montarFaixa(eff: Awaited<ReturnType<typeof getEffectiveSubscription>>, plano: PlanoPago, ciclo: 'month' | 'year'): FaixaCobranca | null {
+  if (eff.oferta !== 'v2') return null
+  const isOwner = eff.isOwner
+  if (eff.status === 'paused') {
+    return { tipo: 'pausada', motivo: eff.pauseReason === 'pagamento' ? 'pagamento' : 'cancelada', apagarEm: eff.deleteAfter ? dataCurta(eff.deleteAfter) : '', isOwner, dono: eff.ownerName }
+  }
+  if (eff.status === 'past_due') {
+    const base = eff.paymentFailedAt ? new Date(eff.paymentFailedAt).getTime() : Date.now()
+    return { tipo: 'atraso', ate: dataCurta(new Date(base + DIAS_CARENCIA_CARTAO * 86_400_000).toISOString()), isOwner }
+  }
+  if (eff.cancelAtPeriodEnd && (eff.status === 'trialing' || eff.status === 'active')) {
+    const ate = eff.status === 'trialing' ? eff.trialEndsAt : eff.currentPeriodEnd
+    return { tipo: 'cancelado', noTeste: eff.status === 'trialing', ate: ate ? dataCurta(ate) : '', isOwner }
+  }
+  if (eff.status === 'trialing' && eff.trialEndsAt) {
+    const msLeft = new Date(eff.trialEndsAt).getTime() - Date.now()
+    return {
+      tipo: 'teste',
+      diasRestantes: Math.max(0, Math.ceil(msLeft / 86_400_000)),
+      cobrancaEm: dataCurta(eff.trialEndsAt),
+      plano: NOME_PLANO[plano],
+      valor: valorDaCobranca(plano, ciclo).replace(/ por (mês|ano)$/, ''),
+      conhecer: plano === 'plus' ? null : (planoQueLibera(plano) as 'familia' | 'plus'),
+      isOwner,
+    }
+  }
+  return null
+}
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -58,17 +95,28 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     }
   }
 
+  // Assinatura efetiva (a do dono da família) e plano da família.
+  const [eff, planoFamilia] = user ? await Promise.all([getEffectiveSubscription(), getFamilyPlan()]) : [null, 'free' as PlanId]
+
+  // Modelo novo: quem criou a conta e ainda não cadastrou o cartão só vê
+  // "Conclua sua assinatura" (/assinar, fora deste grupo — sem loop).
+  if (eff?.oferta === 'v2' && eff.isOwner && eff.status === 'incompleto') redirect('/assinar')
+
+  const plano = (['basico', 'familia', 'plus'].includes(eff?.plan ?? '') ? eff!.plan : 'familia') as PlanoPago
+  const ciclo = eff?.billingInterval === 'year' ? 'year' as const : 'month' as const
+  const faixa = eff ? montarFaixa(eff, plano, ciclo) : null
+
   const [{ data: sidebarChildren }, access, { familyId: activeFamilyId }, bannerInfo] = await Promise.all([
     supabase.from('children').select('*').order('sort_order'),
     getAccess(),
     getActiveFamily(supabase),
     (async () => {
-      if (!user) return null
+      // Faixas do MODELO ANTIGO (teste sem cartão + carência do parceiro).
+      if (!user || !eff || eff.oferta === 'v2') return null
       const admin = createAdminClient()
 
       // Assinatura EFETIVA = a do owner da família. Banner reflete o owner,
       // tanto para o owner quanto para o parceiro (com texto adaptado).
-      const eff = await getEffectiveSubscription()
       if (!eff.ownerId) return null
 
       // ── Trial do owner — vale para owner e parceiro ────────────────────
@@ -128,9 +176,11 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
   return (
       <AccessProvider value={access}>
-        <AppLayout sidebarChildren={sidebarChildrenComFoto} activeFamilyId={activeFamilyId} isAdmin={ehFundador(user?.id)} userId={user?.id ?? ''}>
+       <UpsellProvider plano={planoFamilia} ciclo={ciclo} emTeste={eff?.status === 'trialing'} fimTeste={eff?.trialEndsAt ? dataCurta(eff.trialEndsAt) : null} isOwner={eff?.isOwner ?? true}>
+        <AppLayout sidebarChildren={sidebarChildrenComFoto} activeFamilyId={activeFamilyId} isAdmin={ehFundador(user?.id)} userId={user?.id ?? ''} plano={planoFamilia}>
           <RealtimeSync />
           <PartnerBanner />
+          {faixa && <CobrancaBanner faixa={faixa} />}
           {bannerInfo?.type === 'trial' && (
             <TrialBanner daysLeft={bannerInfo.daysLeft} planLabel={bannerInfo.planLabel} hasPartner={bannerInfo.hasPartner} isPartner={bannerInfo.isPartner} assinou={bannerInfo.assinou} cobrancaEm={bannerInfo.cobrancaEm} />
           )}
@@ -142,6 +192,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           )}
           {children}
         </AppLayout>
+       </UpsellProvider>
       </AccessProvider>
   )
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario } from '@/lib/billing'
+import { getFamilyPlan, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario, getAiUsageThisMonth, incrementAiUsage } from '@/lib/billing'
 import { DOC_TYPES, DOC_TYPE_KEYS, getDocType, metadataFields, type DocType } from '@/lib/docTypes'
 import { normalizeImage } from '@/lib/image'
 import { sniff, SNIFF_BYTES } from '@/lib/fileSniff'
@@ -111,6 +111,15 @@ export async function POST(req: NextRequest) {
     const plan = await getFamilyPlan()
     if (!PLAN_LIMITS[plan].ocr) {
       return NextResponse.json({ error: 'LIMIT_OCR', plan }, { status: 402 })
+    }
+    // No Básico a leitura de documento conta nos 30 reconhecimentos do mês
+    // (foto, texto e documentos somam juntos — decisão de 20/10/2026).
+    const aiLimit = PLAN_LIMITS[plan].aiPerMonth
+    if (aiLimit !== Infinity) {
+      const used = await getAiUsageThisMonth(user.id)
+      if (used >= aiLimit) {
+        return NextResponse.json({ error: 'LIMIT_AI', plan, used, limit: aiLimit }, { status: 402 })
+      }
     }
 
     // Teto diário (achado O3): no plano pago o limite mensal é Infinity, então
@@ -292,6 +301,10 @@ export async function POST(req: NextRequest) {
       // precisamos medir para saber se o prompt está bom.
       console.warn('[ocr] campos descartados por nao constarem no texto:', descartados)
     }
+
+    // Leitura concluída: conta no limite mensal do plano (Básico). Sem
+    // limite (Família/Plus) o contador não importa, mas não custa registrar.
+    if (aiLimit !== Infinity) incrementAiUsage(user.id).catch(err => console.error('[ocr] incrementAiUsage', err))
 
     return NextResponse.json({
       doc_type: docType,

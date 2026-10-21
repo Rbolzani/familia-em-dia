@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { MessageCircle, Send, Lock } from 'lucide-react'
 import { toast } from '@/components/ui/Toast'
 import { QRCodeSVG } from 'qrcode.react'
+import { useUpsell } from '@/components/billing/Upsell'
 
 interface Props {
   userId: string
@@ -20,6 +21,7 @@ const MINUTES = ['00', '15', '30', '45']
 
 export default function AlertasClient({ userId, userEmail, whatsapp, prefilledFromCadastro, twilioMode, twilioKeyword, whatsappBlocked }: Props) {
   const supabase = createClient()
+  const { abrir: abrirUpsell } = useUpsell()
 
   const [waNumber, setWaNumber]   = useState(whatsapp.number)
   const [waEnabled, setWaEnabled] = useState(whatsapp.enabled)
@@ -188,11 +190,11 @@ export default function AlertasClient({ userId, userEmail, whatsapp, prefilledFr
             <p style={{ fontSize: 13, color: 'rgba(26,43,28,0.40)', maxWidth: 280, lineHeight: 1.5 }}>
               Receba o resumo diário das atividades dos seus filhos direto no WhatsApp — provas, consultas, quem leva e quem busca.
             </p>
-            <a href="/planos"
+            <button type="button" onClick={() => abrirUpsell('whatsapp')}
               className="mt-1 px-5 py-2.5 rounded-xl font-bold text-white text-sm transition-all hover:brightness-105 active:scale-95"
-              style={{ background: 'linear-gradient(140deg,#FF8A6E,#FF6B5C)' }}>
-              Ver planos
-            </a>
+              style={{ background: 'linear-gradient(140deg,#FF8A6E,#FF6B5C)', border: 'none', cursor: 'pointer' }}>
+              Conhecer o Família
+            </button>
           </div>
         </div>
       ) : (

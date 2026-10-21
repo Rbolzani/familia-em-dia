@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import { getFamilyPlan, consumirChamadaIa, mensagemLimiteDiario } from '@/lib/billing'
+import { getFamilyPlan, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario } from '@/lib/billing'
 
 // Mesma razão do OCR: o áudio sobe do celular e o tempo de subida conta para
 // a duração da função. Um áudio de um minuto em 4G passa dos 10s padrão.
@@ -26,9 +26,9 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
   const plan = await getFamilyPlan()
-  if (plan === 'free') {
+  if (!PLAN_LIMITS[plan].voice) {
     return NextResponse.json(
-      { error: 'LIMIT_VOICE', message: 'Entrada por voz disponível nos planos Família e Plus.' },
+      { error: 'LIMIT_VOICE', plan, message: 'Reconhecimento por voz disponível nos planos Família e Plus.' },
       { status: 402 }
     )
   }

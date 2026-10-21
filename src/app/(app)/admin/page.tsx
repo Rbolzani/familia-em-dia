@@ -77,10 +77,11 @@ export default async function AdminPage() {
           <div className="adm-num"><b>{r.contratadas}</b><span>assinaturas contratadas</span></div>
           <div className="adm-num"><b>{r.assinantes}</b><span>assinantes pagantes</span></div>
           <div className="adm-num">
-            <b className="adm-par"><span>{r.pagantesFamilia}<small>Família</small></span><span>{r.pagantesPlus}<small>Plus</small></span></b>
+            <b className="adm-par"><span>{r.pagantesBasico}<small>Básico</small></span><span>{r.pagantesFamilia}<small>Família</small></span><span>{r.pagantesPlus}<small>Plus</small></span></b>
             <span>pagantes por plano</span>
           </div>
-          <div className="adm-num"><b>{r.gratuito}</b><span>no plano gratuito</span></div>
+          <div className="adm-num"><b>{r.gratuito}</b><span>no plano gratuito (modelo antigo)</span></div>
+          <div className="adm-num"><b>{r.interrompidos + r.cartaoRecusado + r.pausadas}</b><span>cadastro sem cartão, cartão recusado ou pausadas</span></div>
           <div className="adm-num adm-cortesia"><b>{r.cortesia}</b><span>contas cortesia (administradores)</span></div>
           <div className="adm-num"><b>{r.cancelaram}</b><span>cancelaram</span></div>
           <div className="adm-num adm-destaque"><b>{reais(r.receitaMensalCentavos)}</b><span>receita mensal recorrente</span></div>
@@ -90,7 +91,7 @@ export default async function AdminPage() {
 
       <section className="adm-cartao">
         <div className="adm-cab"><h2>Aviso de fim do teste</h2><small>WhatsApp com botão de assinatura + e-mail</small></div>
-        <p className="adm-ver" style={{ marginTop: 0, marginBottom: 12 }}>Sai sozinho às 11h, faltando 3 dias e na véspera do fim do teste, para quem ainda não assinou. O botão abaixo manda para você o aviso exatamente como o cliente recebe, simulando um teste que termina em 3 dias.</p>
+        <p className="adm-ver" style={{ marginTop: 0, marginBottom: 12 }}>Sai sozinho às 11h. Modelo antigo (sem cartão): faltando 3 dias e na véspera, para quem ainda não assinou. Modelo com cartão: faltando 7 dias (só e-mail), 3 dias e na véspera da primeira cobrança. O botão abaixo manda para você o aviso exatamente como o cliente recebe, simulando um teste que termina em 3 dias.</p>
         <div className="adm-duas" style={{ marginBottom: 14 }}>
           {([
             ['E-mail', [['enviados', p.funilAviso.email.enviados], ['abriram', p.funilAviso.email.abertos], ['clicaram no botão', p.funilAviso.email.clicaram], ['assinaram pelo e-mail', p.funilAviso.email.assinaram]]],
@@ -131,6 +132,32 @@ export default async function AdminPage() {
         )}
         <p className="adm-ver">E-mail: &quot;aberto&quot; vem de uma imagem invisível e é tendência, não número exato (o Mail do iPhone abre sozinho; outros programas bloqueiam imagens). &quot;Clicou&quot; é confiável. WhatsApp: &quot;entregue&quot; e &quot;lido&quot; vêm da Meta (lido só aparece para quem não desligou a confirmação de leitura); o clique no botão do WhatsApp não é medido por pessoa, só a assinatura que veio dele.</p>
         <div style={{ marginTop: 14 }}><TesteAvisoBotao /></div>
+      </section>
+
+      <section className="adm-cartao">
+        <div className="adm-cab">
+          <h2>Precisam de atenção</h2>
+          <small>modelo com cartão · {r.interrompidos} sem cartão · {r.cartaoRecusado} com cartão recusado · {r.pausadas} {r.pausadas === 1 ? 'pausada' : 'pausadas'}</small>
+        </div>
+        {p.modeloNovo.length === 0 ? <p className="adm-vazio">Ninguém nessas situações.</p> : (
+          <div className="adm-rolar">
+            <table>
+              <thead><tr><th>Quem</th><th>Celular</th><th>Situação</th><th>Detalhe</th><th>Desde</th></tr></thead>
+              <tbody>
+                {p.modeloNovo.map(l => (
+                  <tr key={l.email + l.situacao}>
+                    <td className="adm-quem"><b>{l.nome || '—'}</b><span>{l.email}</span></td>
+                    <td className="adm-nq">{l.celular ? formatPhoneBR(l.celular) : '—'}</td>
+                    <td className="adm-nq"><span className={`adm-p ${l.situacao === 'Cartão recusado' ? 'adm-amb' : 'adm-cin'}`}>{l.situacao}</span></td>
+                    <td>{l.detalhe}</td>
+                    <td className="adm-nq">{data(l.desde)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="adm-ver">Cadastro não concluído: criou a conta e saiu antes de cadastrar o cartão (recebe um e-mail e um WhatsApp após 24h). Cartão recusado: continua usando por 7 dias e recebe avisos no dia e no 5º dia. Pausada: só visualiza; os dados são apagados 90 dias depois da pausa, com e-mail 30 e 7 dias antes.</p>
       </section>
 
       <section className="adm-cartao">

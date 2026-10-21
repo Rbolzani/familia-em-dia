@@ -9,6 +9,8 @@ import {
   Users, LogOut, Car, Settings, UserPlus, Bell, X, Clock, Star, UserCog,
   ChevronRight, Headphones, HelpCircle, FileText, Shield, ExternalLink, Wallet, ChartPie,
 } from 'lucide-react'
+import { useUpsell, Cadeado, type RecursoUpsell } from '@/components/billing/Upsell'
+import { PLAN_LIMITS, type PlanId } from '@/lib/planos-limites'
 import { ChildAvatar } from '@/app/(app)/children/ChildrenClient'
 import { createClient } from '@/lib/supabase/client'
 import { Toaster } from '@/components/ui/Toast'
@@ -32,6 +34,8 @@ interface Props {
   isAdmin?: boolean
   /** Usuário logado: chave das preferências do tutorial neste navegador. */
   userId?: string
+  /** Plano da família: decide os cadeados (Logística, Alertas no WhatsApp). */
+  plano?: PlanId
 }
 
 // ── Palettes ───────────────────────────────────────────────────────────
@@ -45,7 +49,12 @@ const PALETTES = [
 
 
 // ── Component ──────────────────────────────────────────────────────────
-export default function AppLayout({ children, sidebarChildren: initial, activeFamilyId, isAdmin = false, userId = '' }: Props) {
+export default function AppLayout({ children, sidebarChildren: initial, activeFamilyId, isAdmin = false, userId = '', plano = 'familia' }: Props) {
+  // Cadeados: recurso fora do plano abre a caixa de upsell em vez de navegar.
+  // Conta pausada não ganha cadeado — a faixa do topo já explica a situação.
+  const { abrir: abrirUpsell } = useUpsell()
+  const travaLogistica: RecursoUpsell | undefined = plano !== 'pausada' && !PLAN_LIMITS[plano].logistics ? 'logistica' : undefined
+  const travaWhatsapp: RecursoUpsell | undefined = plano !== 'pausada' && !PLAN_LIMITS[plano].whatsapp ? 'whatsapp' : undefined
   const pathname = usePathname()
   const router   = useRouter()
 
@@ -220,12 +229,13 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
   }
 
   // ── Desktop NavItem ──────────────────────────────────────────────────
-  function NavItem({ href, label, icon: Icon, badge, tourId }: {
-    href: string; label: string; icon: React.ElementType; badge?: number; tourId?: string
+  function NavItem({ href, label, icon: Icon, badge, tourId, trava }: {
+    href: string; label: string; icon: React.ElementType; badge?: number; tourId?: string; trava?: RecursoUpsell
   }) {
     const active = isActive(href)
     return (
       <Link href={href} data-tour={tourId}
+        onClick={trava ? (e => { e.preventDefault(); abrirUpsell(trava) }) : undefined}
         className={`flex items-center gap-3 px-3 py-[6px] rounded-[11px] text-[14px] font-medium transition-all duration-150 relative mb-[1px] ${active ? 'nav-active' : 'hover:bg-white/[0.06]'}`}
         style={active ? { color:'#FFFFFF', fontWeight:700 } : { color:'rgba(231,241,238,0.72)' }}>
         {active && (
@@ -241,7 +251,8 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
           <Icon size={14} strokeWidth={active ? 2.5 : 1.8} />
         </div>
         <span className="flex-1 leading-none">{label}</span>
-        {badge !== undefined && badge > 0 && (
+        {trava && <Cadeado />}
+        {!trava && badge !== undefined && badge > 0 && (
           <div className="text-[10.5px] font-extrabold min-w-[20px] h-5 rounded-[7px] flex items-center justify-center px-[5px]"
             style={{ background:'#FF6B5C', color:'#fff', boxShadow:'0 2px 6px rgba(255,107,92,0.30)' }}>
             {badge}
@@ -252,8 +263,8 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
   }
 
   // ── Mobile sidebar NavItem ──
-  function MobileNavItem({ href, icon: Icon, label, amber, tourId }: {
-    href: string; icon: React.ElementType; label: string; amber?: boolean; tourId?: string
+  function MobileNavItem({ href, icon: Icon, label, amber, tourId, trava }: {
+    href: string; icon: React.ElementType; label: string; amber?: boolean; tourId?: string; trava?: RecursoUpsell
   }) {
     const active = isActive(href)
     const color = amber
@@ -261,7 +272,7 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
       : (active ? '#FFFFFF'   : 'rgba(231,241,238,0.62)')
     const iconColor = active ? '#FF6B5C' : color
     return (
-      <Link href={href} onClick={() => setMobileSidebarOpen(false)}
+      <Link href={href} onClick={e => { setMobileSidebarOpen(false); if (trava) { e.preventDefault(); abrirUpsell(trava) } }}
         data-tour={tourId}
         style={{ display:'flex', flexDirection:'row', alignItems:'center',
           gap:12, height:48, padding:'0 16px', position:'relative',
@@ -280,16 +291,17 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
         </span>
         <span style={{ fontSize:14, fontWeight: active ? 700 : 500,
           color, letterSpacing:'0.01em', lineHeight:1 }}>{label}</span>
+        {trava && <span style={{ marginLeft:'auto', color }}><Cadeado size={14} /></span>}
       </Link>
     )
   }
 
   // ── Desktop Configurações sub-panel item ──
-  function CfgPanelItem({ href, label, icon: Icon, badge, external }: {
-    href: string; label: string; icon: React.ElementType; badge?: string; external?: boolean
+  function CfgPanelItem({ href, label, icon: Icon, badge, external, trava }: {
+    href: string; label: string; icon: React.ElementType; badge?: string; external?: boolean; trava?: RecursoUpsell
   }) {
     return (
-      <Link href={href} onClick={() => setCfgPanelOpen(false)}
+      <Link href={href} onClick={e => { setCfgPanelOpen(false); if (trava) { e.preventDefault(); abrirUpsell(trava) } }}
         {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
         onMouseEnter={cfgEnter} onMouseLeave={cfgLeave}
         style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 12px',
@@ -298,7 +310,8 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
         className="hover:bg-white/[0.06]">
         <Icon size={13} strokeWidth={1.8} style={{ flexShrink:0 }} />
         <span style={{ flex:1 }}>{label}</span>
-        {badge && (
+        {trava && <Cadeado />}
+        {!trava && badge && (
           <span style={{ fontSize:9.5, fontWeight:700, background:'rgba(255,255,255,0.14)',
             color:'rgba(231,241,238,0.7)', padding:'1px 6px', borderRadius:5 }}>
             {badge}
@@ -337,7 +350,7 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
               <SectionLabel>Principal</SectionLabel>
               <NavItem href="/dashboard"  label="Início"    icon={LayoutDashboard} />
               <NavItem href="/calendario" label="Agenda"    icon={CalendarDays} />
-              <NavItem href="/logistica"  label="Logística" icon={Car} badge={pendingLogisticsCount} />
+              <NavItem href="/logistica"  label="Logística" icon={Car} badge={pendingLogisticsCount} trava={travaLogistica} />
             </div>
             <div style={{ marginBottom:10 }}>
               <SectionLabel>Rotina</SectionLabel>
@@ -561,7 +574,7 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
             color:'rgba(231,241,238,0.5)', padding:'2px 12px 4px' }}>Conta</div>
           <CfgPanelItem href="/conta"   label="Minha Conta" icon={UserCog} />
           <CfgPanelItem href="/planos"  label="Planos"      icon={Star} />
-          <CfgPanelItem href="/alertas" label="Alertas"     icon={Bell} badge="WhatsApp" />
+          <CfgPanelItem href="/alertas" label="Alertas no WhatsApp" icon={Bell} trava={travaWhatsapp} />
           <div style={{ height:1, background:'rgba(255,255,255,0.10)', margin:'6px 8px' }} />
           <div style={{ fontSize:10, fontWeight:800, letterSpacing:'0.14em', textTransform:'uppercase',
             color:'rgba(231,241,238,0.5)', padding:'2px 12px 4px' }}>Ajuda</div>
@@ -636,7 +649,7 @@ export default function AppLayout({ children, sidebarChildren: initial, activeFa
         <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-start', gap:0, padding:'8px 0 4px' }}>
           <MobileNavItem href="/dashboard"  icon={LayoutDashboard} label="Início"     />
           <MobileNavItem href="/calendario" icon={CalendarDays}    label="Agenda"     />
-          <MobileNavItem href="/logistica"  icon={Car}             label="Logística"  />
+          <MobileNavItem href="/logistica"  icon={Car}             label="Logística"  trava={travaLogistica} />
 
           <div style={{ height:1, background:'rgba(91,143,94,0.18)', margin:'6px 16px' }} />
 
