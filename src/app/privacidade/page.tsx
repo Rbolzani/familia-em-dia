@@ -33,8 +33,8 @@ export default function PrivacidadePage() {
 
       <H>2. Dados que coletamos</H>
       <ul>
-        <Li><strong>Cadastro do responsável:</strong> nome, e-mail e telefone/celular. <strong>Nome completo, CPF e
-          endereço</strong> são pedidos apenas a quem assina um plano pago, para a cobrança e a nota fiscal.</Li>
+        <Li><strong>Cadastro do responsável:</strong> nome, e-mail, telefone/celular e CPF. Endereço e dados do
+          cartão são informados na tela de pagamento do Stripe.</Li>
         <Li><strong>Dados dos filhos (crianças/adolescentes):</strong> nome, data de nascimento, escola, foto e
           informações de atividades — inseridos pelo responsável.</Li>
         <Li><strong>Documentos e dados sensíveis:</strong> arquivos que o Usuário opte por armazenar no cofre
@@ -67,7 +67,7 @@ export default function PrivacidadePage() {
         <Li><strong>Execução de contrato</strong> (art. 7º, V): operar as funcionalidades, autenticar,
           processar assinatura e prestar suporte.</Li>
         <Li><strong>Cumprimento de obrigação legal/regulatória</strong> (art. 7º, II): obrigações fiscais e legais.</Li>
-        <Li><strong>Legítimo interesse</strong> (art. 7º, IX): segurança, prevenção a fraudes e melhoria do Serviço.</Li>
+        <Li><strong>Legítimo interesse</strong> (art. 7º, IX): segurança, prevenção a fraudes — incluindo garantir que o teste grátis seja usado uma única vez por pessoa e por cartão — e melhoria do Serviço.</Li>
         <Li><strong>Consentimento</strong> (art. 7º, I / art. 11): comunicações de marketing e tratamento de
           dados sensíveis, quando aplicável — revogável a qualquer tempo.</Li>
       </ul>
@@ -78,17 +78,20 @@ export default function PrivacidadePage() {
         <Li><strong>Supabase</strong> — hospedagem de banco de dados e armazenamento de arquivos;</Li>
         <Li><strong>Anthropic</strong> e <strong>Groq</strong> — processamento por IA (classificação de
           texto/imagem e transcrição de voz);</Li>
-        <Li><strong>Stripe</strong> — processamento de pagamentos e assinaturas; recebe nome, CPF, telefone e
-          endereço de quem assina, para a cobrança e a emissão de nota fiscal;</Li>
-        <Li><strong>Meta (WhatsApp)</strong> — envio de mensagens e alertas;</Li>
+        <Li><strong>Stripe</strong> — processamento de pagamentos e assinaturas; recebe nome, CPF, telefone,
+          endereço e os dados do cartão (que não ficam em nossos servidores), para a cobrança e a emissão de
+          nota fiscal. Usamos uma identificação do cartão gerada pelo Stripe, que não revela o número, apenas
+          para saber se ele já foi usado em um teste grátis;</Li>
+        <Li><strong>Meta (WhatsApp)</strong> — envio de mensagens: resumo diário (planos Família e Plus) e
+          avisos da conta, como início e fim do teste, cobranças, falhas de pagamento e cancelamento;</Li>
         <Li><strong>Vercel</strong> — hospedagem da aplicação e estatísticas de visitas (páginas vistas, origem do
           acesso e cliques em botões), coletadas <strong>sem cookies</strong> e sem identificar o visitante;</Li>
         <Li><strong>Google (Google Analytics)</strong> — medição de audiência do site e do app, <strong>somente
           para quem aceitar os cookies</strong> no aviso da primeira visita. Recebe dados de navegação
           (páginas vistas, origem do acesso, cliques e conversões como cadastro e assinatura) e um
           identificador guardado em cookie. Não enviamos nome, e-mail, CPF nem dados dos filhos;</Li>
-        <Li><strong>Resend</strong> — envio de e-mails da conta (confirmação de cadastro,
-          redefinição de senha, resumo diário, um lembrete único a quem criou a conta e ainda não começou a usar, e os avisos de fim do teste grátis). Nos avisos de fim do teste, medimos com um registro do próprio site se o e-mail foi aberto e se o botão foi clicado, apenas para saber se a comunicação funciona; isso não é compartilhado com terceiros. A <strong>ImprovMX</strong> faz o recebimento dos e-mails de
+        <Li><strong>Resend</strong> — envio de e-mails da conta (confirmação de cadastro e do teste,
+          redefinição de senha, resumo diário, aviso único de cadastro não concluído, avisos antes da primeira cobrança, falhas de pagamento, cancelamento, pausa e exclusão da conta). Nos avisos de fim do teste, medimos com um registro do próprio site se o e-mail foi aberto e se o botão foi clicado, apenas para saber se a comunicação funciona; isso não é compartilhado com terceiros. A <strong>ImprovMX</strong> faz o recebimento dos e-mails de
           contato e suporte;</Li>
         <Li><strong>Sentry</strong> — monitoramento de erros da aplicação. Registra falhas
           técnicas para correção; não recebe conteúdo dos seus documentos, e identificadores
@@ -123,6 +126,11 @@ export default function PrivacidadePage() {
         além de encerrar a assinatura. Permanecem apenas os registros que a lei exija reter, como os
         dados fiscais das cobranças já realizadas, mantidos pelo operador de pagamento, e um registro
         estatístico anônimo da exclusão (data, tempo de conta e tipo de plano), que não identifica o titular.
+        Se a assinatura for encerrada (cancelamento ou falha de pagamento não regularizada), a conta fica
+        pausada por 90 dias, com os dados guardados para eventual reativação; depois disso, é eliminada,
+        com aviso prévio por e-mail. Os registros fiscais das cobranças são mantidos pelo prazo legal (5 anos).
+        A identificação do cartão usada para garantir um único teste grátis (gerada pelo Stripe, sem o
+        número do cartão) é mantida mesmo após a exclusão, apenas para essa finalidade.
       </P>
 
       <H>10. Direitos do titular</H>

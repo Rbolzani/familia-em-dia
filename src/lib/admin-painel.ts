@@ -46,10 +46,10 @@ export interface LinhaAssinante {
   /** De onde assinou: tela Planos do app, botão do WhatsApp ou do e-mail (vazio = antes de 16/10/2026). */
   origem: string | null
 }
-/** Um aviso de fim do teste enviado (faltando 3 dias ou na véspera). */
+/** Um aviso de fim do teste enviado (faltando 7 dias — só modelo com cartão —, 3 dias ou na véspera). */
 export interface LinhaAvisoFimTeste {
   nome: string | null; email: string
-  etapa: 'Faltando 3 dias' | 'Véspera'; enviadoEm: string
+  etapa: 'Faltando 7 dias' | 'Faltando 3 dias' | 'Véspera'; enviadoEm: string
   whatsapp: 'não enviado' | 'enviado' | 'entregue' | 'lido' | 'falhou'
   emailStatus: 'não enviado' | 'enviado' | 'aberto' | 'clicou'
   /** Assinou depois do aviso? Com a origem gravada na assinatura. */
@@ -73,6 +73,14 @@ export interface LinhaCancelamento {
   /** Cancelada ainda no teste grátis: nunca houve cobrança, e o acesso segue até o fim do teste. */
   noTeste: boolean
 }
+/** Modelo com cartão (contas criadas depois da virada): quem precisa de atenção. */
+export interface LinhaModeloNovo {
+  nome: string | null; email: string; celular: string | null
+  situacao: 'Cadastro não concluído' | 'Cartão recusado' | 'Pausada'
+  /** Plano escolhido, motivo da pausa, prazo do cartão ou data de exclusão. */
+  detalhe: string
+  desde: string
+}
 export interface LinhaOrigem { origem: string; cadastros: number; assinaram: number }
 export interface LinhaTempo { faixa: string; cadastros: number; pagantes: number }
 
@@ -89,7 +97,9 @@ export interface PainelNegocio {
     cortesia: number; convidados: number; incompletos: number; semUso: number
     /** Com filho cadastrado há mais de 72 horas e nenhuma atividade. */
     semAtividade72h: number
-    pagantesFamilia: number; pagantesPlus: number
+    pagantesBasico: number; pagantesFamilia: number; pagantesPlus: number
+    /** Modelo com cartão: cadastro sem cartão, cobrança recusada, conta pausada. */
+    interrompidos: number; cartaoRecusado: number; pausadas: number
   }
   funil: { criaram: number; concluiram: number; comFilho: number; usaramIa: number; assinaram: number; cancelaram: number }
   /** O que aconteceu em relação aos 14 dias de teste. Grupos sem sobreposição. */
@@ -103,6 +113,7 @@ export interface PainelNegocio {
   avisosFimTeste: LinhaAvisoFimTeste[]
   funilAviso: FunilAviso
   semAtividade: LinhaSemAtividade[]
+  modeloNovo: LinhaModeloNovo[]
   assinantes: LinhaAssinante[]
   cancelamentos: LinhaCancelamento[]
   origem: LinhaOrigem[]
@@ -114,9 +125,9 @@ export interface PainelNegocio {
 const MOTIVOS: Record<string, string> = {
   too_expensive: 'está caro', unused: 'não usa o suficiente', missing_features: 'faltou um recurso',
   switched_service: 'foi para outro serviço', too_complex: 'achou complicado',
-  low_quality: 'qualidade', customer_service: 'atendimento', other: 'outro motivo',
+  low_quality: 'teve problemas com o app', customer_service: 'atendimento', other: 'outro motivo',
 }
-const PLANO: Record<string, string> = { familia: 'Família', plus: 'Família Plus' }
+const PLANO: Record<string, string> = { basico: 'Básico', familia: 'Família', plus: 'Família Plus' }
 const ORIGEM: Record<string, string> = { app: 'App (tela Planos)', whatsapp: 'WhatsApp', email: 'E-mail' }
 
 // PostgREST devolve no máximo 1000 linhas por chamada — o mesmo teto mudo que
@@ -158,7 +169,10 @@ export async function montarPainel(): Promise<PainelNegocio> {
   const agora = Date.now()
 
   type Perfil = { user_id: string; full_name: string | null; phone: string | null; acquisition_source: string | null; profile_completed_at: string | null; signup_attribution: Record<string, unknown> | null }
-  type Sub = { user_id: string; plan: string | null; status: string | null; trial_ends_at: string | null; stripe_customer_id: string | null; stripe_subscription_id: string | null }
+  type Sub = {
+    user_id: string; plan: string | null; status: string | null; trial_ends_at: string | null; stripe_customer_id: string | null; stripe_subscription_id: string | null
+    oferta: string | null; billing_interval: string | null; pause_reason: string | null; paused_at: string | null; delete_after: string | null; payment_failed_at: string | null
+  }
   type Membro = { user_id: string; role: string | null; family_id: string; access_role: string | null; joined_at: string | null }
   type Uso = { user_id: string; filhos: number; atividades: number; usou_ia: boolean }
 
@@ -167,7 +181,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   const [usuarios, perfis, subs, membros, familias, lembretes, excluidas, filhosDatas, usoRes, avisos_, msgsWa] = await Promise.all([
     todosUsuarios(),
     todas<Perfil>('profiles', 'user_id, full_name, phone, acquisition_source, profile_completed_at, signup_attribution'),
-    todas<Sub>('subscriptions', 'user_id, plan, status, trial_ends_at, stripe_customer_id, stripe_subscription_id'),
+    todas<Sub>('subscriptions', 'user_id, plan, status, trial_ends_at, stripe_customer_id, stripe_subscription_id, oferta, billing_interval, pause_reason, paused_at, delete_after, payment_failed_at'),
     todas<Membro>('family_members', 'user_id, role, family_id, access_role, joined_at'),
     todas<{ id: string; created_by: string | null }>('families', 'id, created_by'),
     todas<{ user_id: string; enviado_em: string }>('cadastro_lembretes', 'user_id, enviado_em'),
@@ -331,7 +345,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
       if (depois) assinouPor.set(a.user_id, sub!.metadata?.origem ?? null)
       return {
         nome: p?.full_name ?? null, email: u?.email ?? '(conta excluída)',
-        etapa: a.etapa === 'd1' ? 'Véspera' : 'Faltando 3 dias', enviadoEm: a.enviado_em,
+        etapa: a.etapa === 'd1' ? 'Véspera' : a.etapa === 'd7' ? 'Faltando 7 dias' : 'Faltando 3 dias', enviadoEm: a.enviado_em,
         whatsapp: wa, emailStatus: em, assinou: origemSub,
       }
     })
@@ -401,13 +415,14 @@ export async function montarPainel(): Promise<PainelNegocio> {
     if (fim - inicioDe(s) > DIAS_TESTE * DIA) retencao.cancelouApos++
   }
   const pagantesContados = new Set<string>()
-  let pagantesFamilia = 0, pagantesPlus = 0
+  let pagantesBasico = 0, pagantesFamilia = 0, pagantesPlus = 0
   const inicioDosPagantes: number[] = []
   for (const s of pagas) {
     const cli = idDe(s.customer)
     if (pagantesContados.has(cli)) continue
     pagantesContados.add(cli)
-    if (descreve(s).chave === 'plus') pagantesPlus++; else pagantesFamilia++
+    const chave = descreve(s).chave
+    if (chave === 'plus') pagantesPlus++; else if (chave === 'basico') pagantesBasico++; else pagantesFamilia++
     inicioDosPagantes.push(s.start_date * 1000)
     if (agora - inicioDe(s) > DIAS_TESTE * DIA) retencao.pagandoApos++
   }
@@ -420,6 +435,8 @@ export async function montarPainel(): Promise<PainelNegocio> {
   const semUso: LinhaSemUso[] = []
   const redeApoio: LinhaRedeApoio[] = []
   const semAtividade: LinhaSemAtividade[] = []
+  const modeloNovo: LinhaModeloNovo[] = []
+  const curta = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })
   const cadastrosEm: number[] = []
   let gratuito = 0, cortesia = 0, incompletos = 0, nConvidados = 0, concluiram = 0, comFilho = 0, usaramIa = 0
   const porOrigem = new Map<string, LinhaOrigem>()
@@ -459,6 +476,19 @@ export async function montarPainel(): Promise<PainelNegocio> {
         entrouEm: m.joined_at ?? u.criado, ultimoAcesso: u.ultimoAcesso,
       })
     }
+    // Modelo com cartão: estas situações não existem no modelo antigo e não são
+    // "gratuito" — a conta não tem plano nenhum até assinar ou reativar.
+    else if (s?.oferta === 'v2' && (s.status === 'incompleto' || s.status === 'paused')) {
+      const pausada = s.status === 'paused'
+      modeloNovo.push({
+        nome: p?.full_name ?? null, email: u.email, celular: p?.phone ?? null,
+        situacao: pausada ? 'Pausada' : 'Cadastro não concluído',
+        detalhe: pausada
+          ? `${s.pause_reason === 'pagamento' ? 'cartão não regularizado' : 'assinatura cancelada'}${s.delete_after ? ` · apaga em ${curta(s.delete_after)}` : ''}`
+          : `escolheu ${PLANO[s.plan ?? ''] ?? 'um plano'} ${s.billing_interval === 'year' ? 'anual' : 'mensal'} · não cadastrou o cartão`,
+        desde: (pausada ? s.paused_at : null) ?? u.criado,
+      })
+    }
     else if (!p?.profile_completed_at) incompletos++
     else if (s?.status === 'trialing' && fimTeste > agora) {
       emTeste.push({
@@ -477,6 +507,14 @@ export async function montarPainel(): Promise<PainelNegocio> {
       // Passou dos 14 dias, nunca cancelou nada e não paga: ficou no gratuito.
       const idade = agora - new Date(u.criado).getTime()
       if (idade > DIAS_TESTE * DIA && !usuariosQueCancelaram.has(u.id) && !usuariosPagantes.has(u.id)) retencao.ficouGratis++
+    }
+    if (s?.oferta === 'v2' && s.status === 'past_due') {
+      const prazo = s.payment_failed_at ? new Date(new Date(s.payment_failed_at).getTime() + 7 * DIA).toISOString() : null
+      modeloNovo.push({
+        nome: p?.full_name ?? null, email: u.email, celular: p?.phone ?? null, situacao: 'Cartão recusado',
+        detalhe: `${PLANO[s.plan ?? ''] ?? 'Plano'}${prazo ? ` · pausa em ${curta(prazo)} se não atualizar` : ''}`,
+        desde: s.payment_failed_at ?? u.criado,
+      })
     }
     if (!ehConvidado) cadastrosEm.push(new Date(u.criado).getTime())
 
@@ -516,6 +554,7 @@ export async function montarPainel(): Promise<PainelNegocio> {
   semUso.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
   redeApoio.sort((a, b) => (b.entrouEm ?? '').localeCompare(a.entrouEm ?? ''))
   semAtividade.sort((a, b) => a.filhoEm.localeCompare(b.filhoEm))
+  modeloNovo.sort((a, b) => a.situacao.localeCompare(b.situacao) || b.desde.localeCompare(a.desde))
   const ordena = (m: Map<string, LinhaOrigem>) => [...m.values()].sort((a, b) => b.cadastros - a.cadastros)
 
   return {
@@ -523,7 +562,10 @@ export async function montarPainel(): Promise<PainelNegocio> {
       cadastros: usuarios.length, emTeste: emTeste.length, assinantes: pagas.length, gratuito, cancelaram,
       receitaMensalCentavos,
       contratadas: pagas.length + aguardando.length, aguardandoCobranca: aguardando.length, receitaPrevistaCentavos,
-      cortesia, convidados: nConvidados, incompletos, semUso: semUso.length, pagantesFamilia, pagantesPlus,
+      cortesia, convidados: nConvidados, incompletos, semUso: semUso.length, pagantesBasico, pagantesFamilia, pagantesPlus,
+      interrompidos: modeloNovo.filter(l => l.situacao === 'Cadastro não concluído').length,
+      cartaoRecusado: modeloNovo.filter(l => l.situacao === 'Cartão recusado').length,
+      pausadas: modeloNovo.filter(l => l.situacao === 'Pausada').length,
       semAtividade72h: semAtividade.filter(l => l.passou72h).length,
     },
     funil: {
@@ -532,6 +574,6 @@ export async function montarPainel(): Promise<PainelNegocio> {
       cancelaram,
     },
     retencao, tempoDeBase,
-    emTeste, semUso, redeApoio, pagamentoNaoConcluido, avisosFimTeste, funilAviso, semAtividade, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
+    emTeste, semUso, redeApoio, pagamentoNaoConcluido, avisosFimTeste, funilAviso, semAtividade, modeloNovo, assinantes, cancelamentos, origem: ordena(porOrigem), campanhas: ordena(porCampanha), avisos,
   }
 }
