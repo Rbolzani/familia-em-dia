@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { adminClient, sendWhatsApp } from '@/lib/whatsapp'
+import { adminClient } from '@/lib/whatsapp'
 
 // Sugestões de logística (quem leva / quem busca): avisar, aceitar, recusar.
 //
@@ -10,6 +10,10 @@ import { adminClient, sendWhatsApp } from '@/lib/whatsapp'
 // `field` iam direto para um UPDATE (qualquer coluna de qualquer atividade,
 // de qualquer família), e `proposedTo`/`proposedBy`/`activityTitle` decidiam
 // quem recebia notificação e WhatsApp, com o texto de quem chamava.
+//
+// Os avisos são só DENTRO DO APP (sino de notificações). O WhatsApp de
+// logística foi retirado em 21/10/2026 por decisão do Rogério (custo, e nunca
+// tinha chegado: usava o modelo do resumo diário, recusado pela Meta).
 //
 // Agora o corpo só diz QUAL sugestão (`suggestionId`) e QUAL ação. Atividade,
 // campo, família, remetente, destinatário e título vêm do banco, e cada ação
@@ -86,10 +90,6 @@ export async function POST(req: NextRequest) {
     const { data } = await admin.auth.admin.getUserById(id)
     return data.user?.email ?? 'Parceiro(a)'
   }
-  async function telefoneDe(id: string): Promise<string | null> {
-    const { data } = await admin.from('notification_settings').select('whatsapp_number').eq('user_id', id).maybeSingle()
-    return data?.whatsapp_number ?? null
-  }
   async function notificar(id: string, type: string, payload: Record<string, unknown>) {
     await admin.rpc('create_logistics_notification', { p_user_id: id, p_family_id: sug!.family_id, p_type: type, p_payload: payload })
   }
@@ -102,17 +102,6 @@ export async function POST(req: NextRequest) {
     await notificar(sug.proposed_to, 'logistics_suggestion', {
       suggestion_id: sug.id, proposed_by: user.id, proposed_by_name: proposerName, activity_title: titulo,
     })
-    // WhatsApp só na primeira sugestão pendente: várias de uma vez viram um aviso só.
-    const { count: outras } = await admin.from('logistics_suggestions')
-      .select('id', { count: 'exact', head: true })
-      .eq('proposed_to', sug.proposed_to).eq('family_id', sug.family_id).eq('status', 'pending').neq('id', sug.id)
-    if ((outras ?? 0) === 0) {
-      const phone = await telefoneDe(sug.proposed_to)
-      if (phone) {
-        const msg = `Você tem sugestões de logística de ${proposerName} pendentes. Acesse o app Família em Dia para aceitar ou recusar.`
-        await sendWhatsApp(phone, msg, undefined, { userId: sug.proposed_to, kind: 'logistica' })
-      }
-    }
     return NextResponse.json({ ok: true })
   }
 
@@ -141,13 +130,5 @@ export async function POST(req: NextRequest) {
   await notificar(sug.proposed_by, 'logistics_rejected', {
     rejected_by: user.id, rejected_by_name: rejecterName, activity_title: titulo, activity_date: activityDate,
   })
-  const phone = await telefoneDe(sug.proposed_by)
-  if (phone) {
-    const fmtDate = activityDate
-      ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(activityDate + 'T12:00:00'))
-      : ''
-    const msg = `${rejecterName} recusou sua sugestão de logística para a atividade ${titulo}${fmtDate ? ` na data ${fmtDate}` : ''}. O slot está livre novamente.`
-    await sendWhatsApp(phone, msg, undefined, { userId: sug.proposed_by, kind: 'logistica' })
-  }
   return NextResponse.json({ ok: true })
 }
