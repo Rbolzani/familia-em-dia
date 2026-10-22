@@ -59,13 +59,13 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
     </div>
     <div class="card">
       <div class="card-label">Custo variável por assinante</div>
-      <div class="card-value" style="color:#185FA5;">R$ 8,01</div>
-      <div class="card-sub">Família mensal: IA R$ 5,02 + WhatsApp R$ 1,22 + voz R$ 0,22 + Stripe R$ 1,56 · Básico R$ 3,84 · Plus R$ 8,48</div>
+      <div class="card-value" style="color:#185FA5;">R$ 6,31</div>
+      <div class="card-sub">Família mensal: IA R$ 3,32 + WhatsApp R$ 1,22 + voz R$ 0,22 + Stripe R$ 1,56 · Básico R$ 2,99 · Plus R$ 6,78</div>
     </div>
     <div class="card">
       <div class="card-label">Break-even</div>
-      <div class="card-value">19 assinantes</div>
-      <div class="card-sub">no Família mensal (R$ 24,90), já com 10% de imposto (DAS) · 19 no mix realista</div>
+      <div class="card-value">17 assinantes</div>
+      <div class="card-sub">no Família mensal (R$ 24,90), já com 10% de imposto (DAS) · 17 no mix realista</div>
     </div>
   </div>
 </div>
@@ -116,8 +116,8 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
 
         <tr class="grupo"><td colspan="5">Uso e transação (custo variável)</td></tr>
         <tr>
-          <td><strong>Anthropic (Claude Haiku 4.5)</strong></td>
-          <td>IA do reconhecimento (foto, print, texto, voz transcrita, documentos do cofre). Grade de horários usa Sonnet com raciocínio; o resto, Haiku</td>
+          <td><strong>Google (Gemini 3.8 Flash) · reserva: Anthropic (Claude)</strong></td>
+          <td>IA do reconhecimento (foto, print, texto, voz transcrita, documentos do cofre). Gemini 3.8 Flash em tudo desde 22/10/2026; Claude como reserva</td>
           <td>Por uso: US$ 1 por milhão de tokens de entrada, US$ 5 de saída</td>
           <td class="num">~R$ 5</td>
           <td><span class="badge badge-amber">Por uso</span></td>
@@ -186,17 +186,17 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
       <thead><tr><th>Item</th><th>Premissa de uso</th><th class="num">Básico mensal</th><th class="num">Família mensal</th><th class="num">Plus mensal</th><th class="num">Básico anual</th><th class="num">Família anual</th><th class="num">Plus anual</th></tr></thead>
       <tbody>
         <tr><td>WhatsApp (Meta)</td><td>Família e Plus: 30 resumos/mês do titular + 0,1 convidado com o resumo ligado; todos os planos: avisos de conta raros (cartão recusado, pausa)</td><td class="num">R$ 0,01</td><td class="num">R$ 1,22</td><td class="num">R$ 1,22</td><td class="num">R$ 0,01</td><td class="num">R$ 1,22</td><td class="num">R$ 1,22</td></tr>
-        <tr><td>IA (Anthropic)</td><td>Família e Plus: ~30 reconhecimentos/mês; Básico: 15 (limite do plano). Custo médio US$ 0,031 (85% comuns a ~US$ 0,01; 15% grades de horário a ~US$ 0,15)</td><td class="num">R$ 2,51</td><td class="num">R$ 5,02</td><td class="num">R$ 5,02</td><td class="num">R$ 2,51</td><td class="num">R$ 5,02</td><td class="num">R$ 5,02</td></tr>
+        <tr><td>IA (Gemini)</td><td>Família e Plus: ~30 reconhecimentos/mês; Básico: 15 (limite do plano). Custo médio US$ 0,0205 no Gemini 3.8 Flash, preço de 2027 (85% comuns a ~US$ 0,011; 15% grades de horário a ~US$ 0,073)</td><td class="num">R$ 1,66</td><td class="num">R$ 3,32</td><td class="num">R$ 3,32</td><td class="num">R$ 1,66</td><td class="num">R$ 3,32</td><td class="num">R$ 3,32</td></tr>
         <tr><td>Voz (Groq)</td><td>~5 minutos de áudio por mês — Família e Plus</td><td class="num">—</td><td class="num">R$ 0,22</td><td class="num">R$ 0,22</td><td class="num">—</td><td class="num">R$ 0,22</td><td class="num">R$ 0,22</td></tr>
         <tr><td>Stripe</td><td>3,99% + R$ 0,39 + 0,7% (anual: uma cobrança por ano, rateada)</td><td class="num">R$ 1,32</td><td class="num">R$ 1,56</td><td class="num">R$ 2,03</td><td class="num">R$ 0,78</td><td class="num">R$ 0,97</td><td class="num">R$ 1,34</td></tr>
       </tbody>
       <tfoot>
-        <tr><td>Total variável/mês</td><td></td><td class="num">R$ 3,84</td><td class="num">R$ 8,01</td><td class="num">R$ 8,48</td><td class="num">R$ 3,29</td><td class="num">R$ 7,42</td><td class="num">R$ 7,80</td></tr>
+        <tr><td>Total variável/mês</td><td></td><td class="num">R$ 2,99</td><td class="num">R$ 6,31</td><td class="num">R$ 6,78</td><td class="num">R$ 2,44</td><td class="num">R$ 5,72</td><td class="num">R$ 6,10</td></tr>
       </tfoot>
     </table>
   </div>
   <div class="info" style="margin-top:12px;">
-    <strong>Custo de quem ainda não paga.</strong> Cada teste de 14 dias custa cerca de <strong>R$ 2,31</strong> no Família e no Plus (14 resumos no WhatsApp R$ 0,51 + aviso da véspera da 1ª cobrança R$ 0,04 + parte do continuar cadastro R$ 0,08 + ~10 reconhecimentos de IA R$ 1,67) e <strong>~R$ 1,80</strong> no Básico (sem resumo). Quem sai antes de cadastrar o cartão recebe um WhatsApp de Marketing (<code>continuar_cadastro</code>, ~R$ 0,34) e um e-mail. Os avisos de 7 e 3 dias antes da cobrança e a confirmação de cancelamento saem só por e-mail. As contas do modelo antigo que ficaram no Gratuito custam quase nada (IA limitada a 5 usos/mês, sem WhatsApp).
+    <strong>Custo de quem ainda não paga.</strong> Cada teste de 14 dias custa cerca de <strong>R$ 1,75</strong> no Família e no Plus (14 resumos no WhatsApp R$ 0,51 + aviso da véspera da 1ª cobrança R$ 0,04 + parte do continuar cadastro R$ 0,08 + ~10 reconhecimentos de IA R$ 1,11) e <strong>~R$ 1,24</strong> no Básico (sem resumo). Quem sai antes de cadastrar o cartão recebe um WhatsApp de Marketing (<code>continuar_cadastro</code>, ~R$ 0,34) e um e-mail. Os avisos de 7 e 3 dias antes da cobrança e a confirmação de cancelamento saem só por e-mail. As contas do modelo antigo que ficaram no Gratuito custam quase nada (IA limitada a 5 usos/mês, sem WhatsApp).
   </div>
 </div>
 
@@ -212,15 +212,15 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
         <tr><td>Supabase Pro</td><td>Fixo</td><td class="num">R$ 135</td><td class="num">R$ 135</td><td class="num">R$ 135</td><td class="num">R$ 135 + extras</td></tr>
         <tr><td>Chip do WhatsApp + domínio</td><td>Fixo</td><td class="num">R$ 18</td><td class="num">R$ 18</td><td class="num">R$ 18</td><td class="num">R$ 18</td></tr>
         <tr><td>WhatsApp (Meta)</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 61</td><td class="num">R$ 243</td><td class="num">R$ 609</td></tr>
-        <tr><td>IA (Anthropic)</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 251</td><td class="num">R$ 1.004</td><td class="num">R$ 2.511</td></tr>
+        <tr><td>IA (Gemini)</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 166</td><td class="num">R$ 664</td><td class="num">R$ 1.660</td></tr>
         <tr><td>Voz (Groq)</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 11</td><td class="num">R$ 43</td><td class="num">R$ 108</td></tr>
         <tr><td>Stripe</td><td>Variável</td><td class="num">R$ 0</td><td class="num">R$ 78</td><td class="num">R$ 312</td><td class="num">R$ 779</td></tr>
         <tr><td>Resend</td><td>Fixo a partir de ~100 e-mails/dia</td><td class="num">R$ 0</td><td class="num">R$ 0</td><td class="num">R$ 0</td><td class="num">R$ 108</td></tr>
       </tbody>
       <tfoot>
-        <tr><td><strong>Custo total/mês</strong></td><td></td><td class="num">R$ 261</td><td class="num">R$ 662</td><td class="num">R$ 1.864</td><td class="num">R$ 4.376</td></tr>
+        <tr><td><strong>Custo total/mês</strong></td><td></td><td class="num">R$ 261</td><td class="num">R$ 577</td><td class="num">R$ 1.524</td><td class="num">R$ 3.525</td></tr>
         <tr style="font-size:12px; color:#888;"><td>Receita bruta (R$ 24,90)</td><td></td><td class="num">R$ 0</td><td class="num">R$ 1.245</td><td class="num">R$ 4.980</td><td class="num">R$ 12.450</td></tr>
-        <tr style="font-size:12px;"><td><strong>Margem antes de imposto</strong></td><td></td><td class="num" style="color:#A32D2D;">—</td><td class="num" style="color:#3B6D11;">47%</td><td class="num" style="color:#3B6D11;">63%</td><td class="num" style="color:#3B6D11;">65%</td></tr>
+        <tr style="font-size:12px;"><td><strong>Margem antes de imposto</strong></td><td></td><td class="num" style="color:#A32D2D;">—</td><td class="num" style="color:#3B6D11;">54%</td><td class="num" style="color:#3B6D11;">69%</td><td class="num" style="color:#3B6D11;">72%</td></tr>
       </tfoot>
     </table>
   </div>
@@ -231,9 +231,9 @@ Câmbio de referência: <strong>R$ 5,40 / US$ 1,00</strong> (conservador; ajusta
 <div class="section-title">Cálculo do break-even</div>
   <div class="breakeven-box">
     Custo fixo mensal: <strong>R$ 261,33</strong> (Vercel R$ 108 + Supabase R$ 135 + chip R$ 15 + domínio R$ 3,33)<br>
-    Família mensal: R$ 24,90 − R$ 8,01 de variável − R$ 2,49 de imposto (10%) = <strong>R$ 14,40 por assinante</strong><br>
-    Break-even: R$ 261,33 ÷ R$ 14,40 = 18,2 → <strong>19 assinantes</strong><br>
-    <span style="color:#777;">Outros planos: Básico anual 24 · Básico mensal 19 · Família anual 25 · Mix realista 19 · Plus anual 16 · Plus mensal 12 (mix realista: 30% Básico, 55% Família, 15% Plus; 65% mensal, 35% anual).</span>
+    Família mensal: R$ 24,90 − R$ 6,31 de variável − R$ 2,49 de imposto (10%) = <strong>R$ 16,10 por assinante</strong><br>
+    Break-even: R$ 261,33 ÷ R$ 16,10 = 16,2 → <strong>17 assinantes</strong><br>
+    <span style="color:#777;">Outros planos: Básico anual 23 · Básico mensal 18 · Família anual 22 · Mix realista 17 · Plus anual 14 · Plus mensal 11 (mix realista: 30% Básico, 55% Família, 15% Plus; 65% mensal, 35% anual).</span>
   </div>
 </div>
 

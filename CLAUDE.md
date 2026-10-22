@@ -21,7 +21,8 @@ Plataforma de gestão familiar para pais brasileiros. Centraliza agenda escolar,
 | UI | React 19 + Tailwind CSS 4 |
 | Ícones | Lucide React |
 | Banco / Auth | Supabase (PostgreSQL + RLS) |
-| IA (extração) | Claude Haiku via @anthropic-ai/sdk |
+| IA (captura) | Gemini 3.8 Flash via REST (`lib/ia-gemini.ts`); reserva: Claude via @anthropic-ai/sdk |
+| IA (OCR do Cofre) | Claude Haiku via @anthropic-ai/sdk |
 | IA (voz) | Groq Whisper via openai SDK (baseURL Groq) |
 | Pagamentos | Stripe (Checkout, Billing Portal, Webhooks, proração) |
 | Notificações | WhatsApp Cloud API (Twilio fallback) |
@@ -127,7 +128,8 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 ## Features Existentes
 
 ### 1. Captura por IA (`/ia`)
-- **Foto/imagem:** envia para `/api/ai-extract`, Claude Haiku extrai **atividades, lembretes, documentos e mensalidades** (4 classes)
+- **Foto/imagem:** envia para `/api/ai-extract`, o **Gemini 3.8 Flash** extrai **atividades, lembretes, documentos e mensalidades** (4 classes). Se o Gemini falhar, demorar (150 s) ou devolver JSON inválido, cai no Claude (triagem Haiku → Sonnet com raciocínio nas grades). Sem `GEMINI_API_KEY`, só Claude. Tokens de cada leitura no log `[ai-extract] gemini`.
+- **Travas depois da IA** (`lib/ia-pos-processamento.ts`, sem imports — o teste `testes-ia/testar.mjs` importa o mesmo arquivo): grade traz `weekday` e o código calcula a data; evento com mês escrito que já passou (até 45 dias) sai da lista; "19/08 (quarta)" usa o ano em que dia e data coincidem; "dia 11" sem mês segue indo para o mês seguinte; título sem sufixo de dia; grade não vira documento escolar. `weekday`/`month_written` não saem da rota.
 - ⚠️ **Mensalidade exige `due_day`** — sem o dia do mês o item vira lembrete; o prompt proíbe inventá-lo e `sanitizePayments()` descarta valor fora de 1..31 (violaria o CHECK do banco e derrubaria o lote inteiro)
 - **Texto livre:** mesmo endpoint, entrada manual
 - **Voz (novo):** MediaRecorder → `/api/voice-transcribe` → Whisper → texto no campo → ai-extract
@@ -250,6 +252,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
 # IA — extração de texto/imagem
+# Captura: Gemini principal (sem esta chave, a captura usa só o Claude)
+GEMINI_API_KEY=
+GEMINI_MODEL=            # opcional; padrão gemini-3.8-flash
+# Reserva da captura e OCR do Cofre
 ANTHROPIC_API_KEY=
 
 # IA — transcrição de voz (Groq Whisper)
