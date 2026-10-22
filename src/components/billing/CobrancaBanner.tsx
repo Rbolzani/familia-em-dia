@@ -11,7 +11,7 @@ export type FaixaCobranca =
   | { tipo: 'teste'; diasRestantes: number; cobrancaEm: string; plano: string; valor: string; conhecer: 'familia' | 'plus' | null; isOwner: boolean }
   | { tipo: 'cancelado'; noTeste: boolean; ate: string; isOwner: boolean }
   | { tipo: 'atraso'; ate: string; isOwner: boolean }
-  | { tipo: 'pausada'; motivo: 'cancelada' | 'pagamento'; apagarEm: string; isOwner: boolean; dono: string | null }
+  | { tipo: 'pausada'; motivo: 'cancelada' | 'pagamento' | 'dono_saiu'; apagarEm: string; isOwner: boolean; dono: string | null }
 
 export default function CobrancaBanner({ faixa }: { faixa: FaixaCobranca }) {
   const [fechada, setFechada] = useState(false)
@@ -56,7 +56,10 @@ export default function CobrancaBanner({ faixa }: { faixa: FaixaCobranca }) {
       if (faixa.isOwner) botao = { rotulo: 'Atualizar cartão', href: '/planos?acao=cartao' }
       break
     case 'pausada':
-      if (faixa.isOwner) {
+      if (faixa.isOwner && faixa.motivo === 'dono_saiu') {
+        texto = <><strong>Esta família agora é sua.</strong> Quem a criou saiu do Família em Dia, e os dados continuam aqui. A conta está pausada: dá para ver tudo, mas não criar nem editar até você assinar um plano. Sem assinatura, os dados ficam guardados até {faixa.apagarEm}.</>
+        botao = { rotulo: 'Assinar', href: '/assinar?reativar=1' }
+      } else if (faixa.isOwner) {
         texto = <><strong>Sua conta está pausada.</strong> {faixa.motivo === 'pagamento' ? 'Não conseguimos cobrar o cartão.' : 'A assinatura foi cancelada.'} Você ainda pode ver sua agenda e seus documentos, mas não pode criar nem editar. Seus dados ficam guardados até {faixa.apagarEm}; depois disso, a conta é apagada.</>
         botao = { rotulo: 'Reativar assinatura', href: '/assinar?reativar=1' }
       } else {

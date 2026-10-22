@@ -103,7 +103,8 @@ export default function TermosPage() {
           anterior (teste sem cartão), mantêm as condições com que foram criadas, incluindo o plano gratuito
           ao fim do teste.</Li>
         <Li><strong>5.13 Exclusão da conta.</strong> Ao excluir a conta, a assinatura é cancelada de imediato,
-          sem reembolso de período já pago.</Li>
+          sem reembolso de período já pago, ressalvado o item 5.6. Se houver convidados, a família passa para o
+          convidado mais antigo, com os dados, e fica pausada (item 5.9) até que ele assine um plano.</Li>
       </ul>
 
       <H>6. Inteligência artificial</H>

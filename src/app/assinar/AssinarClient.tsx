@@ -2,12 +2,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import DadosAssinaturaModal from '@/components/billing/DadosAssinaturaModal'
 import {
   NOME_PLANO, PLANOS_PAGOS, PLANO_RECOMENDADO, DIAS_TESTE, DESCONTO_ANUAL_PCT,
   precoPorMes, precoCobrado, reais, type PlanoPago, type Ciclo,
 } from '@/lib/planos-oferta'
 
-export type Modo = 'concluir' | 'cartao_usado' | 'reativar'
+export type Modo = 'concluir' | 'cartao_usado' | 'reativar' | 'herdou'
 
 const TEXTOS: Record<Modo, { titulo: string; texto: (p: string, v: string) => string; botao: string }> = {
   // T7
@@ -28,6 +29,12 @@ const TEXTOS: Record<Modo, { titulo: string; texto: (p: string, v: string) => st
     texto: (p, v) => `Escolha o plano para voltar a usar tudo. A assinatura começa hoje, sem novo teste: a primeira cobrança de ${v} (plano ${p}) é feita agora.`,
     botao: 'Reativar assinatura',
   },
+  // Família herdada: o dono anterior excluiu a conta (excluir-conta.ts)
+  herdou: {
+    titulo: 'Esta família agora é sua.',
+    texto: (p, v) => `Quem criou a família saiu do Família em Dia, e ela passou para você, com todos os dados. Para voltar a criar e editar, escolha um plano: a assinatura começa hoje, com a primeira cobrança de ${v} (plano ${p}).`,
+    botao: 'Assinar',
+  },
 }
 
 export default function AssinarClient({ modo, planoInicial, cicloInicial, voltouDoStripe }: {
@@ -38,6 +45,8 @@ export default function AssinarClient({ modo, planoInicial, cicloInicial, voltou
   const [ciclo, setCiclo] = useState<Ciclo>(cicloInicial)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
+  // Quem entrou por convite não informou CPF nem endereço: o checkout pede antes.
+  const [pedirDados, setPedirDados] = useState(false)
   const t = TEXTOS[modo]
   const valorHoje = reais(precoCobrado(plano, ciclo))
 
@@ -51,6 +60,7 @@ export default function AssinarClient({ modo, planoInicial, cicloInicial, voltou
       })
       const j = await r.json()
       if (r.ok && j.url) { window.location.href = j.url; return }
+      if (j.code === 'dados_pendentes') { setPedirDados(true); setLoading(false); return }
       setErro(j.error || 'Não foi possível abrir o pagamento. Tente de novo.')
     } catch {
       setErro('Sem conexão. Tente de novo.')
@@ -126,12 +136,13 @@ export default function AssinarClient({ modo, planoInicial, cicloInicial, voltou
           {modo === 'cartao_usado' && (
             <button onClick={() => router.push('/assinar')} className="font-semibold" style={{ color: '#7B6FE8' }}>Voltar</button>
           )}
-          {modo === 'reativar' && (
+          {(modo === 'reativar' || modo === 'herdou') && (
             <button onClick={() => router.push('/dashboard')} className="font-semibold" style={{ color: '#7B6FE8' }}>Ver meus dados</button>
           )}
           <button onClick={sair} style={{ color: '#8585A8' }}>Sair</button>
         </div>
       </div>
+      <DadosAssinaturaModal open={pedirDados} onClose={() => setPedirDados(false)} onSalvo={() => { setPedirDados(false); continuar() }} />
     </div>
   )
 }

@@ -6,10 +6,16 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { buscarTodas } from '@/lib/paginacao'
 import { stripe } from '@/lib/stripe'
+import { janelaArrependimento, reembolsarEEncerrar } from '@/lib/stripe-arrependimento'
 
 /**
  * Cancela a cobrança do usuário no Stripe, na hora e sem reembolso de período
- * já pago (Termos 5.13, desde 20/10/2026 — antes devolvia dentro de 7 dias).
+ * já pago (Termos 5.13, desde 20/10/2026).
+ *
+ * EXCEÇÃO — arrependimento (CDC art. 49, Termos 5.6): assinatura contratada
+ * SEM teste (reativação, "assinar sem teste", conta antiga) e cobrada há menos
+ * de 7 dias. Excluir a conta é desistir da compra tanto quanto cancelar, então
+ * vale a mesma regra de /api/stripe/cancel: devolve tudo e encerra na hora.
  *
  * O cliente do Stripe NÃO é apagado: as faturas já pagas precisam continuar
  * existindo (obrigação fiscal e prova para as duas partes). Sem assinatura
@@ -32,6 +38,15 @@ export async function encerrarCobranca(
     stripe.subscriptions.list({ customer: customerId, status: st as 'active', limit: 20 })))
   const vivas = listas.flatMap(l => l.data)
   if (vivas.length === 0) return
+
+  if (vivas.every(s => !s.trial_end)) {
+    const janela = await janelaArrependimento(customerId, vivas.map(s => s.id))
+    if (janela.dentro) {
+      const { reembolsado } = await reembolsarEEncerrar(janela, vivas, customerId)
+      console.warn('[delete-account] arrependimento: R$ %s devolvidos', (reembolsado / 100).toFixed(2))
+      return
+    }
+  }
 
   for (const s of vivas) {
     // Com `subscription_schedule` o Stripe recusa cancelar direto; soltar o
@@ -165,6 +180,14 @@ export async function excluirConta(
       throw new Error(rpcErr.message)
     }
 
+    // 4b. Família com convidados passou para o convidado mais antigo
+    //     (excluir_conta). Sem assinatura própria, ele herdaria a família de
+    //     graça — então ela fica PAUSADA (só visualização, para todos) até o
+    //     novo dono assinar. Melhor esforço: não desfaz a exclusão.
+    if (myFamilyIds.length > 0) {
+      await pausarFamiliaHerdada(admin, myFamilyIds).catch(e => console.error('[delete-account] pausar família herdada:', e))
+    }
+
     // 5. Deletar arquivos do Storage (melhor esforço)
     if (storagePathsToDelete.length > 0) {
       const { error: storageErr } = await admin.storage
@@ -193,4 +216,38 @@ export async function excluirConta(
     }
 
     return { ok: true }
+}
+
+
+/**
+ * O novo dono de uma família herdada (o dono anterior excluiu a conta) fica
+ * com a família pausada — só visualização, para ele e para os demais
+ * convidados — até assinar. Quem já tem assinatura viva própria (ou conta
+ * cortesia) segue como está. Usa as regras da conta pausada (Termos 5.9):
+ * reativa em /assinar sem teste; dados apagados em 90 dias sem assinatura.
+ */
+async function pausarFamiliaHerdada(admin: ReturnType<typeof createAdminClient>, familyIds: string[]) {
+  const { data: fams } = await admin.from('families').select('created_by').in('id', familyIds)
+  const herdeiros = [...new Set((fams ?? []).map(f => f.created_by as string | null).filter((x): x is string => !!x))]
+  for (const uid of herdeiros) {
+    const { data: s } = await admin.from('subscriptions')
+      .select('plan, status, stripe_customer_id, stripe_subscription_id').eq('user_id', uid).maybeSingle()
+    const pago = !!s?.plan && s.plan !== 'free'
+    const assinaturaViva = !!s?.stripe_subscription_id && ['active', 'trialing', 'past_due'].includes(s.status as string)
+    const cortesia = s?.status === 'active' && pago && !s.stripe_customer_id
+    if (assinaturaViva || cortesia) continue
+    const agora = new Date()
+    await admin.from('subscriptions').upsert({
+      user_id: uid,
+      oferta: 'v2',
+      plan: pago ? s!.plan : 'familia',
+      status: 'paused',
+      pause_reason: 'dono_saiu',
+      paused_at: agora.toISOString(),
+      delete_after: new Date(agora.getTime() + 90 * 86_400_000).toISOString(),
+      trial_ends_at: null,
+      cancel_at_period_end: false,
+    }, { onConflict: 'user_id' })
+    console.warn('[delete-account] família herdada pausada até o novo dono assinar')
+  }
 }

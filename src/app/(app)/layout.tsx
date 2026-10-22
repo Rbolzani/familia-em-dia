@@ -27,7 +27,7 @@ function montarFaixa(eff: Awaited<ReturnType<typeof getEffectiveSubscription>>, 
   if (eff.oferta !== 'v2') return null
   const isOwner = eff.isOwner
   if (eff.status === 'paused') {
-    return { tipo: 'pausada', motivo: eff.pauseReason === 'pagamento' ? 'pagamento' : 'cancelada', apagarEm: eff.deleteAfter ? dataCurta(eff.deleteAfter) : '', isOwner, dono: eff.ownerName }
+    return { tipo: 'pausada', motivo: eff.pauseReason === 'pagamento' ? 'pagamento' : eff.pauseReason === 'dono_saiu' ? 'dono_saiu' : 'cancelada', apagarEm: eff.deleteAfter ? dataCurta(eff.deleteAfter) : '', isOwner, dono: eff.ownerName }
   }
   if (eff.status === 'past_due') {
     const base = eff.paymentFailedAt ? new Date(eff.paymentFailedAt).getTime() : Date.now()
