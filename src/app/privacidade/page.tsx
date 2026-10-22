@@ -83,7 +83,7 @@ export default function PrivacidadePage() {
           nota fiscal. Usamos uma identificação do cartão gerada pelo Stripe, que não revela o número, apenas
           para saber se ele já foi usado em um teste grátis;</Li>
         <Li><strong>Meta (WhatsApp)</strong> — envio de mensagens: resumo diário (planos Família e Plus) e
-          avisos da conta, como início e fim do teste, cobranças, falhas de pagamento e cancelamento;</Li>
+          avisos da conta, como cadastro não concluído, véspera da primeira cobrança, falhas de pagamento e pausa da conta;</Li>
         <Li><strong>Vercel</strong> — hospedagem da aplicação e estatísticas de visitas (páginas vistas, origem do
           acesso e cliques em botões), coletadas <strong>sem cookies</strong> e sem identificar o visitante;</Li>
         <Li><strong>Google (Google Analytics)</strong> — medição de audiência do site e do app, <strong>somente

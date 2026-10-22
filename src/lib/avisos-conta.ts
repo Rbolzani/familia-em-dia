@@ -273,8 +273,9 @@ export async function avisarAntesDaCobranca(userId: string, etapa: 'd7' | 'd3' |
     }
   }
   const email = await mandarEmail(c, e)
-  // W1 só nos avisos de 3 dias e véspera (o de 7 dias é só e-mail).
-  const whatsapp = etapa === 'd7' ? false
+  // W1 só na véspera (decisão do Rogério, 21/10/2026: os avisos de 7 e de 3
+  // dias são só por e-mail, para reduzir o custo de WhatsApp na entrada).
+  const whatsapp = etapa !== 'd1' ? false
     : await mandarWhatsApp(admin, userId, [quando(c.fimTeste), fim, nomePlano(c), valor(c)], TPL.cobranca(), 'fim_teste')
   return { email, whatsapp }
 }
@@ -303,11 +304,9 @@ export async function avisarCancelamento(userId: string): Promise<void> {
       'Se puder, conte por que cancelou respondendo este e-mail. Isso nos ajuda muito.',
     ],
   })
-  const frase = noTeste
-    ? `Sua assinatura do Família em Dia foi cancelada e nenhuma cobrança será feita. Você continua usando o plano ${nomePlano(c)} normalmente até ${d}.`
-    : `Sua assinatura do Família em Dia foi cancelada. Você continua usando o plano ${nomePlano(c)} até ${d}, sem novas cobranças.`
-  const whatsapp = await mandarWhatsApp(admin, userId, frase, TPL.conta(), 'cancelamento')
-  await concluir(admin, userId, 'cancelamento', chave, whatsapp, email)
+  // Confirmação só por e-mail (decisão do Rogério, 21/10/2026: sem WhatsApp no
+  // cancelamento, para reduzir custo; a tela T13 do app já confirma na hora).
+  await concluir(admin, userId, 'cancelamento', chave, false, email)
 }
 
 // ── E7/E8 + W2 — Cartão recusado (dia 0 e dia 5) ────────────────────────────

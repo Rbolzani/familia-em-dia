@@ -71,8 +71,8 @@ export default function TermosPage() {
         <Li><strong>5.3 Cartão e cobrança automática.</strong> O cartão de crédito é cadastrado na contratação,
           mas nada é cobrado durante o teste. Ao fim dos 14 dias, a primeira cobrança é feita
           automaticamente no plano e ciclo vigentes, e a assinatura passa a ser <strong>renovada
-          automaticamente</strong> a cada ciclo, até o cancelamento. O Usuário é avisado por e-mail 7 dias
-          antes do fim do teste e, por e-mail e WhatsApp, 3 dias antes e na véspera.</Li>
+          automaticamente</strong> a cada ciclo, até o cancelamento. O Usuário é avisado por e-mail 7 e 3 dias
+          antes do fim do teste e, por e-mail e WhatsApp, na véspera.</Li>
         <Li><strong>5.4 Cancelamento durante o teste.</strong> O Usuário pode cancelar a qualquer momento pela
           Plataforma. Cancelando durante o teste, <strong>nenhuma cobrança é feita</strong>, e o acesso ao plano
           continua até o fim dos 14 dias.</Li>

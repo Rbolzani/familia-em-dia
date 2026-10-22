@@ -98,8 +98,8 @@ corrigir, e aí avalio o reembolso caso a caso.
 
 ### Fui cobrado e não queria / esqueci de cancelar
 ```
-A primeira cobrança acontece no 15º dia, e avisamos 7 dias, 3 dias e 1 dia
-antes, por e-mail e WhatsApp. Posso cancelar agora para não haver novas
+A primeira cobrança acontece no 15º dia, e avisamos por e-mail 7 e 3 dias
+antes e, na véspera, por e-mail e WhatsApp. Posso cancelar agora para não haver novas
 cobranças, e você continua usando até o fim do período pago.
 
 Me conta o que aconteceu que eu avalio o seu caso.
