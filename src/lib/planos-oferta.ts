@@ -13,8 +13,10 @@
 // ⚠️ Mudar preço aqui exige também: um lookup_key NOVO em PRECOS_VIGENTES
 // (o Stripe não altera o valor de um preço existente) e a seção de planos da
 // landing estática (public/marketing/Landing-Familia-em-Dia-P6-IA.html).
-// Os limites de uso continuam em billing.ts (PLAN_LIMITS) — a tabela abaixo
-// só os descreve.
+// Os limites de uso ficam em planos-limites.ts (PLAN_LIMITS) — a tabela abaixo
+// só os descreve (o limite de reconhecimentos do Básico vem de lá).
+
+import { PLAN_LIMITS } from '@/lib/planos-limites'
 
 export type PlanoPago = 'basico' | 'familia' | 'plus'
 export type Ciclo = 'month' | 'year'
@@ -66,7 +68,7 @@ export const COMPARATIVO: LinhaComparativo[] = [
   { recurso: `Anual (−${DESCONTO_ANUAL_PCT}%)`, basico: `${reais(precoPorMes('basico', 'year'))}/mês`, familia: `${reais(precoPorMes('familia', 'year'))}/mês`, plus: `${reais(precoPorMes('plus', 'year'))}/mês` },
   { recurso: 'Filhos', basico: 'até 2', familia: 'até 3', plus: 'ilimitados' },
   { recurso: 'Rede de apoio', basico: '— (só você)', familia: 'você + 1 pessoa', plus: 'ilimitada' },
-  { recurso: 'Reconhecimento de foto, print, texto e documentos', basico: '30 por mês', familia: 'ilimitado', plus: 'ilimitado' },
+  { recurso: 'Reconhecimento de foto, print, texto e documentos', basico: `${PLAN_LIMITS.basico.aiPerMonth} por mês`, familia: 'ilimitado', plus: 'ilimitado' },
   { recurso: 'Reconhecimento por voz', basico: false, familia: true, plus: true },
   { recurso: 'Resumo diário no WhatsApp', basico: false, familia: true, plus: true },
   { recurso: 'Cofre de documentos', basico: '200 MB', familia: '1 GB', plus: '5 GB' },

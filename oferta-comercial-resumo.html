@@ -80,7 +80,7 @@
     <div class="divider"></div>
     <ul>
       <li><span class="ok">✓</span> Até 2 filhos</li>
-      <li><span class="ok">✓</span> 30 reconhecimentos de foto, print, texto e documentos por mês</li>
+      <li><span class="ok">✓</span> 15 reconhecimentos de foto, print, texto e documentos por mês</li>
       <li><span class="ok">✓</span> Cofre de documentos (200 MB)</li>
       <li><span class="ok">✓</span> Calendário, mensalidades e alertas no app</li>
       <li><span class="no">—</span> Sem voz, WhatsApp, rede de apoio e logística</li>
@@ -143,12 +143,12 @@
     <tr>
       <td>Básico</td>
       <td>R$19,90/mês</td>
-      <td>Porta de entrada abaixo do limiar de R$20 na hora de cadastrar o cartão. Sem WhatsApp nem voz, tem custo variável baixo (R$2,82) e margem parecida com a do Família.</td>
+      <td>Porta de entrada abaixo do limiar de R$20 na hora de cadastrar o cartão. Limite de 15 reconhecimentos por mês (metade do uso médio esperado, ~30): o cliente sente o limite e vê o valor do Família. Sem WhatsApp nem voz e com IA limitada, custa R$3,84 por mês e deixa R$14,07 — quase o mesmo que o Família.</td>
     </tr>
     <tr>
       <td>Família</td>
       <td>R$24,90/mês (era R$19,90 de 16 a 21/10/2026)</td>
-      <td>É o plano que queremos vender: concentra os recursos de hábito diário. Continua abaixo de R$25, na faixa "confortável, sem atrito". Margem de R$17,75 por assinante.</td>
+      <td>É o plano que queremos vender: concentra os recursos de hábito diário. Continua abaixo de R$25, na faixa "confortável, sem atrito". Margem de R$14,40 por assinante.</td>
     </tr>
     <tr>
       <td>Família Plus</td>
@@ -203,13 +203,13 @@
     </tr>
     <tr>
       <td>Custo variável</td>
-      <td>Básico R$2,82 · Família R$4,66 · Plus R$5,13 por assinante/mês</td>
-      <td>WhatsApp R$1,40 (Família e Plus) + IA R$1,50 + voz R$0,20 (Família e Plus) + Stripe (4,69% + R$0,39).</td>
+      <td>Básico R$3,84 · Família R$8,01 · Plus R$8,48 por assinante/mês</td>
+      <td>IA R$5,02 (~30 reconhecimentos a US$0,031; Básico R$2,51, 15 reconhecimentos) + WhatsApp R$1,22 (Família e Plus) + voz R$0,22 (Família e Plus) + Stripe (4,69% + R$0,39). A IA é o maior custo.</td>
     </tr>
     <tr>
       <td>Break-even</td>
-      <td>15 assinantes (Família mensal) · 16 no mix realista</td>
-      <td>Antes: 19 assinantes. Imposto considerado: 10% de DAS.</td>
+      <td>19 assinantes (Família mensal) · 19 no mix realista</td>
+      <td>Com as mesmas premissas de custo, o Família a R$19,90 precisaria de 26. Imposto considerado: 10% de DAS.</td>
     </tr>
 
   </tbody>
@@ -240,22 +240,22 @@
       <tr><th>Plano / Preço por mês</th><th>Margem/assinante*</th><th>Break-even</th><th>Margem c/ 50</th><th>Margem c/ 100</th><th>Margem c/ 500</th></tr>
     </thead>
     <tbody>
-      <tr><td>Básico anual R$15,90</td><td>R$12,03</td><td>22 assinantes</td><td>43%</td><td>59%</td><td>71%</td></tr>
-      <tr><td>Básico mensal R$19,90</td><td>R$15,09</td><td>18 assinantes</td><td>50%</td><td>63%</td><td>72%</td></tr>
-      <tr><td>Família anual R$19,90</td><td>R$13,84</td><td>19 assinantes</td><td>43%</td><td>56%</td><td>66%</td></tr>
-      <tr style="background:#E6F1FB;"><td><strong>Família mensal R$24,90</strong></td><td><strong>R$17,75</strong></td><td style="color:#185FA5; font-weight:600;">15 assinantes</td><td style="color:#185FA5; font-weight:600;">50%</td><td style="color:#185FA5; font-weight:600;">61%</td><td style="color:#185FA5; font-weight:600;">68%</td></tr>
-      <tr><td>Mix realista R$23,15</td><td>R$16,86</td><td>16 assinantes</td><td>50%</td><td>62%</td><td>70%</td></tr>
-      <tr><td>Plus anual R$27,90</td><td>R$20,67</td><td>13 assinantes</td><td>55%</td><td>65%</td><td>71%</td></tr>
-      <tr><td>Plus mensal R$34,90</td><td>R$26,28</td><td>10 assinantes</td><td>60%</td><td>68%</td><td>73%</td></tr>
+      <tr><td>Básico anual R$15,90</td><td>R$11,02</td><td>24 assinantes</td><td>36%</td><td>53%</td><td>65%</td></tr>
+      <tr><td>Básico mensal R$19,90</td><td>R$14,07</td><td>19 assinantes</td><td>44%</td><td>58%</td><td>67%</td></tr>
+      <tr><td>Família anual R$19,90</td><td>R$10,49</td><td>25 assinantes</td><td>26%</td><td>40%</td><td>49%</td></tr>
+      <tr style="background:#E6F1FB;"><td><strong>Família mensal R$24,90</strong></td><td><strong>R$14,40</strong></td><td style="color:#185FA5; font-weight:600;">19 assinantes</td><td style="color:#185FA5; font-weight:600;">37%</td><td style="color:#185FA5; font-weight:600;">47%</td><td style="color:#185FA5; font-weight:600;">55%</td></tr>
+      <tr><td>Mix realista R$23,15</td><td>R$14,21</td><td>19 assinantes</td><td>39%</td><td>50%</td><td>58%</td></tr>
+      <tr><td>Plus anual R$27,90</td><td>R$17,31</td><td>16 assinantes</td><td>43%</td><td>53%</td><td>59%</td></tr>
+      <tr><td>Plus mensal R$34,90</td><td>R$22,93</td><td>12 assinantes</td><td>51%</td><td>58%</td><td>64%</td></tr>
     </tbody>
   </table>
 </div>
-<p class="nota">* Depois do custo variável e de 10% de imposto (DAS). Margem = lucro ÷ receita, com custo fixo de R$261/mês (R$369 a 500 assinantes, com o Resend pago). Mix realista: 30% Básico, 55% Família e 15% Plus; 65% mensal e 35% anual.</p>
+<p class="nota">* Depois do custo variável e de 10% de imposto (DAS). Margem = lucro ÷ receita, com custo fixo de R$261/mês (R$369 a 500 assinantes, com o Resend pago). Mix realista: 30% Básico, 55% Família e 15% Plus; 65% mensal e 35% anual. IA: 85% reconhecimentos comuns (~US$0,01) e 15% grades de horário (~US$0,15). Câmbio US$1 = R$5,40.</p>
 <div style="background:#EAF3DE; border:1px solid #97C459; border-radius:8px; padding:12px 16px; margin-top:10px; font-size:13px; color:#27500A; line-height:1.6;">
-  <strong>Conclusão financeira:</strong> os três planos têm margem saudável, inclusive o Básico. O ganho principal do modelo novo está na conversão: com cartão no cadastro, a expectativa é de 25–35% dos testes virarem assinatura. O Painel do negócio mede o funil desde o primeiro cadastro.
+  <strong>Conclusão financeira:</strong> os três planos têm margem positiva; o Básico (R$14,07) deixa quase o mesmo que o Família (R$14,40), porque não tem WhatsApp nem voz e a IA é limitada a 15 reconhecimentos. O Plus é o mais rentável (R$22,93). A premissa mais sensível é o custo de IA por reconhecimento, a medir com os primeiros clientes. O ganho principal do modelo novo está na conversão: com cartão no cadastro, a expectativa é de 25–35% dos testes virarem assinatura. O Painel do negócio mede o funil desde o primeiro cadastro.
 </div>
 
-<p style="margin-top: 2rem; font-size: 12px; color: #bbb;">Família em Dia · Oferta Comercial resumida · 21/10/2026 · Fonte dos preços no app: src/lib/planos-oferta.ts</p>
+<p style="margin-top: 2rem; font-size: 12px; color: #bbb;">Família em Dia · Oferta Comercial resumida · 21/10/2026 · Fonte dos preços e limites no app: src/lib/planos-oferta.ts e src/lib/planos-limites.ts</p>
 
 </body>
 </html>

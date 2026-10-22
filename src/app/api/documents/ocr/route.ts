@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     if (!PLAN_LIMITS[plan].ocr) {
       return NextResponse.json({ error: 'LIMIT_OCR', plan }, { status: 402 })
     }
-    // No Básico a leitura de documento conta nos 30 reconhecimentos do mês
+    // No Básico a leitura de documento conta nos reconhecimentos do mês
     // (foto, texto e documentos somam juntos — decisão de 20/10/2026).
     const aiLimit = PLAN_LIMITS[plan].aiPerMonth
     if (aiLimit !== Infinity) {

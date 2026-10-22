@@ -9,6 +9,7 @@ import {
   type PlanoPago,
 } from '@/lib/planos-oferta'
 
+import { PLAN_LIMITS } from '@/lib/planos-limites'
 import Modal from '@/components/ui/Modal'
 import DadosAssinaturaModal from '@/components/billing/DadosAssinaturaModal'
 
@@ -65,7 +66,7 @@ const PLANS: { id: PlanoPago; name: string; tagline: string; icon: React.Element
     icon: Leaf, iconColor: '#5A8C5E', iconBg: 'linear-gradient(140deg,#EEF4EE,#DCEBDD)',
     features: [
       { text: 'Até 2 filhos', bold: false },
-      { text: '30 reconhecimentos de foto, print, texto e documentos por mês', bold: false },
+      { text: `${PLAN_LIMITS.basico.aiPerMonth} reconhecimentos de foto, print, texto e documentos por mês`, bold: false },
       { text: 'Cofre de documentos (200 MB)', bold: false },
       { text: 'Calendário, mensalidades e alertas no app', bold: false },
     ],

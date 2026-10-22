@@ -15,8 +15,10 @@
 export type PlanId = 'free' | 'basico' | 'familia' | 'plus' | 'pausada'
 
 // OCR de documentos: auto-preenche campos ao escanear. No Básico ele existe, mas
-// cada leitura conta nos 30 reconhecimentos do mês (foto, texto e documentos
-// somam juntos — decisão do Rogério, 20/10/2026).
+// cada leitura conta nos reconhecimentos do mês (foto, texto e documentos somam
+// juntos — decisão do Rogério, 20/10/2026). O limite do Básico é 15 desde
+// 21/10/2026 (era 30): abaixo do uso médio esperado (~30/mês), para o cliente
+// sentir a diferença e subir para o Família.
 const MB = 1024 * 1024
 const GB = 1024 * MB
 
@@ -43,7 +45,7 @@ export const PLAN_LIMITS: Record<PlanId, LimitesDoPlano> = {
   // Como o limite é zero, "liberar espaço" NÃO resolve para este plano: a
   // mensagem precisa apontar para a assinatura, não para apagar arquivos.
   free:    { children: 2,        aiPerMonth: 5,        partners: 0,        ocr: false, documentSearch: false, storageLimitBytes: 0,        voice: false, whatsapp: false, logistics: true  },
-  basico:  { children: 2,        aiPerMonth: 30,       partners: 0,        ocr: true,  documentSearch: true,  storageLimitBytes: 200 * MB, voice: false, whatsapp: false, logistics: false },
+  basico:  { children: 2,        aiPerMonth: 15,       partners: 0,        ocr: true,  documentSearch: true,  storageLimitBytes: 200 * MB, voice: false, whatsapp: false, logistics: false },
   familia: { children: 3,        aiPerMonth: Infinity, partners: 1,        ocr: true,  documentSearch: true,  storageLimitBytes: 1 * GB,   voice: true,  whatsapp: true,  logistics: true  },
   plus:    { children: Infinity, aiPerMonth: Infinity, partners: Infinity, ocr: true,  documentSearch: true,  storageLimitBytes: 5 * GB,   voice: true,  whatsapp: true,  logistics: true  },
   pausada: { children: 0,        aiPerMonth: 0,        partners: 0,        ocr: false, documentSearch: true,  storageLimitBytes: 0,        voice: false, whatsapp: false, logistics: false },

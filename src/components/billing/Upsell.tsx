@@ -8,7 +8,7 @@ import { createContext, useCallback, useContext, useState } from 'react'
 import { Lock, X } from 'lucide-react'
 import { medir } from '@/lib/medicao'
 import { NOME_PLANO, precoCobrado, reais, type Ciclo } from '@/lib/planos-oferta'
-import type { PlanId } from '@/lib/planos-limites'
+import { PLAN_LIMITS, type PlanId } from '@/lib/planos-limites'
 
 export type RecursoUpsell =
   | 'logistica' | 'rede' | 'voz' | 'whatsapp' | 'filho' | 'reconhecimentos' | 'cofre'
@@ -25,10 +25,10 @@ function proximoMes(): string {
 function textos(r: RecursoUpsell, plano: PlanId): { titulo: string; texto: string; alvo: Alvo } {
   const naFamilia = plano === 'familia'
   switch (r) {
-    case 'logistica': return { alvo: 'familia', titulo: 'Combine quem leva e quem busca', texto: 'No Família, você e mais uma pessoa da sua rede de apoio dividem o leva e busca, com aviso no WhatsApp.' }
+    case 'logistica': return { alvo: 'familia', titulo: 'Combine quem leva e quem busca', texto: 'No Família, você e mais uma pessoa da sua rede de apoio dividem o leva e busca, com aviso no app.' }
     case 'voz': return { alvo: 'familia', titulo: 'Fale em vez de digitar', texto: 'No Família, é só gravar um áudio e a agenda se organiza sozinha.' }
     case 'whatsapp': return { alvo: 'familia', titulo: 'A agenda do dia no seu WhatsApp', texto: 'No Família, todo dia, no horário que você escolher, chega o resumo das atividades, lembretes, vacinas e documentos.' }
-    case 'reconhecimentos': return { alvo: 'familia', titulo: 'Você usou os 30 reconhecimentos deste mês', texto: `No Família, fotos, prints, textos e documentos são reconhecidos sem limite. O contador do Básico volta a zero em ${proximoMes()}.` }
+    case 'reconhecimentos': return { alvo: 'familia', titulo: `Você usou os ${PLAN_LIMITS.basico.aiPerMonth} reconhecimentos deste mês`, texto: `No Família, fotos, prints, textos e documentos são reconhecidos sem limite. O contador do Básico volta a zero em ${proximoMes()}.` }
     case 'rede': return naFamilia
       ? { alvo: 'plus', titulo: 'Rede de apoio sem limite', texto: 'O Família inclui você + 1 pessoa. No Plus, todos que ajudam na rotina entram.' }
       : { alvo: 'familia', titulo: 'Traga quem ajuda você', texto: 'No Família, o pai, a avó ou a babá veem a mesma agenda que você, com o nível de acesso que você escolher.' }

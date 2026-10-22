@@ -75,7 +75,7 @@ Stripe sandbox + banco de produção (dados de teste apagados ao final). O model
 - ✅ Saiu antes do cartão → conta `incompleto`, layout manda para `/assinar` (T7)
 - ✅ Mesmo cartão em segunda conta → assinatura cancelada na hora, tela T5 "Assinar sem teste", nada cobrado
 - ✅ CPF repetido recusado (T6)
-- ✅ Básico: cadeado + caixa de upgrade em logística, voz, WhatsApp, rede de apoio, 3º filho, 31º reconhecimento, cofre acima de 200 MB
+- ✅ Básico: cadeado + caixa de upgrade em logística, voz, WhatsApp, rede de apoio, 3º filho, 16º reconhecimento (limite de 15 desde 21/10/2026), cofre acima de 200 MB
 - ✅ Troca de plano no teste mantém o fim do teste; nova primeira cobrança no valor do plano novo
 - ✅ Downgrade bloqueado quando filhos/rede passam do limite do plano de destino (T14)
 - ✅ Cancelar no teste: motivo obrigatório, T13, motivo gravado no Stripe, acesso até o fim do teste

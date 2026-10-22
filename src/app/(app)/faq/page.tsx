@@ -72,7 +72,7 @@ const SECTIONS: FAQSection[] = [
       },
       {
         q: 'Quantas capturas por IA posso fazer?',
-        a: 'No plano Básico, 30 reconhecimentos por mês (fotos, prints, textos e documentos somam juntos). Nos planos Família e Plus, uso ilimitado.',
+        a: 'No plano Básico, 15 reconhecimentos por mês (fotos, prints, textos e documentos somam juntos). Nos planos Família e Plus, uso ilimitado.',
       },
     ],
   },
@@ -154,7 +154,7 @@ const SECTIONS: FAQSection[] = [
       },
       {
         q: 'O que acontece se eu recusar uma sugestão?',
-        a: 'O slot volta a ficar em aberto e o parceiro que fez a sugestão recebe uma notificação de recusa — no app e no WhatsApp. Qualquer um dos dois pode então assumir ou fazer uma nova sugestão.',
+        a: 'O slot volta a ficar em aberto e o parceiro que fez a sugestão recebe uma notificação de recusa no app. Qualquer um dos dois pode então assumir ou fazer uma nova sugestão.',
       },
       {
         q: 'E se os dois assumirem o mesmo slot ao mesmo tempo?',
