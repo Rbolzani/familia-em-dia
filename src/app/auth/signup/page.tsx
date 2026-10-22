@@ -292,7 +292,7 @@ export default function SignupPage() {
               <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: '#8585A8' }}>Celular</label>
                 <p className="text-xs mb-2" style={{ color: '#C0BFD5' }}>{isInvite
-                  ? 'Você receberá os avisos da família no WhatsApp deste número.'
+                  ? 'Usado para avisos da sua conta. O resumo diário da agenda no WhatsApp fica desligado: você pode ligar depois, em Alertas no WhatsApp.'
                   : 'Vamos usar este número para avisos da sua conta no WhatsApp (início e fim do teste, cobranças) e, nos planos Família e Plus, para o resumo diário da agenda.'}</p>
                 <input type="tel" inputMode="numeric" autoComplete="tel-national" required value={phone}
                   onChange={e => setPhone(formatPhoneBR(e.target.value))}

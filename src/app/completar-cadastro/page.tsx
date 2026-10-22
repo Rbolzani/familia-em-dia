@@ -24,7 +24,7 @@ export default async function CompletarCadastroPage() {
   const inviteToken = conviteGuardado(cookieStore.get('pending_invite')?.value)
 
   // Conta criada pela tela atual: os dados já vieram, nada a preencher.
-  if (await concluirCadastroPelosMetadados(user)) redirect(inviteToken ? `/convite/${inviteToken}` : '/dashboard')
+  if (await concluirCadastroPelosMetadados(user, { convidado: !!inviteToken })) redirect(inviteToken ? `/convite/${inviteToken}` : '/dashboard')
 
   // Pré-preenche o nome a partir do cadastro inicial, se houver.
   const initialName =

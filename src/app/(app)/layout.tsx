@@ -73,11 +73,11 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       .maybeSingle()
     emailPendente = !!prof && !prof.email_confirmado_em
     if (!prof?.profile_completed_at) {
-      if (!(await concluirCadastroPelosMetadados(user))) redirect('/completar-cadastro')
-      // Chegou por link de convite e acabou de concluir: vai aceitar o convite
-      // em vez de cair numa família nova e vazia. (A tela de aceite fica fora
-      // deste grupo e apaga o cookie ao aceitar.)
+      // Chegou por link de convite: vai aceitar o convite em vez de cair numa
+      // família nova e vazia (a tela de aceite fica fora deste grupo e apaga o
+      // cookie ao aceitar) — e, como convidado, o resumo diário nasce desligado.
       const convite = conviteGuardado((await cookies()).get('pending_invite')?.value)
+      if (!(await concluirCadastroPelosMetadados(user, { convidado: !!convite }))) redirect('/completar-cadastro')
       if (convite) redirect(`/convite/${convite}`)
     }
   }

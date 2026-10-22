@@ -75,6 +75,8 @@ export async function POST(request: Request) {
       marketing_consent: c.marketing_consent === true,
       terms_accepted: true,
       terms_version: typeof c.terms_version === 'string' ? c.terms_version : undefined,
+      // Convidado: o resumo diário nasce desligado (src/lib/cadastro.ts).
+      convidado: true,
       attribution: c.attribution && typeof c.attribution === 'object' ? c.attribution : null,
     },
   })

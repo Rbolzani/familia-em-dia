@@ -23,20 +23,22 @@ export function conviteGuardado(valor: string | undefined): string | null {
 }
 
 /**
- * Liga o resumo diário no WhatsApp para a conta recém-concluída: 7h, no
- * celular do cadastro. A tela de criar conta avisa disso e a pessoa desliga ou
- * muda o horário em Alertas.
+ * Cria a configuração do resumo diário no WhatsApp para a conta recém-concluída:
+ * 7h, no celular do cadastro. Para quem cria a própria conta ele nasce LIGADO (a
+ * tela de criar conta avisa). Para o CONVIDADO nasce DESLIGADO, com o número já
+ * preenchido: ele liga em Alertas no WhatsApp se quiser (decisão do Rogério,
+ * 21/10/2026 — custo do resumo por convidado).
  *
  * Só CRIA a configuração — `ignoreDuplicates` garante que nunca sobrescreve a
  * escolha de quem já mexeu em Alertas. Falhar aqui não impede o cadastro.
  * (O resumo é recurso pago: depois do teste, quem não assina para de receber
  * sozinho — a regra está no cron, não aqui.)
  */
-export async function ativarResumoPadrao(userId: string, celular: string): Promise<void> {
+export async function ativarResumoPadrao(userId: string, celular: string, ligado = true): Promise<void> {
   const numero = toWhatsAppNumber(celular)
   if (!numero) return
   const { error } = await createAdminClient().from('notification_settings').upsert(
-    { user_id: userId, whatsapp_number: numero, daily_summary_enabled: true, summary_time: '07:00' },
+    { user_id: userId, whatsapp_number: numero, daily_summary_enabled: ligado, summary_time: '07:00' },
     { onConflict: 'user_id', ignoreDuplicates: true },
   )
   if (error) console.error('[cadastro] erro ao ligar o resumo padrão', { code: error.code })
@@ -47,7 +49,7 @@ export async function ativarResumoPadrao(userId: string, celular: string): Promi
  * Devolve false quando os metadados não bastam (conta criada antes desta
  * mudança, ou sem aceite dos Termos) — aí quem chama mostra o formulário curto.
  */
-export async function concluirCadastroPelosMetadados(user: User): Promise<boolean> {
+export async function concluirCadastroPelosMetadados(user: User, opcoes: { convidado?: boolean } = {}): Promise<boolean> {
   const m = (user.user_metadata ?? {}) as Record<string, unknown>
   const nome = typeof m.full_name === 'string' ? m.full_name.trim() : ''
   const celular = onlyDigits(typeof m.phone === 'string' ? m.phone : '')
@@ -79,6 +81,9 @@ export async function concluirCadastroPelosMetadados(user: User): Promise<boolea
     console.error('[cadastro] erro ao concluir pelos metadados', { code: error.code })
     return false
   }
-  await ativarResumoPadrao(user.id, celular)
+  // Convidado: marcado nos metadados pela criação por convite, ou chegou com o
+  // convite guardado no cookie (quem chama informa).
+  const convidado = opcoes.convidado === true || m.convidado === true
+  await ativarResumoPadrao(user.id, celular, !convidado)
   return true
 }
