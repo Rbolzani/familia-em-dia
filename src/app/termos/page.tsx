@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import LegalLayout from '@/components/legal/LegalLayout'
-import { LEGAL_ENTITY, LEGAL_EFFECTIVE_DATE } from '@/lib/legal'
+import { LEGAL_ENTITY, NOVA_OFERTA_DATA } from '@/lib/legal'
 
 export const metadata: Metadata = { title: 'Termos de Uso · Família em Dia' }
 
@@ -99,7 +99,7 @@ export default function TermosPage() {
           conta de quem convidou for pausada, o acesso do convidado também fica limitado à visualização.</Li>
         <Li><strong>5.11 Pagamentos.</strong> São processados por operador externo (Stripe). A nota fiscal é
           emitida pela {LEGAL_ENTITY.razaoSocial}.</Li>
-        <Li><strong>5.12 Contas anteriores.</strong> Contas criadas antes de {LEGAL_EFFECTIVE_DATE}, no modelo
+        <Li><strong>5.12 Contas anteriores.</strong> Contas criadas antes de {NOVA_OFERTA_DATA}, no modelo
           anterior (teste sem cartão), mantêm as condições com que foram criadas, incluindo o plano gratuito
           ao fim do teste.</Li>
         <Li><strong>5.13 Exclusão da conta.</strong> Ao excluir a conta, a assinatura é cancelada de imediato,

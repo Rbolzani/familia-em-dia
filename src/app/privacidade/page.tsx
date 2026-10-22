@@ -76,8 +76,12 @@ export default function PrivacidadePage() {
       <P>Compartilhamos dados, no mínimo necessário, com operadores que viabilizam o Serviço:</P>
       <ul>
         <Li><strong>Supabase</strong> — hospedagem de banco de dados e armazenamento de arquivos;</Li>
-        <Li><strong>Anthropic</strong> e <strong>Groq</strong> — processamento por IA (classificação de
-          texto/imagem e transcrição de voz);</Li>
+        <Li><strong>Google (Gemini)</strong> e <strong>Anthropic (Claude)</strong> — leitura por IA das fotos,
+          prints e textos enviados na Captura e no Cofre, para organizar compromissos, lembretes e documentos.
+          Na Captura, o Google faz a leitura e a Anthropic entra quando ele não está disponível; a leitura de
+          documentos do Cofre é feita pela Anthropic. Nos planos contratados, nenhum dos dois usa esse conteúdo
+          para treinar seus modelos;</Li>
+        <Li><strong>Groq</strong> — transcrição por IA dos áudios gravados na Captura;</Li>
         <Li><strong>Stripe</strong> — processamento de pagamentos e assinaturas; recebe nome, CPF, telefone,
           endereço e os dados do cartão (que não ficam em nossos servidores), para a cobrança e a emissão de
           nota fiscal. Usamos uma identificação do cartão gerada pelo Stripe, que não revela o número, apenas

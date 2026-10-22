@@ -147,7 +147,7 @@ export async function getFamilyStorageUsedBytes(): Promise<number | null> {
 
 /**
  * Teto DIÁRIO de chamadas de IA por usuário, em todas as rotas que custam
- * dinheiro (Anthropic e Groq).
+ * dinheiro (Google Gemini, Anthropic e Groq).
  *
  * 50 é folgado para uso real — uma família não fotografa 50 documentos por
  * dia — e corta o caso que importa: script abusivo ou conta comprometida
