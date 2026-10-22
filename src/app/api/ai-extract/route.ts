@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getFamilyPlan, getAiUsageThisMonth, incrementAiUsage, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario } from '@/lib/billing'
 import { normalizeImage } from '@/lib/image'
+import { extrairComGemini, geminiConfigurado } from '@/lib/ia-gemini'
 import { aplicarTravasDeAtividade, semCamposInternos, semDocumentoDeGrade, type ExtractedActivity } from '@/lib/ia-pos-processamento'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
@@ -472,6 +473,96 @@ export async function POST(req: NextRequest) {
   })
 }
 
+// Resposta da IA, antes das travas — o formato pedido no prompt.
+interface RespostaIa {
+  activities?: ExtractedActivity[]
+  reminders?: { title: string; category: string; description: string | null; child_hint: string | null }[]
+  documents?: { category?: string }[]
+  payments?: unknown
+}
+
+function limparJson(raw: string): string {
+  return raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+}
+
+// Reserva: a leitura como era antes do Gemini (22/10/2026). Entra quando o
+// Gemini falha ou não está configurado.
+async function extrairComClaude(
+  normalized: Awaited<ReturnType<typeof normalizeImage>>,
+  text: string | null,
+  prompt: string,
+): Promise<string> {
+  let message
+  if (normalized) {
+    const base64 = normalized.buffer.toString('base64')
+    const mediaType = normalized.mediaType
+    const imageBlock = { type: 'image' as const, source: { type: 'base64' as const, media_type: mediaType, data: base64 } }
+
+    // Checagem rápida e barata (Haiku, sem thinking) só para decidir o
+    // modelo da extração de verdade — grades de horário são tabelas densas
+    // onde o Haiku sozinho tende a pular células; Sonnet é bem mais
+    // meticuloso, mas mais caro, então só usamos quando vale a pena.
+    const detect = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 20,
+      messages: [{
+        role: 'user',
+        content: [
+          imageBlock,
+          { type: 'text', text: 'Esta imagem é uma tabela/grade de horários semanais (colunas por dia da semana, linhas por período de aula)? Responda apenas "sim" ou "não".' },
+        ],
+      }],
+    })
+    const detectText = detect.content.find(b => b.type === 'text')
+    const isScheduleGrid = detectText?.type === 'text' && /sim/i.test(detectText.text)
+
+    message = await client.messages.create({
+      model: isScheduleGrid ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
+      max_tokens: 12000,
+      // Só ativa thinking quando usamos Sonnet numa grade densa — reforça
+      // a conferência célula-a-célula; capturas simples ficam rápidas.
+      //
+      // ⚠️ NÃO DESLIGUE ISTO PARA GANHAR TEMPO. A tentação é real: com
+      // thinking a chamada leva 52–59s contra um maxDuration de 60s, e
+      // medições mostram ~19s de folga ao desativar. Eu cheguei a propor a
+      // troca; está errada.
+      //
+      // O thinking entrou porque, com FOTO de grade real, a extração vinha
+      // incompleta e — pior — com uma contagem DIFERENTE a cada captura.
+      // Instabilidade, não só falta: sem isso não dá para confiar em nenhuma
+      // leitura, porque não há como saber qual das contagens é a certa.
+      //
+      // A medição que sugeria remover usava uma grade SINTÉTICA (renderizada,
+      // nítida, alinhada) — o caso fácil. Ela não fala nada sobre foto torta,
+      // com sombra e contraste ruim, que é exatamente onde a conferência
+      // célula-a-célula vale. Sinal na mesma direção: nessa grade perfeita, o
+      // Haiku sem thinking devolveu 52 itens numa tabela de 50 — inventou duas
+      // aulas no caso mais fácil possível.
+      //
+      // O aperto de tempo é real, mas é problema de PLATAFORMA, não de modelo:
+      // 60s era o teto do plano Hobby da Vercel. O Pro levou para 300s e resolveu
+      // sem tocar na qualidade. Ver achado 15 do painel de prontidão.
+      ...(isScheduleGrid ? { thinking: { type: 'enabled' as const, budget_tokens: 4000 } } : {}),
+      messages: [{
+        role: 'user',
+        content: [imageBlock, { type: 'text', text: prompt }],
+      }],
+    })
+  } else {
+    message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 8192,
+      messages: [{
+        role: 'user',
+        content: `Conteúdo para analisar:\n\n${text}\n\n${prompt}`,
+      }],
+    })
+  }
+
+  const textBlock = message.content.find(b => b.type === 'text')
+  return textBlock?.type === 'text' ? textBlock.text : ''
+}
+
 async function processar(req: NextRequest): Promise<NextResponse> {
   try {
     const supabase = await createClient()
@@ -493,7 +584,7 @@ async function processar(req: NextRequest): Promise<NextResponse> {
 
     // Teto diário (achado O3). O limite acima é MENSAL e por plano — no pago
     // é Infinity, então esta rota ficava sem teto algum, e cada chamada gasta
-    // token na Anthropic.
+    // token na IA (Gemini, ou Anthropic na reserva).
     const cota = await consumirChamadaIa(user.id)
     if (!cota.permitido) {
       return NextResponse.json({ error: mensagemLimiteDiario(cota) }, { status: 429 })
@@ -511,7 +602,6 @@ async function processar(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Imagem muito grande (máx. 8 MB)' }, { status: 400 })
     }
 
-    let message
     let normalized: Awaited<ReturnType<typeof normalizeImage>> = null
 
     if (file) {
@@ -522,76 +612,24 @@ async function processar(req: NextRequest): Promise<NextResponse> {
       }
     }
 
-    if (normalized) {
-      const base64 = normalized.buffer.toString('base64')
-      const mediaType = normalized.mediaType
-      const imageBlock = { type: 'image' as const, source: { type: 'base64' as const, media_type: mediaType, data: base64 } }
-
-      // Checagem rápida e barata (Haiku, sem thinking) só para decidir o
-      // modelo da extração de verdade — grades de horário são tabelas densas
-      // onde o Haiku sozinho tende a pular células; Sonnet é bem mais
-      // meticuloso, mas mais caro, então só usamos quando vale a pena.
-      const detect = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 20,
-        messages: [{
-          role: 'user',
-          content: [
-            imageBlock,
-            { type: 'text', text: 'Esta imagem é uma tabela/grade de horários semanais (colunas por dia da semana, linhas por período de aula)? Responda apenas "sim" ou "não".' },
-          ],
-        }],
-      })
-      const detectText = detect.content.find(b => b.type === 'text')
-      const isScheduleGrid = detectText?.type === 'text' && /sim/i.test(detectText.text)
-
-      message = await client.messages.create({
-        model: isScheduleGrid ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001',
-        max_tokens: 12000,
-        // Só ativa thinking quando usamos Sonnet numa grade densa — reforça
-        // a conferência célula-a-célula; capturas simples ficam rápidas.
-        //
-        // ⚠️ NÃO DESLIGUE ISTO PARA GANHAR TEMPO. A tentação é real: com
-        // thinking a chamada leva 52–59s contra um maxDuration de 60s, e
-        // medições mostram ~19s de folga ao desativar. Eu cheguei a propor a
-        // troca; está errada.
-        //
-        // O thinking entrou porque, com FOTO de grade real, a extração vinha
-        // incompleta e — pior — com uma contagem DIFERENTE a cada captura.
-        // Instabilidade, não só falta: sem isso não dá para confiar em nenhuma
-        // leitura, porque não há como saber qual das contagens é a certa.
-        //
-        // A medição que sugeria remover usava uma grade SINTÉTICA (renderizada,
-        // nítida, alinhada) — o caso fácil. Ela não fala nada sobre foto torta,
-        // com sombra e contraste ruim, que é exatamente onde a conferência
-        // célula-a-célula vale. Sinal na mesma direção: nessa grade perfeita, o
-        // Haiku sem thinking devolveu 52 itens numa tabela de 50 — inventou duas
-        // aulas no caso mais fácil possível.
-        //
-        // O aperto de tempo é real, mas é problema de PLATAFORMA, não de modelo:
-        // 60s era o teto do plano Hobby da Vercel. O Pro levou para 300s e resolveu
-        // sem tocar na qualidade. Ver achado 15 do painel de prontidão.
-        ...(isScheduleGrid ? { thinking: { type: 'enabled' as const, budget_tokens: 4000 } } : {}),
-        messages: [{
-          role: 'user',
-          content: [imageBlock, { type: 'text', text: buildPrompt() }],
-        }],
-      })
-    } else {
-      message = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8192,
-        messages: [{
-          role: 'user',
-          content: `Conteúdo para analisar:\n\n${text}\n\n${buildPrompt()}`,
-        }],
-      })
+    // Gemini primeiro; qualquer falha (erro, demora, JSON inválido) cai no
+    // Claude, que segue igual ao que era antes da troca. Sem GEMINI_API_KEY
+    // configurada, vai direto para o Claude.
+    const prompt = buildPrompt()
+    let parsed: RespostaIa | null = null
+    if (geminiConfigurado()) {
+      try {
+        const raw = await extrairComGemini({
+          prompt,
+          imagem: normalized ? { base64: normalized.buffer.toString('base64'), mediaType: normalized.mediaType } : undefined,
+          texto: text ?? undefined,
+        })
+        parsed = JSON.parse(limparJson(raw))
+      } catch (e) {
+        console.warn('[ai-extract] Gemini falhou, usando o Claude:', e instanceof Error ? e.message : e)
+      }
     }
-
-    const textBlock = message.content.find(b => b.type === 'text')
-    const raw = textBlock?.type === 'text' ? textBlock.text.trim() : ''
-    const jsonStr = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
-    const parsed = JSON.parse(jsonStr)
+    if (!parsed) parsed = JSON.parse(limparJson(await extrairComClaude(normalized, text, prompt))) as RespostaIa
 
     // Registrar uso de IA (não bloqueia a resposta se falhar)
     incrementAiUsage(user.id).catch(err => console.error('[ai-extract] incrementAiUsage error', err))
