@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getFamilyPlan, getAiUsageThisMonth, incrementAiUsage, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario } from '@/lib/billing'
 import { normalizeImage } from '@/lib/image'
+import { aplicarTravasDeAtividade, semCamposInternos, semDocumentoDeGrade, type ExtractedActivity } from '@/lib/ia-pos-processamento'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -36,8 +37,11 @@ Hoje é: ${todayISO} (${todayWeekday})
 ⚠️ REGRA DE DATA — vale para TODA data que você gerar, e vem antes de tudo:
 **nenhuma data pode ser anterior a ${todayISO}**, a menos que o ano esteja
 escrito no conteúdo. Ninguém agenda compromisso para o passado.
-- "dia 12" (só o dia): se o 12 já passou neste mês, é o **dia 12 do MÊS QUE
-  VEM**. Se ainda não chegou, é deste mês. Se é hoje, é hoje.
+- "dia 12" (só o dia, sem mês em lugar nenhum do conteúdo): se o 12 já passou
+  neste mês, é o **dia 12 do MÊS QUE VEM**. Se ainda não chegou, é deste mês.
+  Se é hoje, é hoje.
+- Se o conteúdo mostra o mês (título de calendário, "15 de agosto") e a data
+  já passou há poucas semanas, o evento JÁ ACONTECEU: não o inclua.
 - "12 de março" (dia e mês): se já passou neste ano, é **do ANO QUE VEM**.
 - data completa com ano: respeite como está, mesmo no passado.
 Ao terminar, releia cada "date": achou alguma menor que ${todayISO} sem ano
@@ -58,6 +62,7 @@ Itens que têm uma data específica em que algo VAI ACONTECER:
 - category: "escola"
 - date: calcule a data real (YYYY-MM-DD) da PRÓXIMA ocorrência daquele dia da semana — use a data mais próxima a partir de hoje (se esse dia da semana já passou nesta semana, use a mesma data na semana seguinte). Gere apenas UMA data (a primeira ocorrência) — não repita o item várias vezes para semanas futuras, isso é feito depois por outro processo.
 - time: horário de início do período daquela linha (HH:MM)
+- weekday: o dia da semana da COLUNA da célula ("seg", "ter", "qua", "qui", "sex", "sab" ou "dom") — obrigatório em grade
 - recurring: true (marca que esse item se repete toda semana no mesmo dia/horário)
 - Gere um item para CADA célula preenchida da grade, mesmo que o total seja alto (dezenas de itens) — nunca resuma, agrupe ou pule células.
 - Inclua TAMBÉM as células de intervalo/refeição (ex: "Lanche/Recreio", "Almoço/Recreio", "Lanche/Saída") e as linhas de entrada e saída como itens normais: a grade deve sair completa, sem filtrar nada.
@@ -163,7 +168,9 @@ Retorne APENAS um JSON válido neste formato exato (sem markdown, sem explicaç�
       "description": "detalhes adicionais ou null",
       "location": "local ou null",
       "recurring": false,
-      "recurring_weeks": null
+      "recurring_weeks": null,
+      "weekday": "seg, ter, qua, qui, sex, sab, dom ou null",
+      "month_written": false
     }
   ],
   "reminders": [
@@ -231,6 +238,14 @@ Regras para activities:
 - ⚠️ **A DATA NUNCA PODE CAIR NO PASSADO.** Ninguém agenda uma prova para
   ontem. Quando o conteúdo não traz o ano (e quase nunca traz), escolha
   sempre a **PRÓXIMA** ocorrência daquela data:
+  · **O conteúdo mostra o mês** (calendário com título "Outubro", "15 de
+    agosto", "19/08"): use ESSE mês para os dias listados. A regra do mês
+    seguinte, logo abaixo, só vale quando não há mês em lugar nenhum.
+  · **Evento que já aconteceu** — o mês está escrito e a data ficou para trás
+    há poucas semanas (ex.: num calendário de outubro, o dia 12 quando hoje é
+    dia 22): NÃO inclua. Não empurre para outro mês nem vire lembrete.
+  · **Dia da semana escrito junto da data** ("19/08 (quarta)"): o ano certo é
+    aquele em que o dia da semana e a data coincidem.
   · **Só o dia do mês** ("dia 12", "no dia 5") — se esse dia ainda não chegou
     neste mês, use este mês; se **já passou**, use o **MÊS SEGUINTE**.
     Exemplo: hoje é ${todayISO}; "dia 12" ⇒ dia 12 do mês que vem, porque o 12
@@ -252,6 +267,15 @@ Regras para activities:
   "por 4 semanas" → 4 · "durante 2 meses" → 8 · "até o fim do mês" → conte as
   semanas a partir de hoje · "3 vezes" → 3. Se o conteúdo NÃO indicar limite
   algum (incluindo grades de horário escolar), use null.
+- weekday: o dia da semana ESCRITO no conteúdo para o item — a coluna da
+  grade, "toda terça", "19/08 (quarta)". Use null se o dia da semana não
+  estiver escrito: não deduza a partir da data.
+- month_written: true se o conteúdo escreve o mês dessa data (nome do mês,
+  "19/08", ou o título do calendário); false se diz só o dia ("dia 12") ou
+  uma data relativa ("amanhã", "sexta que vem").
+- Se o conteúdo pede uma AÇÃO da família sem data própria (agendar horário,
+  confirmar presença, levar dinheiro ou material, enviar autorização), crie
+  também um reminder com essa ação.
 
 Regras para documents:
 - category: exatamente "saude", "identidade", "contratos", "carteirinhas", "escolar", "vacinacao", "autorizacoes", "financeiro" ou "outros"
@@ -357,18 +381,6 @@ function sanitizePayments(raw: unknown): { pagamentos: ExtractedPayment[]; desca
 const RECURRING_WEEKS = 12
 const MAX_RECURRING_WEEKS = 52
 
-interface ExtractedActivity {
-  title: string
-  category: string
-  date: string | null
-  time: string | null
-  description?: string | null
-  location?: string | null
-  recurring?: boolean
-  recurring_weeks?: number | null
-  groupId?: string
-}
-
 // A grade de horários entra INTEIRA, sem filtro: lanche, almoço, recreio,
 // soninho, entrada, saída. Decisão do Rogério (11/10/2026). Já houve aqui um
 // filtro de intervalo/refeição e depois um só de entrada/saída; qualquer corte
@@ -391,90 +403,6 @@ function stripFabricatedRecurrence(acts: ExtractedActivity[]): ExtractedActivity
 
 // Cada ocorrência gerada de um mesmo item recorrente leva o mesmo groupId,
 // para a tela de revisão poder agrupá-las (uma matéria = um card, não 12).
-/** Ano escrito na fonte ("12/03/2027", "março de 2027"). */
-const ANO_EXPLICITO_RE = /\b20\d{2}\b/
-
-/**
- * Empurra para a próxima ocorrência uma atividade cuja data caiu no passado.
- *
- * POR QUE EM CÓDIGO, E NÃO NO PROMPT
- * A regra existe no prompt e funciona — na maior parte das vezes. Medido com
- * a frase que o Rogério usou ("Viagem com a Gabi no dia 11 às 7h", em 14/09):
- * três execuções devolveram 11/10, 11/10 e **11/09**. Uma em três no passado.
- * Uma medição anterior com outra frase deu 4 de 4 e me fez declarar resolvido
- * cedo demais — a instrução muda a probabilidade, não garante o resultado.
- *
- * Mesma lição do OCR inventando número de carteirinha: pedido não é garantia,
- * e onde existe uma checagem barata e determinística, ela tem que existir.
- *
- * O estrago é silencioso: a atividade é gravada, aparece no calendário, mas
- * some da aba (que esconde o passado). Parece que a captura não salvou nada.
- *
- * REGRAS — espelham as do prompt, de propósito:
- *  · recorrente     → avança de 7 em 7 dias, preservando o dia da SEMANA
- *  · mês corrente   → mesmo dia do mês seguinte (a pessoa disse só "dia 11")
- *  · mês anterior   → mesma data do ano seguinte (a pessoa disse dia e mês)
- *  · ano escrito na fonte → não mexe, ali ela foi explícita
- */
-export function corrigirDatasPassadas(
-  activities: ExtractedActivity[],
-  hojeISO: string,
-  textoOriginal: string | null,
-): ExtractedActivity[] {
-  // Na entrada por imagem não há fonte para inspecionar; a trava vale assim
-  // mesmo, porque atividade é compromisso FUTURO por definição.
-  if (textoOriginal && ANO_EXPLICITO_RE.test(textoOriginal)) return activities
-
-  const [hy, hm, hd] = hojeISO.split('-').map(Number)
-  const corrigidas: string[] = []
-
-  const saida = activities.map(a => {
-    if (!a.date || a.date >= hojeISO) return a
-    const [y, m, d] = a.date.split('-').map(Number)
-    let nova: string
-
-    const dt = new Date(Date.UTC(y, m - 1, d))
-    const hojeDt = new Date(Date.UTC(hy, hm - 1, hd))
-    const diasAtras = (hojeDt.getTime() - dt.getTime()) / 86_400_000
-
-    if (a.recurring) {
-      // Semana a semana: avançar um mês moveria o dia da SEMANA e quebraria
-      // a grade de horário.
-      while (dt < hojeDt) dt.setUTCDate(dt.getUTCDate() + 7)
-      nova = dt.toISOString().slice(0, 10)
-    } else if (diasAtras <= 45) {
-      // Passado recente → a pessoa disse só o dia ("dia 11"). Avança de mês em
-      // mês preservando o dia, encurtando em mês curto (31 → 28/30).
-      //
-      // A distância decide, não a igualdade de mês: em 1º de fevereiro, uma
-      // data de 31 de janeiro está a UM dia de distância mas em outro mês —
-      // comparar o mês jogaria isso para o ano seguinte.
-      let ay = y, am = m
-      do {
-        am += 1
-        if (am > 12) { am = 1; ay += 1 }
-        const ultimo = new Date(Date.UTC(ay, am, 0)).getUTCDate()
-        nova = `${ay}-${String(am).padStart(2, '0')}-${String(Math.min(d, ultimo)).padStart(2, '0')}`
-      } while (nova < hojeISO)
-    } else {
-      // Passado distante → a pessoa disse dia E mês; vale para o próximo ano
-      // em que essa data ainda não passou.
-      let ay = y
-      do { ay += 1; nova = `${ay}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` }
-      while (nova < hojeISO)
-    }
-
-    corrigidas.push(`${a.date}→${nova}`)
-    return { ...a, date: nova }
-  })
-
-  if (corrigidas.length > 0) {
-    // Sem log, não dá para saber se o prompt está melhorando ou piorando.
-    console.warn('[ai-extract] datas no passado corrigidas:', corrigidas.join(', '))
-  }
-  return saida
-}
-
 function expandRecurring(activities: ExtractedActivity[]): ExtractedActivity[] {
   const result: ExtractedActivity[] = []
   activities.forEach((act, idx) => {
@@ -675,9 +603,9 @@ async function processar(req: NextRequest): Promise<NextResponse> {
     if (!normalized && !RECURRENCE_RE.test(text ?? '')) {
       activities = stripFabricatedRecurrence(activities)
     }
-    // Trava determinística: a regra de data existe no prompt, mas erra ~1 em 3
-    // em algumas frases. Aqui não erra.
-    activities = corrigirDatasPassadas(activities, spTodayISO(), normalized ? null : (text ?? null))
+    // Travas determinísticas de título e data (lib/ia-pos-processamento.ts):
+    // as regras existem no prompt, mas erram em parte das vezes. Aqui não erram.
+    activities = aplicarTravasDeAtividade(activities, spTodayISO(), normalized ? null : (text ?? null)).activities
 
     // Mensalidade sem dia do mês não vira mensalidade — mas também não pode
     // sumir. Volta como lembrete, para a pessoa decidir o que fazer com ela.
@@ -696,9 +624,9 @@ async function processar(req: NextRequest): Promise<NextResponse> {
     }
 
     return NextResponse.json({
-      activities: expandRecurring(activities),
+      activities: expandRecurring(activities).map(semCamposInternos),
       reminders: lembretes,
-      documents: parsed.documents ?? [],
+      documents: semDocumentoDeGrade(activities, parsed.documents ?? []),
       payments: pagamentos,
     })
   } catch (e) {
