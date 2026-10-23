@@ -5,6 +5,7 @@ import { getFamilyPlan, PLAN_LIMITS, consumirChamadaIa, mensagemLimiteDiario, ge
 import { DOC_TYPES, DOC_TYPE_KEYS, getDocType, metadataFields, type DocType } from '@/lib/docTypes'
 import { normalizeImage } from '@/lib/image'
 import { sniff, SNIFF_BYTES } from '@/lib/fileSniff'
+import { extrairComGemini, geminiConfigurado } from '@/lib/ia-gemini'
 
 // O padrão da Vercel é 10s, e o tempo de SUBIDA DO ARQUIVO conta para a
 // duração da função — um PDF grande em 4G passa disso. O mesmo ajuste já
@@ -13,7 +14,10 @@ import { sniff, SNIFF_BYTES } from '@/lib/fileSniff'
 // ⚠️ Isto NÃO era a causa da falha no celular (cheguei a supor que fosse e
 // estava errado: um timeout deixaria a ampulheta girando por 10s, e ela não
 // chegava a aparecer). É correção legítima e independente.
-export const maxDuration = 60
+//
+// 120 s desde 23/10/2026: com o Gemini na frente (até 50 s) e o Claude de
+// reserva, as duas tentativas precisam caber.
+export const maxDuration = 120
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -221,15 +225,47 @@ export async function POST(req: NextRequest) {
       return c
     }
 
-    async function extrair(): Promise<Record<string, unknown>> {
+    const limparJson = (raw: string) => raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+
+    // Reserva: a leitura como era até 23/10/2026.
+    async function extrairComClaude(): Promise<Record<string, unknown>> {
       const message = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4096,
         messages: [{ role: 'user', content: montarConteudo() }],
       })
       const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
-      const jsonStr = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
-      return JSON.parse(jsonStr)
+      return JSON.parse(limparJson(raw))
+    }
+
+    // Gemini 3.8 Flash primeiro, desde 23/10/2026. Teste com 13 documentos
+    // reais (testes-ia/testar-cofre.mjs): acertou o tipo em todos, inclusive a
+    // carteira de vacinação em PDF deitada que o Haiku lia como "Boletim
+    // escolar" (PDF não passa pela rotação do navegador). O Haiku chamou a
+    // averbação de divórcio de "contrato" e leu a CNH com um número diferente
+    // a cada rodada. Mesmo conteúdo e mesmo prompt; qualquer falha cai no Claude.
+    async function extrair(): Promise<Record<string, unknown>> {
+      if (geminiConfigurado()) {
+        try {
+          const raw = await extrairComGemini({
+            prompt: PROMPT,
+            pdfs: pdfs.map(p => p.toString('base64')),
+            imagens: orientacoes.map(o => ({ base64: o.buffer.toString('base64'), mediaType: o.mediaType })),
+            textosExtras: multiOrientacao ? [
+              `As ${orientacoes.length} imagens acima sao O MESMO DOCUMENTO em orientacoes diferentes ` +
+              `(${orientacoes.map(o => o.graus + ' graus').join(', ')}). Leia pela que estiver LEGIVEL e ` +
+              `ignore as outras — NAO as trate como documentos distintos nem some informacao de mais de uma. ` +
+              `Informe em "orientacao_legivel" o numero (1 a ${orientacoes.length}) da que voce usou.`,
+            ] : [],
+            rotulo: '[ocr]',
+            tempoMaximoMs: 50_000,
+          })
+          return JSON.parse(limparJson(raw))
+        } catch (e) {
+          console.warn('[ocr] Gemini falhou, usando o Claude:', e instanceof Error ? e.message : e)
+        }
+      }
+      return extrairComClaude()
     }
 
     etapa = 'chamada-ia'
@@ -271,9 +307,18 @@ export async function POST(req: NextRequest) {
     const textoDigitos = digitos(typeof parsed.ocr_text === 'string' ? parsed.ocr_text : '')
     const descartados: string[] = []
 
+    // Datas não passam pela âncora: o campo vem em YYYY-MM-DD e o papel traz
+    // "12/05/1980" — os dígitos nunca batem, e a data de nascimento era
+    // descartada em TODO documento de identidade (visto no teste de 23/10/2026,
+    // com os dois modelos). A âncora existe para números de documento.
+    const camposData = new Set(['issue_date', 'expires_at',
+      ...metadataFields(docType).filter(f => f.format === 'data').map(f => f.key)])
+    const pareceData = (s: string) => /^\d{4}-\d{2}(-\d{2})?$/.test(s.trim())
+
     /** Mantém o valor só se os dígitos dele estiverem na transcrição. */
     function ancorado(campo: string, v: unknown): unknown {
       if (typeof v !== 'string') return v
+      if (camposData.has(campo.replace(/^metadata\./, '')) || pareceData(v)) return v
       const d = digitos(v)
       // Menos de 5 dígitos não é identificador (é dose, série, andar…), e
       // exigir âncora aí geraria falso positivo.

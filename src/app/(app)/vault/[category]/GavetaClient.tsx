@@ -65,6 +65,10 @@ export default function GavetaClient({ category, children, documents: initialDoc
   // Quanto o servidor girou a imagem. Mostrado no aviso: explica o que
   // aconteceu e revela se a rotação ocorreu, sem precisar de log.
   const [ocrGiro, setOcrGiro] = useState(0)
+  // Doses lidas na carteira de vacinação: com muitas, a leitura falha com
+  // frequência (11 numa rodada e 28 na outra, mesma carteira, teste de
+  // 23/10/2026) — a tela pede conferência.
+  const [ocrDoses, setOcrDoses] = useState(0)
   const [ocrOrients, setOcrOrients] = useState(1)
 
   const filtered = childFilter ? docs.filter(d => d.child_id === childFilter) : docs
@@ -100,6 +104,7 @@ export default function GavetaClient({ category, children, documents: initialDoc
     setTitle(prev => prev.trim() ? prev : (r.title ?? ''))
     setDescription(prev => prev.trim() ? prev : (r.description ?? ''))
     setOcrGiro(r.rotacao_aplicada); setOcrOrients(r.orientacoes_recebidas)
+    setOcrDoses(Array.isArray(r.metadata?.vacinas) ? (r.metadata.vacinas as unknown[]).length : 0)
     setOcrApplied(true)
     setFormStep('form')
   }
@@ -352,6 +357,15 @@ export default function GavetaClient({ category, children, documents: initialDoc
                     <Sparkles size={13} color="#3D6641" />
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#2C4A2E' }}>
                       IA detectou: {getDocType(docType).label}{ocrGiro ? ` · imagem girada ${ocrGiro}°` : (ocrOrients === 1 ? ' · sem rotação' : ' · sem girar')} — confira os campos antes de salvar
+                    </span>
+                  </div>
+                )}
+
+                {ocrApplied && docType === 'vacinacao' && ocrDoses >= 6 && (
+                  <div className="px-3 py-2 rounded-xl" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(180,83,9,0.22)' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#92400E' }}>
+                      A IA leu {ocrDoses} doses desta carteira. Em carteiras cheias e escritas à mão, a leitura das doses
+                      costuma falhar — confira cada uma com a carteira antes de salvar.
                     </span>
                   </div>
                 )}

@@ -23,20 +23,39 @@ export function geminiConfigurado(): boolean {
 }
 
 /**
- * Manda a imagem (ou o texto) e o prompt ao Gemini e devolve o texto da
- * resposta. Lança erro em qualquer falha — quem chama decide cair no Claude.
+ * Manda os arquivos (imagens, PDFs) ou o texto e o prompt ao Gemini e devolve
+ * o texto da resposta. Lança erro em qualquer falha — quem chama decide cair
+ * no Claude.
+ *
+ * Usado pela captura (/api/ai-extract: uma imagem OU um texto) e pelo OCR do
+ * Cofre (/api/documents/ocr: PDF, ou a mesma imagem em 3 orientações, mais um
+ * texto explicando as orientações).
  */
 export async function extrairComGemini(opcoes: {
   prompt: string
   imagem?: { base64: string; mediaType: string }
+  imagens?: { base64: string; mediaType: string }[]
+  pdfs?: string[]
+  /** Textos que vão depois dos arquivos e antes do prompt. */
+  textosExtras?: string[]
   texto?: string
+  /** Rótulo do log de tokens (ex.: '[ocr]'). Padrão: '[ai-extract]'. */
+  rotulo?: string
+  tempoMaximoMs?: number
 }): Promise<string> {
   const chave = process.env.GEMINI_API_KEY
   if (!chave) throw new Error('GEMINI_API_KEY ausente')
   const modelo = process.env.GEMINI_MODEL || MODELO_PADRAO
 
-  const partes: unknown[] = opcoes.imagem
-    ? [{ inline_data: { mime_type: opcoes.imagem.mediaType, data: opcoes.imagem.base64 } }, { text: opcoes.prompt }]
+  const imagens = [...(opcoes.imagem ? [opcoes.imagem] : []), ...(opcoes.imagens ?? [])]
+  const pdfs = opcoes.pdfs ?? []
+  const partes: unknown[] = imagens.length || pdfs.length
+    ? [
+        ...pdfs.map(d => ({ inline_data: { mime_type: 'application/pdf', data: d } })),
+        ...imagens.map(i => ({ inline_data: { mime_type: i.mediaType, data: i.base64 } })),
+        ...(opcoes.textosExtras ?? []).map(t => ({ text: t })),
+        { text: opcoes.prompt },
+      ]
     : [{ text: `Conteúdo para analisar:\n\n${opcoes.texto ?? ''}\n\n${opcoes.prompt}` }]
 
   const inicio = Date.now()
@@ -54,7 +73,7 @@ export async function extrairComGemini(opcoes: {
         thinkingConfig: { thinkingLevel: 'low' },
       },
     }),
-    signal: AbortSignal.timeout(TEMPO_MAXIMO_MS),
+    signal: AbortSignal.timeout(opcoes.tempoMaximoMs ?? TEMPO_MAXIMO_MS),
   })
   const corpo = await res.json().catch(() => null) as {
     error?: { message?: string }
@@ -67,7 +86,7 @@ export async function extrairComGemini(opcoes: {
   const texto = (candidato?.content?.parts ?? []).filter(p => !p.thought).map(p => p.text ?? '').join('').trim()
   const u = corpo?.usageMetadata ?? {}
   // Tokens no log: é o que permite conferir o custo real por captura.
-  console.info('[ai-extract] gemini', {
+  console.info(`${opcoes.rotulo ?? '[ai-extract]'} gemini`, {
     modelo, segundos: Math.round((Date.now() - inicio) / 1000),
     entrada: u.promptTokenCount ?? 0, saida: u.candidatesTokenCount ?? 0, raciocinio: u.thoughtsTokenCount ?? 0,
     fim: candidato?.finishReason ?? '?',

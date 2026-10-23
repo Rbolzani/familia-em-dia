@@ -22,7 +22,7 @@ Plataforma de gestão familiar para pais brasileiros. Centraliza agenda escolar,
 | Ícones | Lucide React |
 | Banco / Auth | Supabase (PostgreSQL + RLS) |
 | IA (captura) | Gemini 3.8 Flash via REST (`lib/ia-gemini.ts`); reserva: Claude via @anthropic-ai/sdk |
-| IA (OCR do Cofre) | Claude Haiku via @anthropic-ai/sdk |
+| IA (OCR do Cofre) | Gemini 3.8 Flash via REST (`lib/ia-gemini.ts`, desde 23/10/2026); reserva: Claude Haiku |
 | IA (voz) | Groq Whisper via openai SDK (baseURL Groq) |
 | Pagamentos | Stripe (Checkout, Billing Portal, Webhooks, proração) |
 | Notificações | WhatsApp Cloud API (Twilio fallback) |
