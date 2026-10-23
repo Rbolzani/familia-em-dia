@@ -58,7 +58,10 @@ export async function GET(req: NextRequest) {
     timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date())
   const currentSlot = slot15(nowSP)
-  console.log(`[whatsapp-daily] iniciando às ${now} (SP ${nowSP}, slot ${currentSlot})`)
+  // Versão do Node no log: a Vercel escolhe o patch do "24.x" sozinha, e esta
+  // rota roda a cada 15 min — é o jeito de conferir se um patch de segurança
+  // (ex.: 24.22.1, out/2026) já chegou à produção.
+  console.log(`[whatsapp-daily] iniciando às ${now} (SP ${nowSP}, slot ${currentSlot}) · node ${process.version}`)
 
   // Vercel Cron envia Authorization: Bearer ${CRON_SECRET} automaticamente
   const auth = req.headers.get('authorization')
