@@ -643,7 +643,8 @@ async function processar(req: NextRequest): Promise<NextResponse> {
     }
     // Travas determinísticas de título e data (lib/ia-pos-processamento.ts):
     // as regras existem no prompt, mas erram em parte das vezes. Aqui não erram.
-    activities = aplicarTravasDeAtividade(activities, spTodayISO(), normalized ? null : (text ?? null)).activities
+    const travas = aplicarTravasDeAtividade(activities, spTodayISO(), normalized ? null : (text ?? null))
+    activities = travas.activities
 
     // Mensalidade sem dia do mês não vira mensalidade — mas também não pode
     // sumir. Volta como lembrete, para a pessoa decidir o que fazer com ela.
@@ -666,6 +667,9 @@ async function processar(req: NextRequest): Promise<NextResponse> {
       reminders: lembretes,
       documents: semDocumentoDeGrade(activities, parsed.documents ?? []),
       payments: pagamentos,
+      // Eventos que já aconteceram: fora da agenda, mas a tela avisa e oferece
+      // "Incluir mesmo assim" (lib/ia-pos-processamento.ts).
+      past_activities: travas.descartadas.map(semCamposInternos),
     })
   } catch (e) {
     console.error('AI extract error:', e)

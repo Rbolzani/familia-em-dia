@@ -179,6 +179,9 @@ export default function IAPage() {
   const [pasteHint, setPasteHint]   = useState(false)
 
   const [activities, setActivities] = useState<ExtActivity[] | null>(null)
+  // Itens que a IA leu, mas com data que já passou — a rota os tira da agenda e
+  // a tela avisa, com a opção de incluir mesmo assim.
+  const [pastActs, setPastActs] = useState<ExtActivity[]>([])
   const [reminders, setReminders]   = useState<ExtReminder[] | null>(null)
   const [documents, setDocuments]   = useState<ExtDocument[] | null>(null)
   const [payments, setPayments]     = useState<ExtPayment[] | null>(null)
@@ -245,7 +248,7 @@ export default function IAPage() {
     }
     setImages(prev => [...prev, ...prontos])
     prontos.forEach(f => setPreviews(prev => [...prev, URL.createObjectURL(f)]))
-    setActivities(null); setReminders(null); setDocuments(null); setPayments(null)
+    setActivities(null); setReminders(null); setDocuments(null); setPayments(null); setPastActs([])
     if (prontos.length === arr.length) setError('')
   }
 
@@ -262,12 +265,13 @@ export default function IAPage() {
       return
     }
     setLoading(true); setError('')
-    setActivities(null); setReminders(null); setDocuments(null); setPayments(null)
+    setActivities(null); setReminders(null); setDocuments(null); setPayments(null); setPastActs([])
     try {
       let allActs: ExtActivity[] = []
       let allRems: ExtReminder[] = []
       let allDocs: ExtDocument[] = []
       let allPays: ExtPayment[] = []
+      let allPast: ExtActivity[] = []
       // Mensalidade nasce apontando para o primeiro filho selecionado; o
       // usuário troca no card antes de salvar.
       const payChild = selectedChildIds[0] ?? ''
@@ -289,6 +293,7 @@ export default function IAPage() {
           allRems = [...allRems, ...(data.reminders  ?? []).map((r: any) => ({ ...r, selected: true, child_ids: selectedChildIds }))]
           allDocs = [...allDocs, ...(data.documents  ?? []).map((d: any) => ({ ...d, selected: true, child_ids: selectedChildIds }))]
           allPays = [...allPays, ...(data.payments   ?? []).map((p: any) => ({ ...p, selected: true, child_id: payChild }))]
+          allPast = [...allPast, ...(data.past_activities ?? []).map((a: ExtActivity) => ({ ...a, selected: true, child_ids: selectedChildIds, school_kind: kindPadrao(a) }))]
         }
       } else {
         if (!text.trim()) { setError('Digite algo para analisar.'); setLoading(false); return }
@@ -306,12 +311,14 @@ export default function IAPage() {
         allRems = (data.reminders  ?? []).map((r: any) => ({ ...r, selected: true, child_ids: selectedChildIds }))
         allDocs = (data.documents  ?? []).map((d: any) => ({ ...d, selected: true, child_ids: selectedChildIds }))
         allPays = (data.payments   ?? []).map((p: any) => ({ ...p, selected: true, child_id: payChild }))
+        allPast = (data.past_activities ?? []).map((a: ExtActivity) => ({ ...a, selected: true, child_ids: selectedChildIds, school_kind: kindPadrao(a) }))
       }
 
       setActivities(allActs)
       setReminders(allRems)
       setDocuments(allDocs)
       setPayments(allPays)
+      setPastActs(allPast)
       // Atualiza contador local para feedback imediato
       if (aiLimit !== null) setAiUsed(prev => (prev ?? 0) + 1)
     } catch (e: any) {
@@ -400,7 +407,7 @@ export default function IAPage() {
       setSaved(true)
       setTimeout(() => {
         setSaved(false)
-        setActivities(null); setReminders(null); setDocuments(null); setPayments(null)
+        setActivities(null); setReminders(null); setDocuments(null); setPayments(null); setPastActs([])
         setImages([]); setPreviews([]); setText('')
       }, 2500)
     } catch (e: any) {
@@ -530,7 +537,7 @@ export default function IAPage() {
       {/* Mode tabs */}
       <div className="animate-fade-up p-[6px] flex gap-1.5" style={{ ...CARD, padding: 6 }}>
         {[{ key: 'image', label: 'Foto / Imagem', icon: Camera }, { key: 'text', label: 'Texto livre ou áudio', icon: FileText }].map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => { setMode(key as 'image' | 'text'); setActivities(null); setReminders(null); setDocuments(null); setPayments(null); setError('') }}
+          <button key={key} onClick={() => { setMode(key as 'image' | 'text'); setActivities(null); setReminders(null); setDocuments(null); setPayments(null); setPastActs([]); setError('') }}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[12px] text-sm font-bold transition-all"
             style={mode === key
               ? { background: '#14463A', color: '#fff', boxShadow: '0 4px 12px rgba(20,70,58,0.28)' }
@@ -836,8 +843,32 @@ export default function IAPage() {
                   </p>
                 </div>
               )}
+              {pastActs.length > 0 && (
+                <div className="mb-3 p-3 rounded-[13px]" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(180,83,9,0.22)' }}>
+                  <p className="text-xs font-semibold" style={{ color: '#92400E' }}>
+                    {pastActs.length === 1
+                      ? '1 item desta captura tem data que já passou e não foi incluído:'
+                      : `${pastActs.length} itens desta captura têm datas que já passaram e não foram incluídos:`}
+                  </p>
+                  <ul className="mt-1.5 space-y-0.5">
+                    {pastActs.map((a, i) => (
+                      <li key={i} className="text-xs" style={{ color: 'rgba(26,43,28,0.70)' }}>
+                        • {a.title}{a.date ? ` — ${a.date.split('-').reverse().join('/')}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                  <button type="button"
+                    onClick={() => { setActivities(prev => [...(prev ?? []), ...pastActs]); setPastActs([]) }}
+                    className="mt-2.5 text-xs font-bold px-3 py-1.5 rounded-[10px] transition-all"
+                    style={{ background: 'rgba(255,255,255,0.85)', color: '#92400E', border: '1px solid rgba(180,83,9,0.30)' }}>
+                    Incluir mesmo assim
+                  </button>
+                </div>
+              )}
               {activities.length === 0 ? (
-                <p className="text-xs italic px-2" style={{ color: 'rgba(26,43,28,0.40)' }}>Nenhuma atividade agendada identificada</p>
+                <p className="text-xs italic px-2" style={{ color: 'rgba(26,43,28,0.40)' }}>
+                  {pastActs.length > 0 ? 'Nenhuma atividade com data a partir de hoje' : 'Nenhuma atividade agendada identificada'}
+                </p>
               ) : datedRenderItems.length === 0 ? (
                 <p className="text-xs italic px-2" style={{ color: 'rgba(26,43,28,0.40)' }}>Nenhuma com data — veja em Pendências / Lembretes abaixo</p>
               ) : (

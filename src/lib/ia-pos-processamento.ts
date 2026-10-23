@@ -124,14 +124,17 @@ export function corrigirDatasPassadas(
   activities: ExtractedActivity[],
   hojeISO: string,
   textoOriginal: string | null,
-): { activities: ExtractedActivity[]; descartadas: string[] } {
+): { activities: ExtractedActivity[]; descartadas: ExtractedActivity[] } {
   // Na entrada por imagem não há fonte para inspecionar; a trava vale assim
   // mesmo, porque atividade é compromisso FUTURO por definição.
   if (textoOriginal && ANO_EXPLICITO_RE.test(textoOriginal)) return { activities, descartadas: [] }
 
   const hojeDt = utc(hojeISO)
   const corrigidas: string[] = []
-  const descartadas: string[] = []
+  // Saem da lista, mas voltam para a tela de revisão como aviso, com a opção
+  // "Incluir mesmo assim" — descartar calado parecia falha de leitura (a tela
+  // dizia "nenhuma atividade identificada" com a IA tendo lido tudo certo).
+  const descartadas: ExtractedActivity[] = []
   const saida: ExtractedActivity[] = []
 
   for (const a of activities) {
@@ -147,7 +150,7 @@ export function corrigirDatasPassadas(
       while (dt < hojeDt) dt.setUTCDate(dt.getUTCDate() + 7)
       nova = iso(dt)
     } else if (indiceDiaSemana(a.weekday) === dt.getUTCDay() || (a.month_written === true && diasAtras <= 45)) {
-      descartadas.push(`${a.title} (${a.date})`)
+      descartadas.push(a)
       continue
     } else if (diasAtras <= 45) {
       // Passado recente → a pessoa disse só o dia ("dia 11"). Avança de mês em
@@ -180,7 +183,7 @@ export function corrigirDatasPassadas(
     console.warn('[ai-extract] datas no passado corrigidas:', corrigidas.join(', '))
   }
   if (descartadas.length > 0) {
-    console.warn('[ai-extract] eventos que já aconteceram, fora da lista:', descartadas.join(', '))
+    console.warn('[ai-extract] eventos que já aconteceram, fora da lista:', descartadas.map(a => `${a.title} (${a.date})`).join(', '))
   }
   return { activities: saida, descartadas }
 }
@@ -212,7 +215,7 @@ export function aplicarTravasDeAtividade(
   activities: ExtractedActivity[],
   hojeISO: string,
   textoOriginal: string | null,
-): { activities: ExtractedActivity[]; descartadas: string[] } {
+): { activities: ExtractedActivity[]; descartadas: ExtractedActivity[] } {
   let acts = limparTitulos(activities)
   acts = datasPorDiaDaSemana(acts, hojeISO)
   acts = anoPeloDiaDaSemana(acts, hojeISO)
