@@ -79,6 +79,35 @@ export function datasPorDiaDaSemana(activities: ExtractedActivity[], hojeISO: st
 }
 
 /**
+ * Ano distante (mais de 1 ano de hoje) numa data única → ano atual.
+ *
+ * POR QUE: o conteúdo quase nunca traz o ano, e o prompt manda usar o atual.
+ * Mesmo assim, numa rodada de 23/10/2026 o Gemini pôs um calendário de outubro
+ * inteiro em 2020 — ano em que o dia 1º também caiu numa quinta, então a
+ * checagem do dia da semana não pegava, e até os eventos futuros foram parar
+ * no aviso de "já passou". Se o dia da semana estiver escrito e NÃO bater no
+ * ano atual, o ano distante fica (pode ser um documento antigo de verdade).
+ */
+export function anoDistanteParaAtual(
+  activities: ExtractedActivity[],
+  hojeISO: string,
+  textoOriginal: string | null,
+): ExtractedActivity[] {
+  // Ano escrito pela pessoa no texto ("consulta em 05/03/2028") manda.
+  if (textoOriginal && ANO_EXPLICITO_RE.test(textoOriginal)) return activities
+  const anoHoje = Number(hojeISO.slice(0, 4))
+  return activities.map(a => {
+    if (a.recurring || !ehISO(a.date)) return a
+    if (Math.abs(Number(a.date.slice(0, 4)) - anoHoje) <= 1) return a
+    const cand = `${anoHoje}${a.date.slice(4)}`
+    if (!ehISO(cand) || iso(utc(cand)) !== cand) return a
+    const alvo = indiceDiaSemana(a.weekday)
+    if (alvo !== null && utc(cand).getUTCDay() !== alvo) return a
+    return { ...a, date: cand }
+  })
+}
+
+/**
  * Data única com o dia da semana escrito ao lado ("19/08 (quarta)"): o ano
  * certo é aquele em que dia e data coincidem — é a pista mais forte que o
  * conteúdo dá sobre o ano. Se a IA escolheu um ano em que não coincidem, troca
@@ -218,6 +247,7 @@ export function aplicarTravasDeAtividade(
 ): { activities: ExtractedActivity[]; descartadas: ExtractedActivity[] } {
   let acts = limparTitulos(activities)
   acts = datasPorDiaDaSemana(acts, hojeISO)
+  acts = anoDistanteParaAtual(acts, hojeISO, textoOriginal)
   acts = anoPeloDiaDaSemana(acts, hojeISO)
   return corrigirDatasPassadas(acts, hojeISO, textoOriginal)
 }

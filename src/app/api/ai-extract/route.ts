@@ -36,17 +36,18 @@ function buildPrompt(): string {
 Hoje é: ${todayISO} (${todayWeekday})
 
 ⚠️ REGRA DE DATA — vale para TODA data que você gerar, e vem antes de tudo:
-**nenhuma data pode ser anterior a ${todayISO}**, a menos que o ano esteja
-escrito no conteúdo. Ninguém agenda compromisso para o passado.
 - "dia 12" (só o dia, sem mês em lugar nenhum do conteúdo): se o 12 já passou
   neste mês, é o **dia 12 do MÊS QUE VEM**. Se ainda não chegou, é deste mês.
   Se é hoje, é hoje.
-- Se o conteúdo mostra o mês (título de calendário, "15 de agosto") e a data
-  já passou há poucas semanas, o evento JÁ ACONTECEU: não o inclua.
-- "12 de março" (dia e mês): se já passou neste ano, é **do ANO QUE VEM**.
-- data completa com ano: respeite como está, mesmo no passado.
-Ao terminar, releia cada "date": achou alguma menor que ${todayISO} sem ano
-escrito no conteúdo? Então está errada — avance para a próxima ocorrência.
+- Dia e mês escritos, sem ano ("15 de agosto", "19/08", ou os dias de um
+  calendário com o título "Outubro"): use o mês escrito e o **ano atual**,
+  MESMO QUE A DATA JÁ TENHA PASSADO. Se o dia da semana estiver escrito junto
+  ("19/08 (quarta)"), use o ano em que o dia da semana e a data coincidem.
+  Não avance para outro mês nem outro ano: o app confere cada data depois e
+  avisa a pessoa quando o evento já passou.
+- **Inclua TODOS os eventos que você ler**, inclusive os que já passaram.
+  Nunca deixe um evento de fora por causa da data.
+- data completa com ano: respeite como está.
 
 Analise o conteúdo e classifique cada item em exatamente uma das quatro categorias:
 
@@ -236,29 +237,18 @@ Regras para activities:
   atrapalha mais do que deixá-lo na aba genérica.
 - date: calcule datas relativas a partir de hoje se necessário; null se incerta
 
-- ⚠️ **A DATA NUNCA PODE CAIR NO PASSADO.** Ninguém agenda uma prova para
-  ontem. Quando o conteúdo não traz o ano (e quase nunca traz), escolha
-  sempre a **PRÓXIMA** ocorrência daquela data:
-  · **O conteúdo mostra o mês** (calendário com título "Outubro", "15 de
-    agosto", "19/08"): use ESSE mês para os dias listados. A regra do mês
-    seguinte, logo abaixo, só vale quando não há mês em lugar nenhum.
-  · **Evento que já aconteceu** — o mês está escrito e a data ficou para trás
-    há poucas semanas (ex.: num calendário de outubro, o dia 12 quando hoje é
-    dia 22): NÃO inclua. Não empurre para outro mês nem vire lembrete.
+- **Datas sem ano** (quase nunca o conteúdo traz o ano):
+  · **Só o dia do mês** ("dia 12", "no dia 5"), sem mês em lugar nenhum — se
+    esse dia ainda não chegou neste mês, use este mês; se **já passou**, use o
+    **MÊS SEGUINTE**. Exemplo: hoje é ${todayISO}; "dia 12" ⇒ dia 12 do mês que
+    vem, porque o 12 deste mês ficou para trás. Se for hoje, é hoje.
+  · **O mês está escrito** (calendário com título "Outubro", "15 de agosto",
+    "19/08"): use ESSE mês e o **ano atual**, mesmo que a data já tenha
+    passado. Não empurre para outro mês nem outro ano, e não deixe o evento
+    de fora: o app confere a data e avisa a pessoa (marque month_written).
   · **Dia da semana escrito junto da data** ("19/08 (quarta)"): o ano certo é
-    aquele em que o dia da semana e a data coincidem.
-  · **Só o dia do mês** ("dia 12", "no dia 5") — se esse dia ainda não chegou
-    neste mês, use este mês; se **já passou**, use o **MÊS SEGUINTE**.
-    Exemplo: hoje é ${todayISO}; "dia 12" ⇒ dia 12 do mês que vem, porque o 12
-    deste mês ficou para trás. "dia 20" ⇒ dia 20 deste mês.
-    Se o dia for exatamente hoje, é hoje.
-  · **Dia e mês, sem ano** ("12 de março", "05/03") — se essa data ainda vem
-    neste ano, use este ano; se já passou, use o **ANO SEGUINTE**.
-  · **Data completa com ano** — respeite exatamente o que está escrito, mesmo
-    que seja passado (a pessoa foi explícita).
-  Antes de responder, confira cada "date" que você gerou: se for anterior a
-  ${todayISO} sem que o ano estivesse escrito no conteúdo, você errou — avance
-  para a próxima ocorrência.
+    aquele em que o dia da semana e a data coincidem; preencha weekday.
+  · **Data completa com ano** — respeite exatamente o que está escrito.
 - recurring: true SOMENTE se o conteúdo expressar recorrência explícita
   ("toda terça", "às segundas", "semanalmente") ou for uma grade de horário
   escolar. Rotina implícita ou hábito não é recorrência — se o conteúdo não
