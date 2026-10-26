@@ -127,7 +127,14 @@ export async function GET(req: NextRequest) {
     try {
       const summary = await buildDailySummary(admin, s.user_id)
       if (!summary) {
-        console.log(`[whatsapp-daily] user ${s.user_id}: sem atividades no período, pulando`)
+        console.log(`[whatsapp-daily] user ${s.user_id}: plano sem resumo diário, pulando`)
+        skipped++
+        return
+      }
+      // Sem prova, mensalidade vencendo, atividade ou aula HOJE, o dia não
+      // tem resumo — nem por WhatsApp, nem pelo e-mail de reserva.
+      if (!summary.temEventoHoje) {
+        console.log(`[whatsapp-daily] user ${s.user_id}: nada para hoje, pulando`)
         skipped++
         return
       }

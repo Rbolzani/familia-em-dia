@@ -221,6 +221,11 @@ export interface DailySummary {
   full: string        // versão texto corrido, para Twilio/texto livre (usa \n\n real)
   // [data, (aulas de hoje), hoje, próximos 7 dias, (lembretes), documentos, vacinas]
   params: string[]
+  // Há prova hoje, mensalidade vencendo hoje, atividade de hoje ou aula de
+  // hoje. Sem nenhum dos quatro o envio automático pula o dia (decisão de
+  // produto de 26/10/2026) — próximos 7 dias, lembretes, documentos e vacinas
+  // sozinhos não justificam a mensagem. O botão de teste ignora este campo.
+  temEventoHoje: boolean
 }
 
 // ── Monta o resumo do dia + próximos 7 dias para um usuário ─────────────────
@@ -329,10 +334,8 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     familyIsPaid = !!ownSub && temResumoNoPlano(ownSub)
   }
 
-  // Free não recebe a agenda. Sem atividades, o resumo ainda é enviado — as
-  // seções já têm texto de fallback ("Nenhuma atividade...") — pois pular o
-  // envio silenciosamente fazia o resumo diário parecer instável (chegava só
-  // em dias com atividade, nunca em dias tranquilos).
+  // Free não recebe a agenda. Se o dia tem ou não o que avisar é decidido
+  // por quem envia, a partir de `temEventoHoje`.
   if (!familyIsPaid) return null
 
   // Conta que ainda não tem NENHUMA atividade (nem lembrete): o resumo segue
@@ -463,6 +466,11 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
       const valor = p.amount !== null ? ` — ${formatBRL(p.amount)}` : ''
       return `${p.title}${quem}${valor} · ${quando}`
     })
+
+  // Só o vencimento de HOJE conta para decidir o envio; o vencido de dias
+  // anteriores continua aparecendo na seção quando a mensagem sai.
+  const mensalidadeVenceHoje = payList
+    .some(p => !jaPagos.has(p.id) && vencimentoDe(competencia, p.due_day) === today)
 
   const mensalidadesParam = mensalidadeLinhas.length > 0
     ? mensalidadeLinhas.join(' | ')
@@ -596,7 +604,12 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   if (templateHasReminders()) params.push(lembretesParam)
   params.push(documentosParam, vacinasParam)
 
-  return { full, params }
+  const temEventoHoje = examList.some(e => e.date === today)
+    || mensalidadeVenceHoje
+    || todayActs.length > 0
+    || classList.length > 0
+
+  return { full, params, temEventoHoje }
 }
 
 // ── Número de WhatsApp do usuário ────────────────────────────────────────────
