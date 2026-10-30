@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { adminClient, buildDailySummary, sendWhatsApp, templateHasClasses, templateHasReminders, templateHasExams, templateHasPayments } from '@/lib/whatsapp'
+import { getActiveFamily } from '@/lib/access'
 import { enviarEmail, resumoEmHtml } from '@/lib/email'
 
 export async function POST() {
@@ -20,7 +21,9 @@ export async function POST() {
   }
 
   const admin = adminClient()
-  const summary = await buildDailySummary(admin, user.id)
+  // O teste mostra o resumo da família selecionada no app.
+  const { familyId } = await getActiveFamily(supabase)
+  const summary = await buildDailySummary(admin, user.id, familyId)
   // O fallback (usuário no plano free, sem resumo) precisa ter a MESMA
   // contagem de parâmetros do template ativo — e na MESMA ordem de
   // buildDailySummary. Divergir faz a Meta rejeitar a mensagem inteira.

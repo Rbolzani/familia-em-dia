@@ -9,6 +9,9 @@ import { useUpsell } from '@/components/billing/Upsell'
 interface Props {
   userId: string
   userEmail: string
+  familyId: string | null
+  // Só vem preenchido para quem está em mais de uma família.
+  familyName: string | null
   whatsapp: { number: string; enabled: boolean; time: string }
   prefilledFromCadastro?: boolean
   twilioMode?: boolean
@@ -19,7 +22,7 @@ interface Props {
 const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))
 const MINUTES = ['00', '15', '30', '45']
 
-export default function AlertasClient({ userId, userEmail, whatsapp, prefilledFromCadastro, twilioMode, twilioKeyword, whatsappBlocked }: Props) {
+export default function AlertasClient({ userId, userEmail, familyId, familyName, whatsapp, prefilledFromCadastro, twilioMode, twilioKeyword, whatsappBlocked }: Props) {
   const supabase = createClient()
   const { abrir: abrirUpsell } = useUpsell()
 
@@ -41,15 +44,27 @@ export default function AlertasClient({ userId, userEmail, whatsapp, prefilledFr
       return false
     }
     setWaSaving(true)
-    const { error } = await supabase
-      .from('notification_settings')
-      .upsert({
+    const agora = new Date().toISOString()
+    const summaryTime = timeOverride ?? waTime
+    // O número é da pessoa; horário e liga/desliga são da família selecionada.
+    const [{ error: erroNumero }, erroFamilia] = await Promise.all([
+      supabase.from('notification_settings').upsert({
         user_id: userId,
         whatsapp_number: digits || null,
-        daily_summary_enabled: enabled,
-        summary_time: timeOverride ?? waTime,
-        updated_at: new Date().toISOString(),
-      })
+        updated_at: agora,
+        ...(familyId ? {} : { daily_summary_enabled: enabled, summary_time: summaryTime }),
+      }),
+      familyId
+        ? supabase.from('resumo_familia').upsert({
+            user_id: userId,
+            family_id: familyId,
+            enabled,
+            summary_time: summaryTime,
+            updated_at: agora,
+          }).then(r => r.error)
+        : Promise.resolve(null),
+    ])
+    const error = erroNumero ?? erroFamilia
     setWaSaving(false)
     if (error) { toast('Não foi possível salvar. Tente novamente.', 'error'); return false }
     toast('Preferências salvas ✓')
@@ -207,9 +222,17 @@ export default function AlertasClient({ userId, userEmail, whatsapp, prefilledFr
         </div>
 
         <p style={{ fontSize: 13, color: 'rgba(26,43,28,0.55)', lineHeight: 1.5, marginBottom: 16 }}>
-          Todo dia no horário escolhido, receba no WhatsApp o resumo
-          das atividades do dia e da semana — provas, consultas, quem leva e quem busca.
+          No horário escolhido, receba no WhatsApp o resumo do dia e da semana — provas,
+          consultas, quem leva e quem busca. A mensagem sai nos dias com atividade, aula,
+          prova (hoje ou amanhã) ou mensalidade vencendo ou atrasada.
         </p>
+
+        {familyName && (
+          <p className="px-3 py-2 rounded-xl" style={{ fontSize: 12.5, lineHeight: 1.5, color: '#1A2B1C', background: 'rgba(61,102,65,0.07)', border: '1px solid rgba(61,102,65,0.18)', marginBottom: 16 }}>
+            Horário e ativação abaixo valem para a família <strong>{familyName}</strong>. Para configurar
+            outra, troque de família no seletor. Cada família envia a sua mensagem; o número é o mesmo em todas.
+          </p>
+        )}
 
         {/* Número */}
         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(26,43,28,0.50)', marginBottom: 6 }}>
@@ -245,7 +268,7 @@ export default function AlertasClient({ userId, userEmail, whatsapp, prefilledFr
           <div>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1A2B1C' }}>Resumo diário ativo</div>
             <div style={{ fontSize: 11.5, color: 'rgba(26,43,28,0.45)' }}>
-              {waEnabled ? `Você receberá a mensagem todo dia às ${waTime}` : 'Ative para começar a receber'}
+              {waEnabled ? `Enviado às ${waTime} nos dias com algo para avisar` : 'Ative para começar a receber'}
             </div>
           </div>
           <button onClick={toggleWa}

@@ -9,11 +9,22 @@ export default async function AlertasPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const [{ data: waSettings }, { data: prof }, plan] = await Promise.all([
+  const { data: familias } = await supabase.rpc('get_my_families')
+  const lista = (familias ?? []) as Array<{ family_id: string; family_name: string; is_active: boolean }>
+  const familia = lista.find(f => f.is_active) ?? lista[0] ?? null
+
+  const [{ data: waSettings }, { data: escolha }, { data: prof }, plan] = await Promise.all([
     supabase
       .from('notification_settings')
       .select('whatsapp_number, daily_summary_enabled, summary_time')
       .eq('user_id', user.id)
+      .maybeSingle(),
+    // Horário e liga/desliga são por família; sem escolha feita, vale o padrão da pessoa.
+    supabase
+      .from('resumo_familia')
+      .select('enabled, summary_time')
+      .eq('user_id', user.id)
+      .eq('family_id', familia?.family_id ?? '')
       .maybeSingle(),
     supabase
       .from('profiles')
@@ -35,12 +46,16 @@ export default async function AlertasPage() {
 
   return (
     <AlertasClient
+      // Trocar de família no seletor recomeça a tela com a configuração da nova.
+      key={familia?.family_id ?? 'sem-familia'}
       userId={user.id}
       userEmail={user.email ?? ''}
+      familyId={familia?.family_id ?? null}
+      familyName={lista.length > 1 ? familia?.family_name ?? null : null}
       whatsapp={{
         number,
-        enabled: waSettings?.daily_summary_enabled ?? false,
-        time: (waSettings?.summary_time ?? '07:00').slice(0, 5),
+        enabled: escolha?.enabled ?? waSettings?.daily_summary_enabled ?? false,
+        time: (escolha?.summary_time ?? waSettings?.summary_time ?? '07:00').slice(0, 5),
       }}
       prefilledFromCadastro={prefilledFromCadastro}
       twilioMode={twilioMode}

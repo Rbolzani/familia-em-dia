@@ -86,30 +86,49 @@ export async function GET(req: NextRequest) {
   // mil pessoas com o resumo ligado, quem estivesse além da milésima linha
   // nunca receberia, e o log diria "concluído" igual. Comprovado no banco:
   // 1.239 atividades, um select simples devolveu 1.000.
-  let allSettings: { user_id: string; whatsapp_number: string | null; summary_time: string | null }[]
+  // Uma entrada por pessoa e família: cada família tem o próprio horário e
+  // liga/desliga (`resumo_familia`); sem linha lá, vale o padrão da pessoa.
+  // Sem `whatsapp_number` a pessoa entra na fila do mesmo jeito: quem não tem
+  // número (ou cujo envio falha) recebe por e-mail. O gate de plano continua
+  // dentro de `buildDailySummary` — a agenda diária é paga em qualquer canal.
+  const envios: { user_id: string; family_id: string | null; whatsapp_number: string | null; summary_time: string }[] = []
   try {
-    allSettings = await buscarTodas((de, ate) => admin
-      .from('notification_settings')
-      .select('user_id, whatsapp_number, summary_time')
-      .eq('daily_summary_enabled', true)
-      // Sem `whatsapp_number` a pessoa entra na fila do mesmo jeito: quem não
-      // tem número (ou cujo envio falha) recebe por e-mail. O gate de plano
-      // continua dentro de `buildDailySummary` — a agenda diária é paga em
-      // qualquer canal.
-      .range(de, ate))
+    const [pessoas, membros, porFamilia] = await Promise.all([
+      buscarTodas<{ user_id: string; whatsapp_number: string | null; daily_summary_enabled: boolean; summary_time: string | null }>((de, ate) => admin
+        .from('notification_settings')
+        .select('user_id, whatsapp_number, daily_summary_enabled, summary_time')
+        .range(de, ate)),
+      buscarTodas<{ user_id: string; family_id: string }>((de, ate) => admin
+        .from('family_members').select('user_id, family_id').range(de, ate)),
+      buscarTodas<{ user_id: string; family_id: string; enabled: boolean; summary_time: string }>((de, ate) => admin
+        .from('resumo_familia').select('user_id, family_id, enabled, summary_time').range(de, ate)),
+    ])
+    const escolhas = new Map(porFamilia.map(r => [`${r.user_id}|${r.family_id}`, r]))
+    const familiasDe = new Map<string, string[]>()
+    for (const m of membros) familiasDe.set(m.user_id, [...(familiasDe.get(m.user_id) ?? []), m.family_id])
+
+    for (const p of pessoas) {
+      for (const familyId of familiasDe.get(p.user_id) ?? [null]) {
+        const escolha = familyId ? escolhas.get(`${p.user_id}|${familyId}`) : undefined
+        if (!(escolha?.enabled ?? p.daily_summary_enabled)) continue
+        envios.push({
+          user_id: p.user_id,
+          family_id: familyId,
+          whatsapp_number: p.whatsapp_number,
+          summary_time: escolha?.summary_time ?? p.summary_time ?? '07:00',
+        })
+      }
+    }
   } catch (settingsError) {
-    console.error('[whatsapp-daily] erro ao buscar notification_settings:', settingsError)
+    console.error('[whatsapp-daily] erro ao buscar as configurações do resumo:', settingsError)
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
-  // Só envia para quem escolheu um horário que cai no slot atual (15 min)
-  const settings = (allSettings ?? []).filter(s => {
-    const t = (s.summary_time ?? '07:00').slice(0, 5)
-    return slot15(t) === currentSlot
-  })
+  // Só envia o que tem horário no slot atual (15 min)
+  const settings = envios.filter(s => slot15(s.summary_time.slice(0, 5)) === currentSlot)
 
   const total = settings.length
-  console.log(`[whatsapp-daily] ${allSettings?.length ?? 0} habilitado(s), ${total} no slot ${currentSlot}`)
+  console.log(`[whatsapp-daily] ${envios.length} habilitado(s), ${total} no slot ${currentSlot}`)
 
   let sent = 0
   let skipped = 0
@@ -125,7 +144,7 @@ export async function GET(req: NextRequest) {
 
   async function processUser(s: (typeof settings)[number]) {
     try {
-      const summary = await buildDailySummary(admin, s.user_id)
+      const summary = await buildDailySummary(admin, s.user_id, s.family_id)
       if (!summary) {
         console.log(`[whatsapp-daily] user ${s.user_id}: plano sem resumo diário, pulando`)
         skipped++

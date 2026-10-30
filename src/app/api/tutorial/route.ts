@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getFamilyPlan, PLAN_LIMITS } from '@/lib/billing'
+import { getActiveFamily } from '@/lib/access'
 
 // Estado do tutorial "Primeiros passos": plano da família (para o aviso de
 // recurso pago) e quais passos a pessoa já fez. Só é chamado quando o tutorial
@@ -14,10 +15,12 @@ export async function GET() {
   const existe = async (q: PromiseLike<{ count: number | null }>) => ((await q).count ?? 0) > 0
   const atividades = () => supabase.from('activities').select('id', { count: 'exact', head: true })
 
-  const [plano, filhos, alerta, parceiros, convites, ia, escola, logistica, documentos, mensalidades] = await Promise.all([
+  const { familyId } = await getActiveFamily(supabase)
+  const [plano, filhos, alerta, alertaFamilia, parceiros, convites, ia, escola, logistica, documentos, mensalidades] = await Promise.all([
     getFamilyPlan(),
     existe(supabase.from('children').select('id', { count: 'exact', head: true })),
     supabase.from('notification_settings').select('whatsapp_number, daily_summary_enabled').eq('user_id', user.id).maybeSingle(),
+    supabase.from('resumo_familia').select('enabled').eq('user_id', user.id).eq('family_id', familyId ?? '').maybeSingle(),
     existe(supabase.from('family_members').select('id', { count: 'exact', head: true }).eq('role', 'partner')),
     existe(supabase.from('family_invites').select('id', { count: 'exact', head: true }).eq('status', 'pending')),
     existe(atividades().eq('ai_generated', true)),
@@ -39,7 +42,7 @@ export async function GET() {
     },
     feitos: {
       filhos,
-      alertas: !!alerta.data?.daily_summary_enabled && !!alerta.data?.whatsapp_number,
+      alertas: !!(alertaFamilia.data?.enabled ?? alerta.data?.daily_summary_enabled) && !!alerta.data?.whatsapp_number,
       compartilhar: parceiros || convites,
       ia,
       escola,

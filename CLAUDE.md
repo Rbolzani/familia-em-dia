@@ -121,7 +121,7 @@ src/
 
 > **Plano efetivo da família = plano do owner** (resolvido por `get_family_plan` / `getEffectiveSubscription` a partir de `families.created_by`). Parceiro herda; não tem assinatura própria no contexto compartilhado.
 
-Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled, summary_time), `logistics_suggestions` (sugestões de leva/busca entre membros).
+Outras tabelas: `notification_settings` (whatsapp_number + padrão de daily_summary_enabled/summary_time), `resumo_familia` (horário e liga/desliga por pessoa e família), `logistics_suggestions` (sugestões de leva/busca entre membros).
 
 ---
 
@@ -158,6 +158,7 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 - ⚠️ **A contagem de parâmetros é contrato do template Meta.** Mandar 6 params para um template de 7 (ou vice-versa) faz a Meta rejeitar a mensagem inteira. Flags `WHATSAPP_TEMPLATE_HAS_CLASSES` e `WHATSAPP_TEMPLATE_HAS_REMINDERS` controlam a contagem e devem ser trocadas **junto** com `WHATSAPP_TEMPLATE_NAME`.
 - O fallback de `/api/whatsapp-test` monta os params à mão — ao criar uma seção nova, atualizar **os dois** lugares.
 - **Só sai em dia com evento (26/10/2026):** prova hoje ou amanhã, mensalidade vencendo hoje ou atrasada, atividade de hoje ou aula de hoje (`temEventoHoje`). Sem nenhum dos quatro, o cron pula o dia (WhatsApp e e-mail). A conta só entra no envio depois de ter filho e um dado lançado, pela IA ou à mão — atividade, lembrete, mensalidade ou documento (`contaAtiva`). O botão de teste envia sempre.
+- **Por pessoa e família (30/10/2026):** cada família gera a sua mensagem, com dados, plano e regras só dela. Horário e liga/desliga ficam em `resumo_familia` (PK `user_id`+`family_id`); sem linha, vale o padrão de `notification_settings`, que guarda o número (único por pessoa). A tela Alertas e o botão de teste usam a família ativa. Quem está em 2+ famílias vê o nome da família junto da data.
 - **A agenda diária é recurso pago** (plano free não recebe); o **aviso de grace** é notificação de conta e é entregue mesmo no free
 
 ### 6. Compartilhamento

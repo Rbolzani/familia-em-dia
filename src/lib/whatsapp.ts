@@ -232,15 +232,18 @@ export interface DailySummary {
 }
 
 // ── Monta o resumo do dia + próximos 7 dias para um usuário ─────────────────
-// Retorna null se o usuário não tiver nenhuma atividade no período.
-export async function buildDailySummary(admin: SupabaseClient, userId: string): Promise<DailySummary | null> {
+// Cada família tem o seu resumo: dados, plano e regras de envio são só dela.
+// Retorna null se o plano da família não inclui o resumo.
+export async function buildDailySummary(admin: SupabaseClient, userId: string, familyId: string | null): Promise<DailySummary | null> {
   // Usuários da família (o próprio + parceiros)
   const { data: myMemberships } = await admin
     .from('family_members')
     .select('family_id')
     .eq('user_id', userId)
 
-  const familyIds = (myMemberships ?? []).map(m => m.family_id)
+  // Sem família (`familyId` nulo), as consultas abaixo caem no próprio usuário.
+  const familyIds = familyId ? [familyId] : []
+  const emVariasFamilias = (myMemberships ?? []).length > 1
 
   // Nomes para leva/busca (relativo ao destinatário). Havia duas consultas
   // idênticas a family_members aqui — a primeira alimentava um `userIds` que
@@ -322,9 +325,11 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   // durante a carência do cartão recusado — past_due — continua saindo); o aviso de grace é notificação de conta e é tratado à parte
   // (ver runGraceNotices) — por isso não entra mais neste resumo.
   let familyIsPaid = false
+  let nomeFamilia: string | null = null
   if (familyIds.length > 0) {
     const { data: families } = await admin
-      .from('families').select('created_by').in('id', familyIds)
+      .from('families').select('name, created_by').in('id', familyIds)
+    nomeFamilia = (families?.[0]?.name as string | undefined) ?? null
     const ownerIds = [...new Set((families ?? []).map(f => f.created_by as string))]
     if (ownerIds.length > 0) {
       const { data: subs } = await admin
@@ -354,7 +359,9 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   // Cada seção vira uma linha própria no WhatsApp: no template, o texto fixo
   // já tem a quebra de linha entre seções — aqui só juntamos os itens DENTRO
   // de cada seção com " | " (o parâmetro do template não pode ter \n real).
-  const dataParam = fmtShort(today)
+  // Quem está em mais de uma família recebe uma mensagem de cada: o nome vai
+  // junto da data, sem exigir template novo na Meta.
+  const dataParam = emVariasFamilias && nomeFamilia ? `${fmtShort(today)} · ${nomeFamilia}` : fmtShort(today)
 
   // ── Aulas de hoje ────────────────────────────────────────────────────────
   // O nome do filho só entra quando há aula de mais de um filho no dia: com
