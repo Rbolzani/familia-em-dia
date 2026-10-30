@@ -131,8 +131,14 @@ export async function GET(req: NextRequest) {
         skipped++
         return
       }
-      // Sem prova, mensalidade vencendo, atividade ou aula HOJE, o dia não
-      // tem resumo — nem por WhatsApp, nem pelo e-mail de reserva.
+      // Sem filho e sem captura, a conta ainda não recebe resumo. Depois disso,
+      // o dia sem evento (ver `temEventoHoje`) também não tem resumo — nem por
+      // WhatsApp, nem pelo e-mail de reserva.
+      if (!summary.contaAtiva) {
+        console.log(`[whatsapp-daily] user ${s.user_id}: sem filho ou sem captura, pulando`)
+        skipped++
+        return
+      }
       if (!summary.temEventoHoje) {
         console.log(`[whatsapp-daily] user ${s.user_id}: nada para hoje, pulando`)
         skipped++

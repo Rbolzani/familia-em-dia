@@ -221,11 +221,14 @@ export interface DailySummary {
   full: string        // versão texto corrido, para Twilio/texto livre (usa \n\n real)
   // [data, (aulas de hoje), hoje, próximos 7 dias, (lembretes), documentos, vacinas]
   params: string[]
-  // Há prova hoje, mensalidade vencendo hoje, atividade de hoje ou aula de
-  // hoje. Sem nenhum dos quatro o envio automático pula o dia (decisão de
-  // produto de 26/10/2026) — próximos 7 dias, lembretes, documentos e vacinas
-  // sozinhos não justificam a mensagem. O botão de teste ignora este campo.
+  // Há prova hoje ou amanhã, mensalidade vencendo hoje ou atrasada, atividade
+  // de hoje ou aula de hoje. Sem nenhum dos quatro o envio automático pula o
+  // dia (decisão de produto de 26/10/2026) — próximos 7 dias, lembretes,
+  // documentos e vacinas sozinhos não justificam a mensagem. O botão de teste
+  // ignora este campo e o seguinte.
   temEventoHoje: boolean
+  // A família já cadastrou filho e salvou algo vindo da captura por IA.
+  contaAtiva: boolean
 }
 
 // ── Monta o resumo do dia + próximos 7 dias para um usuário ─────────────────
@@ -338,11 +341,10 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   // por quem envia, a partir de `temEventoHoje`.
   if (!familyIsPaid) return null
 
-  // Conta que ainda não tem NENHUMA atividade (nem lembrete): o resumo segue
-  // saindo todo dia — é a demonstração do produto durante o teste —, mas dizer
+  // Conta que ainda não tem NENHUMA atividade (nem lembrete): o envio automático
+  // não sai para ela (ver `contaAtiva`), mas o botão de teste sim — e dizer
   // "nenhuma atividade" oito vezes não ensina nada. Três seções passam a dizer
-  // o que fazer. Quem já usa o app continua vendo "Aproveite!" num dia livre.
-  // Se a contagem falhar (`count` nulo), vale o texto de sempre.
+  // o que fazer. Se a contagem falhar (`count` nulo), vale o texto de sempre.
   const totalQuery = admin.from('activities').select('id', { count: 'exact', head: true })
   const { count: totalAtividades } = familyIds.length > 0
     ? await totalQuery.in('family_id', familyIds)
@@ -466,11 +468,6 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
       const valor = p.amount !== null ? ` — ${formatBRL(p.amount)}` : ''
       return `${p.title}${quem}${valor} · ${quando}`
     })
-
-  // Só o vencimento de HOJE conta para decidir o envio; o vencido de dias
-  // anteriores continua aparecendo na seção quando a mensagem sai.
-  const mensalidadeVenceHoje = payList
-    .some(p => !jaPagos.has(p.id) && vencimentoDe(competencia, p.due_day) === today)
 
   const mensalidadesParam = mensalidadeLinhas.length > 0
     ? mensalidadeLinhas.join(' | ')
@@ -604,12 +601,25 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   if (templateHasReminders()) params.push(lembretesParam)
   params.push(documentosParam, vacinasParam)
 
-  const temEventoHoje = examList.some(e => e.date === today)
-    || mensalidadeVenceHoje
+  const amanhaProva = spDate(1)
+  const temEventoHoje = examList.some(e => e.date === today || e.date === amanhaProva)
+    || mensalidadeLinhas.length > 0
     || todayActs.length > 0
     || classList.length > 0
 
-  return { full, params, temEventoHoje }
+  // Conta só entra no envio depois de cadastrar filho e fazer a primeira
+  // captura. A prova da captura é um item salvo com `ai_generated`.
+  const filhosQuery = admin.from('children').select('id', { count: 'exact', head: true })
+  const atividadesIaQuery = admin.from('activities').select('id', { count: 'exact', head: true }).eq('ai_generated', true)
+  const mensalidadesIaQuery = admin.from('payments').select('id', { count: 'exact', head: true }).eq('ai_generated', true)
+  const [{ count: filhos }, { count: atividadesIa }, { count: mensalidadesIa }] = await Promise.all(
+    familyIds.length > 0
+      ? [filhosQuery.in('family_id', familyIds), atividadesIaQuery.in('family_id', familyIds), mensalidadesIaQuery.in('family_id', familyIds)]
+      : [filhosQuery.eq('user_id', userId), atividadesIaQuery.eq('user_id', userId), mensalidadesIaQuery.eq('user_id', userId)],
+  )
+  const contaAtiva = (filhos ?? 0) > 0 && ((atividadesIa ?? 0) + (mensalidadesIa ?? 0)) > 0
+
+  return { full, params, temEventoHoje, contaAtiva }
 }
 
 // ── Número de WhatsApp do usuário ────────────────────────────────────────────
