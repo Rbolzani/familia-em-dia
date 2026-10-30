@@ -157,7 +157,7 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 - **📌 Lembretes** = `activities` com `date IS NULL` (mural do Dashboard), teto de 8 itens + "… e mais N no app". Sem janela de data: lembrete sem prazo não vence. Não há status "concluído" a filtrar — concluir no mural apaga a linha.
 - ⚠️ **A contagem de parâmetros é contrato do template Meta.** Mandar 6 params para um template de 7 (ou vice-versa) faz a Meta rejeitar a mensagem inteira. Flags `WHATSAPP_TEMPLATE_HAS_CLASSES` e `WHATSAPP_TEMPLATE_HAS_REMINDERS` controlam a contagem e devem ser trocadas **junto** com `WHATSAPP_TEMPLATE_NAME`.
 - O fallback de `/api/whatsapp-test` monta os params à mão — ao criar uma seção nova, atualizar **os dois** lugares.
-- **Só sai em dia com evento (26/10/2026):** prova hoje ou amanhã, mensalidade vencendo hoje ou atrasada, atividade de hoje ou aula de hoje (`temEventoHoje`). Sem nenhum dos quatro, o cron pula o dia (WhatsApp e e-mail). A conta só entra no envio depois de ter filho e um item salvo da captura (`contaAtiva`; `ai_generated` em `activities`/`payments`). O botão de teste envia sempre.
+- **Só sai em dia com evento (26/10/2026):** prova hoje ou amanhã, mensalidade vencendo hoje ou atrasada, atividade de hoje ou aula de hoje (`temEventoHoje`). Sem nenhum dos quatro, o cron pula o dia (WhatsApp e e-mail). A conta só entra no envio depois de ter filho e um dado lançado, pela IA ou à mão — atividade, lembrete, mensalidade ou documento (`contaAtiva`). O botão de teste envia sempre.
 - **A agenda diária é recurso pago** (plano free não recebe); o **aviso de grace** é notificação de conta e é entregue mesmo no free
 
 ### 6. Compartilhamento

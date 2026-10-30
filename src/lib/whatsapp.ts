@@ -227,7 +227,7 @@ export interface DailySummary {
   // documentos e vacinas sozinhos não justificam a mensagem. O botão de teste
   // ignora este campo e o seguinte.
   temEventoHoje: boolean
-  // A família já cadastrou filho e salvou algo vindo da captura por IA.
+  // A família já cadastrou filho e lançou algum dado, pela IA ou à mão.
   contaAtiva: boolean
 }
 
@@ -607,17 +607,17 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
     || todayActs.length > 0
     || classList.length > 0
 
-  // Conta só entra no envio depois de cadastrar filho e fazer a primeira
-  // captura. A prova da captura é um item salvo com `ai_generated`.
+  // Conta só entra no envio depois de cadastrar filho e lançar o primeiro dado
+  // (atividade, lembrete, mensalidade ou documento), pela IA ou à mão.
   const filhosQuery = admin.from('children').select('id', { count: 'exact', head: true })
-  const atividadesIaQuery = admin.from('activities').select('id', { count: 'exact', head: true }).eq('ai_generated', true)
-  const mensalidadesIaQuery = admin.from('payments').select('id', { count: 'exact', head: true }).eq('ai_generated', true)
-  const [{ count: filhos }, { count: atividadesIa }, { count: mensalidadesIa }] = await Promise.all(
+  const mensalidadesQuery = admin.from('payments').select('id', { count: 'exact', head: true })
+  const documentosQuery = admin.from('documents').select('id', { count: 'exact', head: true })
+  const [{ count: filhos }, { count: mensalidades }, { count: documentos }] = await Promise.all(
     familyIds.length > 0
-      ? [filhosQuery.in('family_id', familyIds), atividadesIaQuery.in('family_id', familyIds), mensalidadesIaQuery.in('family_id', familyIds)]
-      : [filhosQuery.eq('user_id', userId), atividadesIaQuery.eq('user_id', userId), mensalidadesIaQuery.eq('user_id', userId)],
+      ? [filhosQuery.in('family_id', familyIds), mensalidadesQuery.in('family_id', familyIds), documentosQuery.in('family_id', familyIds)]
+      : [filhosQuery.eq('user_id', userId), mensalidadesQuery.eq('user_id', userId), documentosQuery.eq('user_id', userId)],
   )
-  const contaAtiva = (filhos ?? 0) > 0 && ((atividadesIa ?? 0) + (mensalidadesIa ?? 0)) > 0
+  const contaAtiva = (filhos ?? 0) > 0 && ((totalAtividades ?? 0) + (mensalidades ?? 0) + (documentos ?? 0)) > 0
 
   return { full, params, temEventoHoje, contaAtiva }
 }
