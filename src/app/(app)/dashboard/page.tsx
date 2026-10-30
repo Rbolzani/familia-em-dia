@@ -5,7 +5,7 @@ import DashboardClient from './DashboardClient'
 import { expiryStatus, daysToExpiry } from '@/lib/vault'
 import type { VacinaItem } from '@/lib/docTypes'
 import { SCHOOL_KINDS_APARTE, type SchoolKind } from '@/lib/types'
-import { vencimentoDe } from '@/lib/payments'
+import { ocorrenciasEmAberto } from '@/lib/payments'
 
 // Alertas do Cofre: documentos já vencidos ou vencendo em até 30 dias.
 //
@@ -112,14 +112,13 @@ export default async function DashboardPage() {
       .not('expires_at', 'is', null)
       .order('expires_at'),
 
-    // Mensalidades ativas + marcas do mês corrente — também alimentam os
+    // Mensalidades ativas + marcas de pagamento — também alimentam os
     // Alertas. A ocorrência do mês é calculada, não existe como linha.
     supabase.from('payments')
-      .select('id, title, amount, due_day, child:children(name)')
+      .select('id, title, amount, due_day, created_at, child:children(name)')
       .eq('active', true),
     supabase.from('payment_marks')
-      .select('payment_id')
-      .eq('competencia', todayDs.slice(0, 7)),
+      .select('payment_id, competencia'),
   ])
 
   // ── Alertas: documentos vencidos ou a vencer ──────────────────────────────
@@ -145,12 +144,7 @@ export default async function DashboardPage() {
   // Mensalidades: entram SÓ a partir do vencimento — sem antecedência, porque
   // avisar antes não muda o comportamento de um PIX. Mas o vencido persiste
   // até ser pago, senão quem não abriu o app naquele dia perde o aviso.
-  const competencia = todayDs.slice(0, 7)
-  const jaPagos = new Set((paidMarks ?? []).map(m => m.payment_id as string))
-  for (const p of activePayments ?? []) {
-    if (jaPagos.has(p.id)) continue
-    const venc = vencimentoDe(competencia, p.due_day)
-    if (venc > todayDs) continue
+  for (const { payment: p, vencimento: venc } of ocorrenciasEmAberto(activePayments ?? [], paidMarks ?? [], todayDs)) {
     const atraso = Math.round(
       (new Date(todayDs + 'T12:00:00').getTime() - new Date(venc + 'T12:00:00').getTime()) / 86_400_000)
     importantAlerts.push({

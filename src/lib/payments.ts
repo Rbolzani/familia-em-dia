@@ -60,6 +60,48 @@ export function vencimentoDe(competencia: string, dueDay: number): string {
   return `${competencia}-${String(dia).padStart(2, '0')}`
 }
 
+/**
+ * Primeiro vencimento de uma mensalidade: o primeiro a partir do cadastro.
+ * Sem isso, cadastrar no dia 30 algo que vence todo dia 9 aparecia como
+ * "venceu há 21 dias" — um atraso que nunca existiu.
+ */
+export function primeiroVencimento(dueDay: number, createdAt: string): string {
+  const criado = new Intl.DateTimeFormat('fr-CA', { timeZone: TZ }).format(new Date(createdAt))
+  const comp = criado.slice(0, 7)
+  const venc = vencimentoDe(comp, dueDay)
+  return venc >= criado ? venc : vencimentoDe(competenciaSeguinte(comp), dueDay)
+}
+
+// Meses anteriores a este não contam como atraso: até 30/10/2026 o atraso sumia
+// na virada do mês, então ninguém tinha motivo para marcar os meses passados.
+const INICIO_ATRASOS = '2026-10'
+
+/**
+ * Tudo o que está em aberto até hoje: o que vence hoje e o que atrasou, de
+ * qualquer mês — o atraso só some quando o mês é marcado como pago. Do mais
+ * antigo para o mais novo.
+ */
+export function ocorrenciasEmAberto<P extends { id: string; due_day: number; created_at: string }>(
+  payments: P[],
+  marks: { payment_id: string; competencia: string }[],
+  hoje = hojeDs(),
+): { payment: P; competencia: string; vencimento: string }[] {
+  const pagos = new Set(marks.map(m => `${m.payment_id}|${m.competencia}`))
+  const atual = hoje.slice(0, 7)
+  const abertas: { payment: P; competencia: string; vencimento: string }[] = []
+
+  for (const payment of payments) {
+    const primeiro = primeiroVencimento(payment.due_day, payment.created_at)
+    let comp = primeiro.slice(0, 7) > INICIO_ATRASOS ? primeiro.slice(0, 7) : INICIO_ATRASOS
+    for (; comp <= atual; comp = competenciaSeguinte(comp)) {
+      const vencimento = vencimentoDe(comp, payment.due_day)
+      if (vencimento < primeiro || vencimento > hoje) continue
+      if (!pagos.has(`${payment.id}|${comp}`)) abertas.push({ payment, competencia: comp, vencimento })
+    }
+  }
+  return abertas.sort((a, b) => a.vencimento.localeCompare(b.vencimento))
+}
+
 export type PaymentStatus = 'pago' | 'vence_hoje' | 'vencido' | 'a_vencer'
 
 /**
@@ -121,6 +163,8 @@ export function montarOcorrencias(
 
   return payments
     .filter(p => p.active)
+    // Antes do primeiro vencimento a mensalidade ainda não existia.
+    .filter(p => vencimentoDe(competencia, p.due_day) >= primeiroVencimento(p.due_day, p.created_at))
     .map(p => {
       const vencimento = vencimentoDe(competencia, p.due_day)
       const paidAt = pagos.get(p.id) ?? null

@@ -170,6 +170,7 @@ Outras tabelas: `notification_settings` (whatsapp_number, daily_summary_enabled,
 - Cancelar é `active = false` — preserva o histórico do que já foi pago.
 - `vencimentoDe()` resolve mês curto no cálculo (dia 31 em fevereiro → 28/29); a regra guardada continua "todo dia 31".
 - **Alerta só a partir do vencimento** (avisar antes não muda o comportamento de um PIX), mas o **vencido persiste** até ser pago.
+- **Primeiro vencimento = o primeiro a partir do cadastro** (`primeiroVencimento`); antes dele a mensalidade não aparece. **Atraso atravessa a virada do mês** até o mês ser marcado como pago (`ocorrenciasEmAberto`, fonte única do resumo e dos Alertas; a tela leva ao mês atrasado). Meses antes de `INICIO_ATRASOS` (2026-10) não contam, porque o atraso sumia na virada e ninguém marcava esses meses.
 - Superfícies: tela própria · painel de Alertas do dashboard · seção 💰 no resumo do WhatsApp · captura por IA.
 - Liberado em **todos os planos**, inclusive o gratuito (o canal WhatsApp é que é pago).
 

@@ -9,7 +9,7 @@ import { useAccess } from '@/components/access/AccessContext'
 import EmptyState from '@/components/ui/EmptyState'
 import { Plus, Pencil, Trash2, Check, ChevronLeft, ChevronRight, Loader2, ListChecks, X } from 'lucide-react'
 import {
-  Payment, PaymentMark, montarOcorrencias, competenciaAtual, competenciaAnterior,
+  Payment, PaymentMark, montarOcorrencias, ocorrenciasEmAberto, competenciaAtual, competenciaAnterior,
   competenciaSeguinte, competenciaLabel, formatBRL, diasDeAtraso, hojeDs,
 } from '@/lib/payments'
 
@@ -43,6 +43,10 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
   const emAberto = ocorrencias.filter(o => !o.pago)
   const totalAberto = emAberto.reduce((s, o) => s + (o.payment.amount ?? 0), 0)
   const visibleIds = ocorrencias.map(o => o.payment.id)
+  // Atraso de outro mês: o alerta e o resumo avisam, e o pagamento se marca no
+  // mês dele — então a tela precisa levar até lá.
+  const atrasosDeOutrosMeses = ocorrenciasEmAberto(payments.filter(p => p.active), marks, hoje)
+    .filter(o => o.competencia < competenciaAtual())
 
   function openNew() {
     // Sem pré-seleção do primeiro filho: com mais de um, o default silencioso
@@ -264,6 +268,17 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
         </span>
       </div>
 
+      {atrasosDeOutrosMeses.length > 0 && competencia !== atrasosDeOutrosMeses[0].competencia && (
+        <button onClick={() => setCompetencia(atrasosDeOutrosMeses[0].competencia)}
+          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold animate-fade-up"
+          style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(185,28,28,0.20)', color: '#B91C1C' }}>
+          {atrasosDeOutrosMeses.length === 1
+            ? '1 mensalidade atrasada de mês anterior'
+            : `${atrasosDeOutrosMeses.length} mensalidades atrasadas de meses anteriores`}
+          {' '}· ver {competenciaLabel(atrasosDeOutrosMeses[0].competencia)}
+        </button>
+      )}
+
       {/* Linha do "Selecionar", encostado à direita — mesmo lugar e formato
           das abas de Escola, Saúde e Atividades. */}
       {canEdit && !selectMode && ocorrencias.length > 0 && (
@@ -318,8 +333,10 @@ export default function MensalidadesClient({ initialPayments, initialMarks, chil
       {/* Lista */}
       {ocorrencias.length === 0 ? (
         <EmptyState
-          title="Nenhuma mensalidade cadastrada"
-          subtitle="Cadastre os pagamentos recorrentes — natação, piano, pedagoga — e receba o alerta no dia do vencimento."
+          title={payments.some(p => p.active) ? 'Nenhuma mensalidade neste mês' : 'Nenhuma mensalidade cadastrada'}
+          subtitle={payments.some(p => p.active)
+            ? 'As mensalidades começam a contar a partir do primeiro vencimento depois do cadastro.'
+            : 'Cadastre os pagamentos recorrentes — natação, piano, pedagoga — e receba o alerta no dia do vencimento.'}
           actionLabel={canEdit ? 'Nova mensalidade' : undefined}
           onAction={canEdit ? openNew : undefined}
         />

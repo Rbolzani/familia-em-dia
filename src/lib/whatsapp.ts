@@ -4,7 +4,7 @@ import { createClient as createAdminClient, SupabaseClient } from '@supabase/sup
 import { toWhatsAppNumber } from './cpf'
 import { dosesRealmentePendentes, type VacinaItem } from './docTypes'
 import { SCHOOL_KIND_GERAL_FILTER } from './types'
-import { vencimentoDe, formatBRL } from './payments'
+import { ocorrenciasEmAberto, formatBRL } from './payments'
 
 const GRAPH_URL = 'https://graph.facebook.com/v25.0'
 
@@ -430,11 +430,9 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
   // Sem antecedência, por decisão de produto: avisar antes não muda o
   // comportamento de um PIX. Mas o vencido PERSISTE até ser pago — quem não
   // abriu o WhatsApp no dia exato não pode perder o aviso para sempre.
-  const competencia = today.slice(0, 7)
-
   const payQuery = admin
     .from('payments')
-    .select('id, title, amount, due_day, child:children(name)')
+    .select('id, title, amount, due_day, created_at, child:children(name)')
     .eq('active', true)
   const { data: rawPayments } = familyIds.length > 0
     ? await payQuery.in('family_id', familyIds)
@@ -442,23 +440,17 @@ export async function buildDailySummary(admin: SupabaseClient, userId: string): 
 
   const marksQuery = admin
     .from('payment_marks')
-    .select('payment_id')
-    .eq('competencia', competencia)
+    .select('payment_id, competencia')
   const { data: rawMarks } = familyIds.length > 0
     ? await marksQuery.in('family_id', familyIds)
     : await marksQuery.eq('user_id', userId)
 
-  const jaPagos = new Set((rawMarks ?? []).map(m => m.payment_id as string))
   const payList = (rawPayments ?? []) as unknown as Array<{
-    id: string; title: string; amount: number | null; due_day: number; child: { name: string } | null
+    id: string; title: string; amount: number | null; due_day: number; created_at: string; child: { name: string } | null
   }>
 
-  const mensalidadeLinhas = payList
-    .filter(p => !jaPagos.has(p.id))
-    .map(p => ({ p, venc: vencimentoDe(competencia, p.due_day) }))
-    .filter(x => x.venc <= today)
-    .sort((a, b) => a.venc.localeCompare(b.venc))
-    .map(({ p, venc }) => {
+  const mensalidadeLinhas = ocorrenciasEmAberto(payList, rawMarks ?? [], today)
+    .map(({ payment: p, vencimento: venc }) => {
       const dias = Math.round(
         (new Date(today + 'T12:00:00').getTime() - new Date(venc + 'T12:00:00').getTime()) / 86_400_000)
       const quando = dias === 0 ? 'vence hoje'
