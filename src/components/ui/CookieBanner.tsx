@@ -41,7 +41,7 @@ export default function CookieBanner() {
   function accept() {
     localStorage.setItem(STORAGE_KEY, "accepted");
     setVisible(false);
-    // Avisa a medição (MedicaoComConsentimento) de que já pode ligar o Google.
+    // Avisa a medição (MedicaoComConsentimento) de que já pode ligar o Google e a Meta.
     window.dispatchEvent(new Event(STORAGE_KEY));
   }
 
@@ -73,7 +73,7 @@ export default function CookieBanner() {
       }}
     >
       <p style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>
-        Usamos cookies essenciais para o funcionamento do app e, com seu consentimento, cookies de medição de audiência (Google Analytics) para entender como o app é usado. Seus dados são tratados conforme nossa{" "}
+        Usamos cookies essenciais para o funcionamento do app e, com seu consentimento, cookies de medição de audiência (Google Analytics) e de publicidade (Meta, dona do Facebook e do Instagram) para entender como o app é usado e medir nossos anúncios. Seus dados são tratados conforme nossa{" "}
         <a href="/privacidade" style={{ color: "#D4E8D5", textDecoration: "underline" }}>
           Política de Privacidade
         </a>

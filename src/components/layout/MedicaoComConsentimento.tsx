@@ -3,8 +3,9 @@ import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { EVENTO_CONSENTIMENTO, carregarGoogle, medir, paginaVista } from '@/lib/medicao'
 
-// Liga o Google Analytics quando — e só quando — a pessoa aceitou os cookies,
-// e registra cada tela aberta com o endereço já limpo.
+// Liga o Google Analytics e o Meta Pixel quando — e só quando — a pessoa
+// aceitou os cookies, e registra cada tela aberta (o Google com o endereço já
+// limpo; a Meta só nas telas do funil — ver ROTAS_COM_META em lib/medicao.ts).
 export default function MedicaoComConsentimento() {
   const pathname = usePathname()
 

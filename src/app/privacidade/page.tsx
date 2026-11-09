@@ -68,8 +68,9 @@ export default function PrivacidadePage() {
           processar assinatura e prestar suporte.</Li>
         <Li><strong>Cumprimento de obrigação legal/regulatória</strong> (art. 7º, II): obrigações fiscais e legais.</Li>
         <Li><strong>Legítimo interesse</strong> (art. 7º, IX): segurança, prevenção a fraudes — incluindo garantir que o teste grátis seja usado uma única vez por pessoa e por cartão — e melhoria do Serviço.</Li>
-        <Li><strong>Consentimento</strong> (art. 7º, I / art. 11): comunicações de marketing e tratamento de
-          dados sensíveis, quando aplicável — revogável a qualquer tempo.</Li>
+        <Li><strong>Consentimento</strong> (art. 7º, I / art. 11): comunicações de marketing, cookies de
+          medição de audiência e de publicidade, e tratamento de dados sensíveis, quando aplicável —
+          revogável a qualquer tempo.</Li>
       </ul>
 
       <H>6. Operadores e compartilhamento</H>
@@ -93,6 +94,14 @@ export default function PrivacidadePage() {
           para quem aceitar os cookies</strong> no aviso da primeira visita. Recebe dados de navegação
           (páginas vistas, origem do acesso, cliques e conversões como cadastro e assinatura) e um
           identificador guardado em cookie. Não enviamos nome, e-mail, CPF nem dados dos filhos;</Li>
+        <Li><strong>Meta (Meta Pixel, Facebook e Instagram)</strong> — medição dos nossos anúncios no
+          Facebook e no Instagram, <strong>somente para quem aceitar os cookies</strong>. Recebe o endereço
+          das páginas de divulgação, cadastro e assinatura que você visitou, a origem do acesso, as
+          conversões (interesse no cadastro, cadastro concluído, início do teste grátis e assinatura, com o
+          plano e o valor) e um identificador guardado em cookie. A Meta pode relacionar essas informações
+          à sua conta no Facebook ou no Instagram, conforme a política de dados dela. Não enviamos nome,
+          e-mail, telefone, CPF nem dados dos filhos, e nada é enviado a partir das áreas internas do app
+          (agenda, saúde, documentos, escola);</Li>
         <Li><strong>Resend</strong> — envio de e-mails da conta (confirmação de cadastro e do teste,
           redefinição de senha, resumo diário, aviso único de cadastro não concluído, avisos antes da primeira cobrança, falhas de pagamento, cancelamento, pausa e exclusão da conta). Nos avisos de fim do teste, medimos com um registro do próprio site se o e-mail foi aberto e se o botão foi clicado, apenas para saber se a comunicação funciona; isso não é compartilhado com terceiros. A <strong>ImprovMX</strong> faz o recebimento dos e-mails de
           contato e suporte;</Li>
@@ -160,9 +169,11 @@ export default function PrivacidadePage() {
         de aquisição. Na primeira visita, um aviso permite escolher entre <strong>aceitar todos</strong>
         ou <strong>somente os essenciais</strong>; a escolha fica registrada no seu próprio navegador e
         pode ser alterada limpando os dados do site. Se você escolher <strong>aceitar todos</strong>, o
-        Google Analytics passa a usar cookies de medição de audiência; se escolher <strong>somente os
-        essenciais</strong>, ele não é carregado. <strong>Nenhuma ferramenta de publicidade está ativa
-        no Serviço</strong>. Caso isso mude, esta Política será atualizada antes da ativação.
+        Google Analytics passa a usar cookies de medição de audiência e o Meta Pixel passa a usar cookies
+        de publicidade, para medir os resultados dos nossos anúncios no Facebook e no Instagram; se
+        escolher <strong>somente os essenciais</strong>, nenhum dos dois é carregado. O tratamento
+        desses cookies tem como base o seu <strong>consentimento</strong> (art. 7º, I, da LGPD), que
+        pode ser revogado a qualquer tempo da mesma forma.
       </P>
 
       <H>13. Alterações desta Política</H>

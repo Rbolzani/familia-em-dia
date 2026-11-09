@@ -1610,7 +1610,7 @@
 <div id="fam-cookies" role="dialog" aria-label="Consentimento de cookies" hidden
   style="position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#1E3320;color:#F8F3EA;padding:16px 20px;box-shadow:0 -4px 24px rgba(0,0,0,.25);font-family:inherit">
   <p style="font-size:13px;line-height:1.5;margin:0 0 12px;max-width:900px">
-    Usamos cookies essenciais para o funcionamento do site e, com seu consentimento, cookies de medição de audiência (Google Analytics) para entender como ele é usado. Seus dados são tratados conforme nossa
+    Usamos cookies essenciais para o funcionamento do site e, com seu consentimento, cookies de medição de audiência (Google Analytics) e de publicidade (Meta, dona do Facebook e do Instagram) para entender como ele é usado e medir nossos anúncios. Seus dados são tratados conforme nossa
     <a href="/privacidade" style="color:#D4E8D5;text-decoration:underline">Política de Privacidade</a>.
   </p>
   <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -1620,7 +1620,7 @@
 </div>
 <script>
 (function(){
-  var CHAVE='fam-cookie-consent', GA='G-5BL00096CV';
+  var CHAVE='fam-cookie-consent', GA='G-5BL00096CV', PIXEL='1421696050174234';
   function escolha(){try{return localStorage.getItem(CHAVE)}catch(e){return null}}
   // Só os parâmetros utm_* seguem no endereço enviado ao Google.
   function urlLimpa(){
@@ -1636,12 +1636,26 @@
     window.gtag('event','page_view',{page_location:urlLimpa(),page_title:document.title});
     var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+GA;document.head.appendChild(s);
   }
+  // Meta Pixel: mesma regra do Google (só com "Aceitar todos"). O id é público
+  // por natureza. autoConfig desligado: o Pixel não lê botões e textos sozinho;
+  // só sai a página vista e o Lead do clique em cadastro (abaixo).
+  function ligarMeta(){
+    if(window.__famMeta||escolha()!=='accepted')return;
+    window.__famMeta=true;
+    var n=window.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!window._fbq)window._fbq=n;n.push=n;n.loaded=true;n.version='2.0';n.queue=[];n.disablePushState=true;
+    window.fbq('set','autoConfig',false,PIXEL);
+    window.fbq('init',PIXEL);
+    window.fbq('track','PageView');
+    var s=document.createElement('script');s.async=true;s.src='https://connect.facebook.net/en_US/fbevents.js';document.head.appendChild(s);
+  }
   var caixa=document.getElementById('fam-cookies');
-  function decidir(valor){try{localStorage.setItem(CHAVE,valor)}catch(e){}caixa.hidden=true;ligarGoogle()}
+  function decidir(valor){try{localStorage.setItem(CHAVE,valor)}catch(e){}caixa.hidden=true;ligarGoogle();ligarMeta()}
   document.getElementById('fam-cookies-sim').addEventListener('click',function(){decidir('accepted')});
   document.getElementById('fam-cookies-nao').addEventListener('click',function(){decidir('rejected')});
   if(!escolha())caixa.hidden=false;
   ligarGoogle();
+  ligarMeta();
 })();
 </script>
 <!-- Medição de visitas e cliques (Vercel Web Analytics, sem cookies) -->
@@ -1655,6 +1669,9 @@
       if(nome==='cta_cadastro')window.gtag('event','select_promotion',{promotion_name:(dados&&dados.plano)||'',creative_slot:(dados&&dados.secao)||''});
       else window.gtag('event',nome,dados||{});
     }}catch(e){}
+    // Meta: o clique em "Criar conta" é o Lead (interesse); a conversão de verdade
+    // (teste iniciado com cartão) sai do app, no retorno do pagamento.
+    try{if(window.__famMeta&&window.fbq&&nome==='cta_cadastro')window.fbq('track','Lead',{content_name:(dados&&dados.plano)||''})}catch(e){}
   }
   function secao(el){var s=el.closest('section,header,footer,nav');if(!s)return 'pagina';return s.id||(s.className||'').split(' ').filter(Boolean).slice(-1)[0]||s.tagName.toLowerCase()}
   document.addEventListener('click',function(e){

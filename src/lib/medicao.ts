@@ -1,14 +1,17 @@
 // Medição de visitas e conversões, em duas camadas:
 //  · Vercel Web Analytics — sem cookies, mede todo mundo (ver VercelAnalytics.tsx);
-//  · Google Analytics — usa cookies, então SÓ carrega depois do "Aceitar todos"
-//    no aviso de cookies. Quem escolhe "Somente essenciais" nunca baixa o script.
+//  · Google Analytics e Meta Pixel — usam cookies, então SÓ carregam depois do
+//    "Aceitar todos" no aviso de cookies. Quem escolhe "Somente essenciais"
+//    nunca baixa nenhum dos dois scripts.
 //
 // Os ids abaixo não são segredos: ficam visíveis no código de qualquer página
-// que os usa.
+// que os usa. (O que é segredo é o token da API de Conversões da Meta, que,
+// se um dia for usado, mora só nas env vars da Vercel, sem NEXT_PUBLIC_.)
 
 import { track } from '@vercel/analytics'
 
 export const GA_ID = 'G-5BL00096CV'
+export const META_PIXEL_ID = '1421696050174234'
 export const CHAVE_CONSENTIMENTO = 'fam-cookie-consent'
 export const EVENTO_CONSENTIMENTO = 'fam-cookie-consent'
 
@@ -17,6 +20,9 @@ declare global {
     dataLayer?: unknown[]
     gtag?: (...args: unknown[]) => void
     __famGoogle?: boolean
+    fbq?: ((...args: unknown[]) => void) & { disablePushState?: boolean }
+    _fbq?: unknown
+    __famMeta?: boolean
   }
 }
 
@@ -69,13 +75,79 @@ export function carregarGoogle(): void {
   document.head.appendChild(s)
 }
 
+// ── Meta Pixel ──────────────────────────────────────────────────────────────
+// Mais restrito que o Google, por três motivos:
+//  · o Pixel envia o endereço cru da página (não há como limpar), então não
+//    sobe onde o endereço carrega segredo (mesma lista do Google);
+//  · o app guarda dados de saúde das crianças, e a Meta não pode receber nada
+//    que indique isso. Página vista só sai nas telas do funil de aquisição
+//    (ROTAS_COM_META); nas telas internas (saúde, cofre, escola…) nada é enviado;
+//  · `autoConfig` desligado: sem ele o Pixel lê botões e textos da página
+//    sozinho. `disablePushState`: sem ele cada troca de tela do app viraria
+//    uma página vista automática. Só sai o que este arquivo manda.
+const ROTAS_COM_META = [/^\/$/, /^\/auth\/(signup|login)\/?$/, /^\/planos\/?$/, /^\/assinar\/?$/]
+
+export function carregarMeta(): void {
+  if (typeof window === 'undefined' || window.__famMeta || !META_PIXEL_ID || !consentiu()) return
+  if (ROTAS_SEM_GOOGLE.some(r => r.test(window.location.pathname))) return
+  window.__famMeta = true
+  // Fila mínima no lugar do snippet oficial: guarda as chamadas até o script
+  // da Meta chegar, que então as processa.
+  const fila: unknown[] = []
+  const fbq = function fbq() {
+    const f = window.fbq as unknown as { callMethod?: (...a: unknown[]) => void }
+    if (f.callMethod) f.callMethod.apply(window.fbq, arguments as unknown as unknown[]) // eslint-disable-line prefer-rest-params
+    else fila.push(arguments) // eslint-disable-line prefer-rest-params
+  } as unknown as NonNullable<Window['fbq']> & Record<string, unknown>
+  Object.assign(fbq, { queue: fila, push: fbq, loaded: true, version: '2.0' })
+  fbq.disablePushState = true
+  window.fbq = fbq
+  if (!window._fbq) window._fbq = fbq
+  window.fbq('set', 'autoConfig', false, META_PIXEL_ID)
+  window.fbq('init', META_PIXEL_ID)
+  const s = document.createElement('script')
+  s.async = true
+  s.src = 'https://connect.facebook.net/en_US/fbevents.js'
+  document.head.appendChild(s)
+}
+
+function metaPermitidaAqui(): boolean {
+  return ROTAS_COM_META.some(r => r.test(window.location.pathname))
+}
+
 export function paginaVista(): void {
-  if (typeof window === 'undefined' || !window.__famGoogle || !window.gtag) return
+  if (typeof window === 'undefined') return
+  if (metaPermitidaAqui()) {
+    carregarMeta()
+    try { if (window.__famMeta && window.fbq) window.fbq('track', 'PageView') } catch { /* nunca derruba a tela */ }
+  }
+  if (!window.__famGoogle || !window.gtag) return
   const url = limparUrl(window.location.href)
   // `set` vale para os eventos seguintes também (rolagem, cliques de saída…),
   // que de outro modo levariam o endereço cru da página.
   window.gtag('set', { page_location: url })
   window.gtag('event', 'page_view', { page_location: url, page_title: document.title })
+}
+
+// Conversões que a Meta usa para otimizar anúncios. Só o essencial: nada de
+// nome, e-mail, telefone ou dado dos filhos. Convidado por link não é
+// conversão de anúncio (veio do convite de quem já é cliente).
+function paraMeta(nome: string, d: Dados): [string, Record<string, unknown>] | null {
+  switch (nome) {
+    case 'cadastro_concluido':
+      return d.convidado ? null : ['CompleteRegistration', { content_name: String(d.plano ?? '') }]
+    case 'checkout_iniciado':
+      return ['InitiateCheckout', { content_name: String(d.plano ?? ''), currency: 'BRL' }]
+    case 'assinatura_confirmada': {
+      // No teste de 14 dias não há cobrança hoje (valor 0): é o início do teste,
+      // a conversão que importa na oferta com cartão. Com valor, é assinatura paga.
+      const valor = Number(d.valor ?? 0)
+      return valor > 0
+        ? ['Subscribe', { value: valor, currency: 'BRL', content_name: String(d.plano ?? '') }]
+        : ['StartTrial', { value: 0, currency: 'BRL', content_name: String(d.plano ?? '') }]
+    }
+    default: return null
+  }
 }
 
 type Dados = Record<string, string | number | boolean | null>
@@ -96,13 +168,22 @@ function paraGoogle(nome: string, d: Dados): [string, Record<string, unknown>] {
 }
 
 // Um ponto único para registrar conversões: vai sempre para a Vercel e, se a
-// pessoa consentiu, também para o Google.
+// pessoa consentiu, também para o Google e para a Meta.
 export function medir(nome: string, dados: Dados = {}): void {
   try { track(nome, dados) } catch { /* medição nunca derruba a tela */ }
   try {
     if (typeof window !== 'undefined' && window.__famGoogle && window.gtag) {
       const [evento, params] = paraGoogle(nome, dados)
       window.gtag('event', evento, params)
+    }
+  } catch { /* idem */ }
+  try {
+    const meta = typeof window !== 'undefined' ? paraMeta(nome, dados) : null
+    if (meta) {
+      // A volta do pagamento cai no Início, onde o Pixel não sobe sozinho:
+      // carrega aqui, só para a conversão (sem página vista).
+      carregarMeta()
+      if (window.__famMeta && window.fbq) window.fbq('track', meta[0], meta[1])
     }
   } catch { /* idem */ }
 }
