@@ -6,7 +6,7 @@
 // Textos aprovados pelo Rogério em 20/10/2026.
 import { createContext, useCallback, useContext, useState } from 'react'
 import { Lock, X } from 'lucide-react'
-import { medir } from '@/lib/medicao'
+import { medir, dadosMetaParaCheckout } from '@/lib/medicao'
 import { NOME_PLANO, precoCobrado, reais, type Ciclo } from '@/lib/planos-oferta'
 import { PLAN_LIMITS, type PlanId } from '@/lib/planos-limites'
 
@@ -72,7 +72,7 @@ export function UpsellProvider({ children, plano, ciclo, emTeste, fimTeste, isOw
     try {
       const r = await fetch('/api/stripe/checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: alvo, interval: ciclo }),
+        body: JSON.stringify({ plan: alvo, interval: ciclo, meta: dadosMetaParaCheckout() }),
       })
       const j = await r.json()
       if (r.ok && j.url) { window.location.href = j.url; return }

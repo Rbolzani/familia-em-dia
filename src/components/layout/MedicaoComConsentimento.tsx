@@ -29,10 +29,14 @@ export default function MedicaoComConsentimento() {
       params.delete('assinou')
       const valor = Number(params.get('valor') ?? 0)
       params.delete('valor')
+      // event_id da Meta (ver lib/meta-conversoes.ts): só formatos conhecidos.
+      const ev = params.get('ev') ?? ''
+      params.delete('ev')
+      const eventId = /^(trial|purchase)_[A-Za-z0-9_]+$/.test(ev) ? ev : ''
       const resto = params.toString()
       window.history.replaceState(null, '', window.location.pathname + (resto ? `?${resto}` : ''))
       paginaVista()
-      medir('assinatura_confirmada', { plano: plano ?? '', periodo: periodo ?? '', valor })
+      medir('assinatura_confirmada', { plano: plano ?? '', periodo: periodo ?? '', valor, ...(eventId ? { event_id: eventId } : {}) })
       return
     }
     paginaVista()

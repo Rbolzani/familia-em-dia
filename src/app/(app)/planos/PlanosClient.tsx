@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Check, Loader2, Star, Zap, Heart, Leaf, ExternalLink, CreditCard, PauseCircle } from 'lucide-react'
 import type { PlanId, BillingInterval } from '@/lib/stripe'
 import ComparativoPlanos from '@/components/billing/ComparativoPlanos'
-import { medir } from '@/lib/medicao'
+import { medir, dadosMetaParaCheckout } from '@/lib/medicao'
 import {
   DESCONTO_ANUAL_PCT, PLANO_RECOMENDADO, precoPorMes, precoCobrado, reais, valorDaCobranca,
   type PlanoPago,
@@ -172,7 +172,7 @@ export default function PlanosClient({
       const res  = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, interval, origem }),
+        body: JSON.stringify({ plan, interval, origem, meta: dadosMetaParaCheckout() }),
       })
       const data = await res.json()
       // Faltam os dados da nota fiscal: pede agora e retoma o mesmo plano.

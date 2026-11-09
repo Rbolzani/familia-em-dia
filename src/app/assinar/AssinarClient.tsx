@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import DadosAssinaturaModal from '@/components/billing/DadosAssinaturaModal'
+import { dadosMetaParaCheckout } from '@/lib/medicao'
 import {
   NOME_PLANO, PLANOS_PAGOS, PLANO_RECOMENDADO, DIAS_TESTE, DESCONTO_ANUAL_PCT,
   precoPorMes, precoCobrado, reais, type PlanoPago, type Ciclo,
@@ -56,7 +57,7 @@ export default function AssinarClient({ modo, planoInicial, cicloInicial, voltou
       const r = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: plano, interval: ciclo, semTeste: modo === 'cartao_usado' }),
+        body: JSON.stringify({ plan: plano, interval: ciclo, semTeste: modo === 'cartao_usado', meta: dadosMetaParaCheckout() }),
       })
       const j = await r.json()
       if (r.ok && j.url) { window.location.href = j.url; return }

@@ -8,7 +8,7 @@ import { formatCPF, formatPhoneBR, isValidCPF, isValidPhoneBR } from '@/lib/cpf'
 import { NOME_PLANO, PLANOS_PAGOS, PLANO_RECOMENDADO, DIAS_TESTE, DESCONTO_ANUAL_PCT, precoPorMes, precoCobrado, reais, type PlanoPago, type Ciclo } from '@/lib/planos-oferta'
 import { ACQUISITION_OPTIONS } from '@/lib/cadastro-opcoes'
 import { LEGAL_VERSION } from '@/lib/legal'
-import { medir } from '@/lib/medicao'
+import { medir, dadosMetaParaCheckout } from '@/lib/medicao'
 import AddressFields from '@/components/AddressFields'
 import { EMPTY_ADDRESS, addressError, normalizeAddress, type Address } from '@/lib/address'
 import { Eye, EyeOff, ArrowRight } from 'lucide-react'
@@ -152,7 +152,7 @@ export default function SignupPage() {
       const r = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: plano, interval: ciclo }),
+        body: JSON.stringify({ plan: plano, interval: ciclo, meta: dadosMetaParaCheckout() }),
       })
       const j = await r.json()
       if (r.ok && j.url) { window.location.href = j.url; return }

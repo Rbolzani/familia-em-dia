@@ -6,6 +6,7 @@ import { reconcileUserFromStripe } from '@/lib/stripe-sync'
 import { dadosFiscais, camposDoCliente, sincronizarClienteStripe, nomeCompleto } from '@/lib/stripe-customer'
 import { ajustesParaPlano, textoAjustes } from '@/lib/oferta-v2'
 import { DIAS_TESTE } from '@/lib/planos-oferta'
+import { metadataMeta, type MetaDoNavegador } from '@/lib/meta-capi'
 
 // Assinar, trocar de plano/ciclo e reativar — modelo antigo (v1) e novo (v2).
 //
@@ -31,12 +32,21 @@ export async function POST(request: Request) {
   // De onde veio (tela Planos, botão do WhatsApp ou do e-mail). Vai para a
   // metadata da assinatura e aparece no Painel do negócio.
   let origem: 'app' | 'whatsapp' | 'email' = 'app'
+  // Aceite de cookies e identificadores do Pixel (ver lib/meta-capi.ts).
+  let metaNav: MetaDoNavegador | undefined
   try {
     const body = await request.json()
     plan      = body.plan
     interval  = body.interval
     semTeste  = body.semTeste === true
     if (body.origem === 'whatsapp' || body.origem === 'email') origem = body.origem
+    if (body.meta && typeof body.meta === 'object') {
+      metaNav = {
+        ok: body.meta.ok === true,
+        fbp: typeof body.meta.fbp === 'string' ? body.meta.fbp : null,
+        fbc: typeof body.meta.fbc === 'string' ? body.meta.fbc : null,
+      }
+    }
   } catch {
     return NextResponse.json({ error: 'Requisição inválida' }, { status: 400 })
   }
@@ -154,7 +164,9 @@ export async function POST(request: Request) {
 
     // 4. Sessão de Checkout nova.
     const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
-      metadata: { user_id: user.id, plan, origem, oferta: v2 ? 'v2' : 'v1' },
+      // meta_*: só existe se a pessoa aceitou os cookies. É o que permite ao
+      // webhook enviar a compra à Meta quando o pagamento sair (dia 15).
+      metadata: { user_id: user.id, plan, origem, oferta: v2 ? 'v2' : 'v1', ...metadataMeta(metaNav, request) },
     }
     if (v2) {
       // Teste de 14 dias só para quem ainda não teve (conta "incompleto").

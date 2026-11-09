@@ -5,13 +5,14 @@
 //    nunca baixa nenhum dos dois scripts.
 //
 // Os ids abaixo não são segredos: ficam visíveis no código de qualquer página
-// que os usa. (O que é segredo é o token da API de Conversões da Meta, que,
-// se um dia for usado, mora só nas env vars da Vercel, sem NEXT_PUBLIC_.)
+// que os usa. (O que é segredo é o token da API de Conversões da Meta, usado
+// só no servidor — lib/meta-capi.ts — e guardado na Vercel como META_CAPI_TOKEN.)
 
 import { track } from '@vercel/analytics'
+import { META_PIXEL_ID } from '@/lib/medicao-ids'
 
 export const GA_ID = 'G-5BL00096CV'
-export const META_PIXEL_ID = '1421696050174234'
+export { META_PIXEL_ID }
 export const CHAVE_CONSENTIMENTO = 'fam-cookie-consent'
 export const EVENTO_CONSENTIMENTO = 'fam-cookie-consent'
 
@@ -48,6 +49,16 @@ export function limparUrl(href: string): string {
   } catch {
     return href
   }
+}
+
+// Vai junto do pedido de pagamento (/api/stripe/checkout): o servidor guarda na
+// assinatura e, quando o Stripe confirmar o pagamento (às vezes dias depois,
+// sem a pessoa no site), envia a conversão pela API de Conversões. Sem aceite
+// dos cookies vai só { ok: false } e o servidor não envia nada por essa pessoa.
+export function dadosMetaParaCheckout(): { ok: boolean; fbp?: string; fbc?: string } {
+  if (typeof document === 'undefined' || !consentiu()) return { ok: false }
+  const ler = (nome: string) => document.cookie.split('; ').find(c => c.startsWith(nome + '='))?.slice(nome.length + 1)
+  return { ok: true, fbp: ler('_fbp'), fbc: ler('_fbc') }
 }
 
 export function consentiu(): boolean {
@@ -140,10 +151,12 @@ function paraMeta(nome: string, d: Dados): [string, Record<string, unknown>] | n
       return ['InitiateCheckout', { content_name: String(d.plano ?? ''), currency: 'BRL' }]
     case 'assinatura_confirmada': {
       // No teste de 14 dias não há cobrança hoje (valor 0): é o início do teste,
-      // a conversão que importa na oferta com cartão. Com valor, é assinatura paga.
+      // a conversão que importa na oferta com cartão. Com valor, é a compra.
+      // O servidor manda o mesmo evento pela API de Conversões, com o mesmo
+      // event_id (que vem no endereço de volta do pagamento) — ver lib/meta-capi.ts.
       const valor = Number(d.valor ?? 0)
       return valor > 0
-        ? ['Subscribe', { value: valor, currency: 'BRL', content_name: String(d.plano ?? '') }]
+        ? ['Purchase', { value: valor, currency: 'BRL', content_name: String(d.plano ?? '') }]
         : ['StartTrial', { value: 0, currency: 'BRL', content_name: String(d.plano ?? '') }]
     }
     default: return null
@@ -183,7 +196,11 @@ export function medir(nome: string, dados: Dados = {}): void {
       // A volta do pagamento cai no Início, onde o Pixel não sobe sozinho:
       // carrega aqui, só para a conversão (sem página vista).
       carregarMeta()
-      if (window.__famMeta && window.fbq) window.fbq('track', meta[0], meta[1])
+      const eventID = typeof dados.event_id === 'string' && dados.event_id ? dados.event_id : undefined
+      if (window.__famMeta && window.fbq) {
+        if (eventID) window.fbq('track', meta[0], meta[1], { eventID })
+        else window.fbq('track', meta[0], meta[1])
+      }
     }
   } catch { /* idem */ }
 }

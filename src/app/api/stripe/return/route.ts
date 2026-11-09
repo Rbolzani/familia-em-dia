@@ -4,6 +4,7 @@ import { reconcileUserFromStripe } from '@/lib/stripe-sync'
 import { stripe } from '@/lib/stripe'
 import { verificarCartaoDoTeste } from '@/lib/oferta-v2'
 import { avisarInicioDoTeste } from '@/lib/avisos-conta'
+import { eventIdDaVolta } from '@/lib/meta-conversoes'
 
 /**
  * Volta do Checkout do Stripe: sincroniza o plano e manda para o Início.
@@ -32,6 +33,10 @@ async function anexarCompra(destino: URL, userId: string) {
     destino.searchParams.set('assinou', `${data.plan}-${data.billing_interval === 'year' ? 'anual' : 'mensal'}`)
     // Em teste não houve cobrança: o valor da compra é zero hoje.
     destino.searchParams.set('valor', (data.status === 'trialing' ? 0 : centavos / 100).toFixed(2))
+    // Mesmo event_id que o webhook usa na API de Conversões: o Pixel do
+    // navegador e o servidor contam como um evento só na Meta.
+    const ev = eventIdDaVolta(sub)
+    if (ev) destino.searchParams.set('ev', ev)
   } catch (e) {
     console.error('[stripe-return] dados da compra para medição indisponíveis:', (e as { code?: string })?.code)
   }

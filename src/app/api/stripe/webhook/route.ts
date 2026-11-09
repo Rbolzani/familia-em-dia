@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe'
 import { syncSubscriptionToDb } from '@/lib/stripe-sync'
 import { verificarCartaoDoTeste } from '@/lib/oferta-v2'
 import { avisarInicioDoTeste } from '@/lib/avisos-conta'
+import { metaInicioDoTeste, metaCompraDaFatura } from '@/lib/meta-conversoes'
 import type Stripe from 'stripe'
 
 export async function POST(request: Request) {
@@ -45,9 +46,20 @@ export async function POST(request: Request) {
           if (userId && (await verificarCartaoDoTeste(sub, userId)) === 'cartao_ja_usado') break
           await syncSubscriptionToDb(sub)
           if (userId) await avisarInicioDoTeste(userId).catch(e => console.error('[stripe-webhook] confirmação do teste:', e))
+          // Meta (API de Conversões): início do teste, só com aceite de cookies.
+          await metaInicioDoTeste(sub).catch(e => console.error('[stripe-webhook] meta início do teste:', e))
         }
         break
       }
+
+      // Pagamento confirmado — inclusive a 1ª cobrança automática do dia 15,
+      // quando a pessoa não está no site e o Pixel não tem como ver.
+      // ⚠️ O evento `invoice.paid` precisa estar marcado no endpoint do webhook
+      // no painel do Stripe; sem ele esta parte nunca roda.
+      case 'invoice.paid':
+        await metaCompraDaFatura(event.data.object as Stripe.Invoice)
+          .catch(e => console.error('[stripe-webhook] meta compra:', e))
+        break
 
       default:
         // Outros eventos ignorados
