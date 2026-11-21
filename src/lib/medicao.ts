@@ -1,8 +1,11 @@
 // Medição de visitas e conversões, em duas camadas:
 //  · Vercel Web Analytics — sem cookies, mede todo mundo (ver VercelAnalytics.tsx);
-//  · Google Analytics e Meta Pixel — usam cookies, então SÓ carregam depois do
-//    "Aceitar todos" no aviso de cookies. Quem escolhe "Somente essenciais"
-//    nunca baixa nenhum dos dois scripts.
+//  · Google Analytics e Meta Pixel — usam cookies. Desde 21/11/2026 carregam
+//    por padrão (modelo de recusa, decisão do Rogério): o aviso de cookies só
+//    informa, e quem clica em "Recusar" nunca mais baixa nenhum dos dois
+//    scripts. Antes disso só carregavam depois do "Aceitar todos" — o Pixel
+//    registrou 16 visitas em 28 dias e a campanha de Vendas não entregava.
+//    Valores gravados: 'accepted' (antigo aceite ou "Entendi") e 'rejected'.
 //
 // Os ids abaixo não são segredos: ficam visíveis no código de qualquer página
 // que os usa. (O que é segredo é o token da API de Conversões da Meta, usado
@@ -53,8 +56,8 @@ export function limparUrl(href: string): string {
 
 // Vai junto do pedido de pagamento (/api/stripe/checkout): o servidor guarda na
 // assinatura e, quando o Stripe confirmar o pagamento (às vezes dias depois,
-// sem a pessoa no site), envia a conversão pela API de Conversões. Sem aceite
-// dos cookies vai só { ok: false } e o servidor não envia nada por essa pessoa.
+// sem a pessoa no site), envia a conversão pela API de Conversões. Quem recusou
+// os cookies manda só { ok: false } e o servidor não envia nada por essa pessoa.
 export function dadosMetaParaCheckout(): { ok: boolean; fbp?: string; fbc?: string } {
   if (typeof document === 'undefined' || !consentiu()) return { ok: false }
   const ler = (nome: string) => document.cookie.split('; ').find(c => c.startsWith(nome + '='))?.slice(nome.length + 1)
@@ -62,7 +65,9 @@ export function dadosMetaParaCheckout(): { ok: boolean; fbp?: string; fbc?: stri
 }
 
 export function consentiu(): boolean {
-  try { return localStorage.getItem(CHAVE_CONSENTIMENTO) === 'accepted' } catch { return false }
+  // Só a recusa expressa desliga. Sem localStorage (aba privada bloqueada),
+  // não há como guardar uma recusa — mede, como para qualquer visitante novo.
+  try { return localStorage.getItem(CHAVE_CONSENTIMENTO) !== 'rejected' } catch { return true }
 }
 
 // Nestas telas o endereço carrega um segredo de uso único. O Google lê a URL
@@ -181,7 +186,7 @@ function paraGoogle(nome: string, d: Dados): [string, Record<string, unknown>] {
 }
 
 // Um ponto único para registrar conversões: vai sempre para a Vercel e, se a
-// pessoa consentiu, também para o Google e para a Meta.
+// pessoa não recusou os cookies, também para o Google e para a Meta.
 export function medir(nome: string, dados: Dados = {}): void {
   try { track(nome, dados) } catch { /* medição nunca derruba a tela */ }
   try {

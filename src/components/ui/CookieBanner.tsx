@@ -38,16 +38,20 @@ export default function CookieBanner() {
     };
   }, [visible]);
 
+  // Modelo de recusa (21/11/2026): o Google e a Meta já carregaram ao abrir a
+  // página (ver lib/medicao.ts). "Entendi" só fecha o aviso; não dispara o
+  // evento de consentimento, que contaria a página vista de novo.
   function accept() {
-    localStorage.setItem(STORAGE_KEY, "accepted");
+    try { localStorage.setItem(STORAGE_KEY, "accepted"); } catch { /* aba privada */ }
     setVisible(false);
-    // Avisa a medição (MedicaoComConsentimento) de que já pode ligar o Google e a Meta.
-    window.dispatchEvent(new Event(STORAGE_KEY));
   }
 
+  // Os scripts do Google e da Meta já estão na página e não há como
+  // descarregá-los: recarrega, e com a recusa gravada nenhum dos dois sobe.
   function reject() {
-    localStorage.setItem(STORAGE_KEY, "rejected");
+    try { localStorage.setItem(STORAGE_KEY, "rejected"); } catch { /* aba privada */ }
     setVisible(false);
+    window.location.reload();
   }
 
   if (!visible) return null;
@@ -56,7 +60,7 @@ export default function CookieBanner() {
     <div
       ref={ref}
       role="dialog"
-      aria-label="Consentimento de cookies"
+      aria-label="Aviso de cookies"
       style={{
         position: "fixed",
         bottom: 0,
@@ -73,7 +77,7 @@ export default function CookieBanner() {
       }}
     >
       <p style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>
-        Usamos cookies essenciais para o funcionamento do app e, com seu consentimento, cookies de medição de audiência (Google Analytics) e de publicidade (Meta, dona do Facebook e do Instagram) para entender como o app é usado e medir nossos anúncios. Seus dados são tratados conforme nossa{" "}
+        Usamos cookies essenciais para o funcionamento do app e cookies de medição de audiência (Google Analytics) e de publicidade (Meta, dona do Facebook e do Instagram) para entender como o app é usado e medir nossos anúncios. Se não quiser os de medição e publicidade, clique em Recusar. Saiba mais na nossa{" "}
         <a href="/privacidade" style={{ color: "#D4E8D5", textDecoration: "underline" }}>
           Política de Privacidade
         </a>
@@ -93,7 +97,7 @@ export default function CookieBanner() {
             cursor: "pointer",
           }}
         >
-          Aceitar todos
+          Entendi
         </button>
         <button
           onClick={reject}
@@ -108,7 +112,7 @@ export default function CookieBanner() {
             cursor: "pointer",
           }}
         >
-          Somente essenciais
+          Recusar
         </button>
       </div>
     </div>

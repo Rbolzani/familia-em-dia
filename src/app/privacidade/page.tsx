@@ -67,10 +67,10 @@ export default function PrivacidadePage() {
         <Li><strong>Execução de contrato</strong> (art. 7º, V): operar as funcionalidades, autenticar,
           processar assinatura e prestar suporte.</Li>
         <Li><strong>Cumprimento de obrigação legal/regulatória</strong> (art. 7º, II): obrigações fiscais e legais.</Li>
-        <Li><strong>Legítimo interesse</strong> (art. 7º, IX): segurança, prevenção a fraudes — incluindo garantir que o teste grátis seja usado uma única vez por pessoa e por cartão — e melhoria do Serviço.</Li>
-        <Li><strong>Consentimento</strong> (art. 7º, I / art. 11): comunicações de marketing, cookies de
-          medição de audiência e de publicidade, e tratamento de dados sensíveis, quando aplicável —
-          revogável a qualquer tempo.</Li>
+        <Li><strong>Legítimo interesse</strong> (art. 7º, IX): segurança, prevenção a fraudes — incluindo garantir que o teste grátis seja usado uma única vez por pessoa e por cartão —, melhoria do Serviço e
+          medição de audiência e dos nossos anúncios por cookies (item 12), com direito de recusa a qualquer momento.</Li>
+        <Li><strong>Consentimento</strong> (art. 7º, I / art. 11): comunicações de marketing e tratamento de
+          dados sensíveis, quando aplicável — revogável a qualquer tempo.</Li>
       </ul>
 
       <H>6. Operadores e compartilhamento</H>
@@ -90,12 +90,12 @@ export default function PrivacidadePage() {
           avisos da conta, como cadastro não concluído, véspera da primeira cobrança, falhas de pagamento e pausa da conta;</Li>
         <Li><strong>Vercel</strong> — hospedagem da aplicação e estatísticas de visitas (páginas vistas, origem do
           acesso e cliques em botões), coletadas <strong>sem cookies</strong> e sem identificar o visitante;</Li>
-        <Li><strong>Google (Google Analytics)</strong> — medição de audiência do site e do app, <strong>somente
-          para quem aceitar os cookies</strong> no aviso da primeira visita. Recebe dados de navegação
+        <Li><strong>Google (Google Analytics)</strong> — medição de audiência do site e do app, <strong>exceto
+          para quem recusar os cookies</strong> no aviso da primeira visita. Recebe dados de navegação
           (páginas vistas, origem do acesso, cliques e conversões como cadastro e assinatura) e um
           identificador guardado em cookie. Não enviamos nome, e-mail, CPF nem dados dos filhos;</Li>
         <Li><strong>Meta (Meta Pixel, Facebook e Instagram)</strong> — medição dos nossos anúncios no
-          Facebook e no Instagram, <strong>somente para quem aceitar os cookies</strong>. Recebe o endereço
+          Facebook e no Instagram, <strong>exceto para quem recusar os cookies</strong>. Recebe o endereço
           das páginas de divulgação, cadastro e assinatura que você visitou, a origem do acesso, as
           conversões (interesse no cadastro, cadastro concluído, início do teste grátis e assinatura, com o
           plano e o valor) e um identificador guardado em cookie. A Meta pode relacionar essas informações
@@ -166,14 +166,15 @@ export default function PrivacidadePage() {
       <P>
         Utilizamos cookies e armazenamento local estritamente necessários para autenticação e
         funcionamento do Serviço, além de parâmetros de atribuição de origem (UTM) para fins estatísticos
-        de aquisição. Na primeira visita, um aviso permite escolher entre <strong>aceitar todos</strong>
-        ou <strong>somente os essenciais</strong>; a escolha fica registrada no seu próprio navegador e
-        pode ser alterada limpando os dados do site. Se você escolher <strong>aceitar todos</strong>, o
-        Google Analytics passa a usar cookies de medição de audiência e o Meta Pixel passa a usar cookies
-        de publicidade, para medir os resultados dos nossos anúncios no Facebook e no Instagram; se
-        escolher <strong>somente os essenciais</strong>, nenhum dos dois é carregado. O tratamento
-        desses cookies tem como base o seu <strong>consentimento</strong> (art. 7º, I, da LGPD), que
-        pode ser revogado a qualquer tempo da mesma forma.
+        de aquisição. Também usamos o Google Analytics, com cookies de medição de audiência, e o Meta
+        Pixel, com cookies de publicidade, para medir os resultados dos nossos anúncios no Facebook e no
+        Instagram. Na primeira visita, um aviso informa esse uso e oferece a opção{" "}
+        <strong>Recusar</strong>: quem recusa não tem nenhum dos dois carregado, e a escolha fica
+        registrada no seu próprio navegador (limpando os dados do site, o aviso volta a aparecer). O Meta
+        Pixel não é usado nas áreas internas do app com dados dos filhos, e a Meta não recebe nada a
+        partir delas (item 6). O tratamento tem como base o <strong>legítimo interesse</strong> (art. 7º,
+        IX, da LGPD) em medir e melhorar a divulgação do Serviço, e você pode se opor a ele a qualquer
+        tempo pelo aviso ou pelo e-mail do Encarregado.
       </P>
 
       <H>13. Alterações desta Política</H>
