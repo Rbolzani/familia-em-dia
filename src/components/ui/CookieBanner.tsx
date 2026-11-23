@@ -38,9 +38,11 @@ export default function CookieBanner() {
     };
   }, [visible]);
 
-  // Modelo de recusa (21/11/2026): o Google e a Meta já carregaram ao abrir a
-  // página (ver lib/medicao.ts). "Entendi" só fecha o aviso; não dispara o
-  // evento de consentimento, que contaria a página vista de novo.
+  // Modelo de recusa (21/11/2026; texto no estilo "Aceitar" desde 23/11/2026):
+  // o Google e a Meta já carregaram ao abrir a página (ver lib/medicao.ts).
+  // "Aceitar" só fecha o aviso; não dispara o evento de consentimento, que
+  // contaria a página vista de novo. "Recusar" continua no aviso, discreto,
+  // porque a recusa precisa ser fácil (LGPD).
   function accept() {
     try { localStorage.setItem(STORAGE_KEY, "accepted"); } catch { /* aba privada */ }
     setVisible(false);
@@ -77,13 +79,13 @@ export default function CookieBanner() {
       }}
     >
       <p style={{ fontSize: 13, lineHeight: 1.5, margin: 0 }}>
-        Usamos cookies essenciais para o funcionamento do app e cookies de medição de audiência (Google Analytics) e de publicidade (Meta, dona do Facebook e do Instagram) para entender como o app é usado e medir nossos anúncios. Se não quiser os de medição e publicidade, clique em Recusar. Saiba mais na nossa{" "}
+        Usamos cookies para garantir que você tenha a melhor experiência em nosso site. Ao continuar navegando ou clicar em “Aceitar”, você concorda que podemos usar esses cookies. Clique em{" "}
         <a href="/privacidade" style={{ color: "#D4E8D5", textDecoration: "underline" }}>
           Política de Privacidade
-        </a>
-        .
+        </a>{" "}
+        para consultar mais informações.
       </p>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
         <button
           onClick={accept}
           style={{
@@ -91,24 +93,24 @@ export default function CookieBanner() {
             color: "#fff",
             border: "none",
             borderRadius: 8,
-            padding: "8px 20px",
-            fontSize: 13,
-            fontWeight: 600,
+            padding: "10px 28px",
+            fontSize: 14,
+            fontWeight: 700,
             cursor: "pointer",
           }}
         >
-          Entendi
+          Aceitar
         </button>
         <button
           onClick={reject}
           style={{
             background: "transparent",
-            color: "#D4E8D5",
-            border: "1px solid rgba(212,232,213,0.35)",
-            borderRadius: 8,
-            padding: "8px 20px",
-            fontSize: 13,
+            color: "rgba(212,232,213,0.75)",
+            border: "none",
+            padding: "4px 2px",
+            fontSize: 12.5,
             fontWeight: 500,
+            textDecoration: "underline",
             cursor: "pointer",
           }}
         >

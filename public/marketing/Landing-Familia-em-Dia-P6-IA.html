@@ -1744,12 +1744,11 @@ if (window.IntersectionObserver) {
 <div id="fam-cookies" role="dialog" aria-label="Aviso de cookies" hidden
   style="position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#1E3320;color:#F8F3EA;padding:16px 20px;box-shadow:0 -4px 24px rgba(0,0,0,.25);font-family:inherit">
   <p style="font-size:13px;line-height:1.5;margin:0 0 12px;max-width:900px">
-    Usamos cookies essenciais para o funcionamento do site e cookies de medição de audiência (Google Analytics) e de publicidade (Meta, dona do Facebook e do Instagram) para entender como ele é usado e medir nossos anúncios. Se não quiser os de medição e publicidade, clique em Recusar. Saiba mais na nossa
-    <a href="/privacidade" style="color:#D4E8D5;text-decoration:underline">Política de Privacidade</a>.
+    Usamos cookies para garantir que você tenha a melhor experiência em nosso site. Ao continuar navegando ou clicar em “Aceitar”, você concorda que podemos usar esses cookies. Clique em <a href="/privacidade" style="color:#D4E8D5;text-decoration:underline">Política de Privacidade</a> para consultar mais informações.
   </p>
-  <div style="display:flex;gap:10px;flex-wrap:wrap">
-    <button type="button" id="fam-cookies-sim" style="background:#5A8C5E;color:#fff;border:0;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Entendi</button>
-    <button type="button" id="fam-cookies-nao" style="background:transparent;color:#D4E8D5;border:1px solid rgba(212,232,213,.35);border-radius:8px;padding:8px 20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">Recusar</button>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+    <button type="button" id="fam-cookies-sim" style="background:#5A8C5E;color:#fff;border:0;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Aceitar</button>
+    <button type="button" id="fam-cookies-nao" style="background:transparent;color:rgba(212,232,213,.75);border:0;padding:4px 2px;font-size:12.5px;font-weight:500;text-decoration:underline;cursor:pointer;font-family:inherit">Recusar</button>
   </div>
 </div>
 <script>
@@ -1771,7 +1770,7 @@ if (window.IntersectionObserver) {
     var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id='+GA;document.head.appendChild(s);
   }
   // Meta Pixel: mesma regra do Google (modelo de recusa desde 21/11/2026: carrega
-  // para todos, menos quem clicou em "Recusar"). O id é público
+  // para todos, menos quem clicou em "Recusar"; o aviso tem "Aceitar" e "Recusar"). O id é público
   // por natureza. autoConfig desligado: o Pixel não lê botões e textos sozinho;
   // só sai a página vista e o Lead do clique em cadastro (abaixo).
   function ligarMeta(){

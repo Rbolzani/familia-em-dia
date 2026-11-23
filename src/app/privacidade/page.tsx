@@ -168,8 +168,9 @@ export default function PrivacidadePage() {
         funcionamento do Serviço, além de parâmetros de atribuição de origem (UTM) para fins estatísticos
         de aquisição. Também usamos o Google Analytics, com cookies de medição de audiência, e o Meta
         Pixel, com cookies de publicidade, para medir os resultados dos nossos anúncios no Facebook e no
-        Instagram. Na primeira visita, um aviso informa esse uso e oferece a opção{" "}
-        <strong>Recusar</strong>: quem recusa não tem nenhum dos dois carregado, e a escolha fica
+        Instagram. Na primeira visita, um aviso informa esse uso, com as opções <strong>Aceitar</strong> e{" "}
+        <strong>Recusar</strong>; continuar navegando sem escolher equivale a aceitar. Quem recusa não tem
+        nenhum dos dois carregado, e a escolha fica
         registrada no seu próprio navegador (limpando os dados do site, o aviso volta a aparecer). O Meta
         Pixel não é usado nas áreas internas do app com dados dos filhos, e a Meta não recebe nada a
         partir delas (item 6). O tratamento tem como base o <strong>legítimo interesse</strong> (art. 7º,

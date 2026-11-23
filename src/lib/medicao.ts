@@ -5,7 +5,9 @@
 //    informa, e quem clica em "Recusar" nunca mais baixa nenhum dos dois
 //    scripts. Antes disso só carregavam depois do "Aceitar todos" — o Pixel
 //    registrou 16 visitas em 28 dias e a campanha de Vendas não entregava.
-//    Valores gravados: 'accepted' (antigo aceite ou "Entendi") e 'rejected'.
+//    Valores gravados: 'accepted' ("Aceitar"; antes "Entendi" e "Aceitar todos")
+//    e 'rejected' ("Recusar"). O texto do aviso (23/11/2026) diz que continuar
+//    navegando equivale a aceitar — coerente com carregar por padrão.
 //
 // Os ids abaixo não são segredos: ficam visíveis no código de qualquer página
 // que os usa. (O que é segredo é o token da API de Conversões da Meta, usado
