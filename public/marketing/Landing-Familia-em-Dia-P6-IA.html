@@ -657,12 +657,14 @@
 
   /* Só no celular (23/11/2026): texto do vídeo mais curto e as situações da vitrine em 2 por linha,
      para a pessoa ver a animação enquanto as situações mudam. O computador não muda. */
+  .so-mob{display:none}
   @media (max-width:760px){
     .so-desk{display:none !important}
+    .so-mob{display:inline !important}
     .vt-grid{gap:22px !important}
     .vt-chips{display:grid !important;grid-template-columns:1fr 1fr;gap:8px !important;margin-bottom:16px !important}
-    .vt-chip{justify-content:center;text-align:center;white-space:normal;line-height:1.25;padding:8px 6px !important;font-size:12px !important;gap:4px !important;border-radius:14px !important;letter-spacing:-.1px}
-    .vt-chip:last-child:nth-child(odd){grid-column:1 / -1;justify-self:center;min-width:50%}
+    .vt-chip{justify-content:center;text-align:center;white-space:nowrap;overflow:hidden;line-height:1.2;height:34px;padding:0 6px !important;font-size:11.5px !important;gap:4px !important;border-radius:999px !important;letter-spacing:-.2px}
+    .vt-chip:last-child:nth-child(odd){grid-column:1 / -1;justify-self:center;width:calc(50% - 4px)}
     .vt-frase{font-size:18px !important;min-height:0 !important;margin-bottom:6px !important}
   }
 
@@ -1357,7 +1359,7 @@ var CENAS = [
              [4800, function () { tela.querySelectorAll('.vt-ev')[1].classList.add('vt-aparece') }], [6000, function () { toque($('#vt-salvar')) }],
              [6400, function () { selo('A foto virou agenda') }]] },
 
-  { chip: '🚗 Quem leva, quem busca', frase: 'Você sugere quem busca, a pessoa aceita no celular dela e todo mundo vê na hora.', dur: 9500,
+  { chip: '🚗 Quem leva, quem busca', curto: '🚗 Quem leva e busca', frase: 'Você sugere quem busca, a pessoa aceita no celular dela e todo mundo vê na hora.', dur: 9500,
     html: function () { return '<div class="vt-scr" id="vt-a">' + TOPO + '<div class="vt-pg"><div class="vt-h1">Logística</div><div class="vt-sub">Quem leva e quem busca</div>' +
         '<div class="vt-bx vt-atv"><div class="vt-l1"><span class="vt-av vt-p">P</span><div><b>Natação</b><small>Sábado, 10/10 · 17:00</small></div></div><div class="vt-ch"><span class="vt-pill vt-g">🚗 Leva: Você</span><span class="vt-pill vt-dash" id="vt-busca">🏠 Busca: definir</span></div></div>' +
         '<div class="vt-bx vt-atv"><div class="vt-l1"><span class="vt-av vt-l">L</span><div><b>Ballet</b><small>Segunda, 12/10 · 16:00</small></div></div><div class="vt-ch"><span class="vt-pill vt-g">🚗 Leva: Rafael</span><span class="vt-pill vt-g">🏠 Busca: Você</span></div></div>' +
@@ -1423,7 +1425,7 @@ var CENAS = [
 ];
 
 CENAS.forEach(function (c, i) {
-  var b = document.createElement('button'); b.className = 'vt-chip'; b.textContent = c.chip; b.onclick = function () { cena(i) }; chipsEl.appendChild(b);
+  var b = document.createElement('button'); b.className = 'vt-chip'; if (c.curto) { b.innerHTML = '<span class="so-desk">' + c.chip + '</span><span class="so-mob">' + c.curto + '</span>' } else { b.textContent = c.chip } b.onclick = function () { cena(i) }; chipsEl.appendChild(b);
   var p = document.createElement('i'); p.innerHTML = '<b></b>'; pontosEl.appendChild(p);
 });
 
