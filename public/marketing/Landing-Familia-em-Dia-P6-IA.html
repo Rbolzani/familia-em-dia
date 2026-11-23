@@ -306,6 +306,17 @@
   .cmp-etapas b{font-weight:800}
   .cmp-etapas .seta{color:#0F766E;font-weight:800}
   .cmp th .cmp-sub{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:2px}
+  /* Computador: a tabela ocupa a mesma largura dos 3 cartões de plano (no celular fica como era) */
+  @media (min-width:981px){
+    .cmp-wrap{max-width:none;padding:30px 34px 22px}
+    .cmp-tit{font-size:27px;margin-bottom:16px}
+    .cmp-etapas{font-size:15.5px;padding:14px 18px;margin-bottom:18px}
+    .cmp{font-size:16px}
+    .cmp th,.cmp td{padding:15px 14px}
+    .cmp thead th{font-size:16px}.cmp thead th:first-child{font-size:13px}
+    .cmp th .cmp-sub{font-size:12px}
+    .cmp-nota{font-size:14px}
+  }
   .pcard .price{font-family:var(--serif);font-size:38px;font-weight:700;line-height:1}
   .pcard .price small{font-size:15px;color:var(--muted);font-weight:400}
   .pcard .div{height:1px;background:var(--line);margin:20px 0}
