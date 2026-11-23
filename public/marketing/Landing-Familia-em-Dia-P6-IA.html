@@ -417,43 +417,6 @@
   .txt .sec-cta{margin-top:28px}
   @media (max-width:760px){.sec-cta,.txt .sec-cta{text-align:center !important}}
 
-  /* Como funciona — animação de cada passo (CSS puro, em loop) */
-  .st-anim{position:relative;height:150px;border-radius:14px;margin-bottom:18px;overflow:hidden;background:var(--cream-2);border:1px solid var(--line)}
-  .step.dark .st-anim{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12)}
-  /* 1 · Capture: bilhete escaneado + áudio */
-  .sa-note{position:absolute;left:24px;top:22px;width:104px;height:106px;background:#fff;border-radius:8px;padding:14px 12px;box-shadow:0 6px 16px rgba(19,48,45,.12);transform:rotate(-4deg);display:flex;flex-direction:column;gap:9px}
-  .sa-note i{display:block;height:6px;border-radius:3px;background:#E7D9C8}
-  .sa-note i.hl{background:var(--coral);opacity:.75}.sa-note i.s{width:60%}
-  .sa-beam{position:absolute;left:18px;width:118px;height:3px;border-radius:2px;background:linear-gradient(90deg,transparent,#2DC7B5,transparent);box-shadow:0 0 12px #2DC7B5;animation:saBeam 2.6s ease-in-out infinite}
-  @keyframes saBeam{0%,100%{top:22px;opacity:0}10%{opacity:1}50%{top:126px;opacity:1}60%{opacity:0}}
-  .sa-mic{position:absolute;right:34px;top:26px;width:46px;height:46px;border-radius:50%;background:var(--coral);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 0 0 rgba(255,107,92,.5);animation:saPulse 1.8s ease-out infinite}
-  @keyframes saPulse{0%{box-shadow:0 0 0 0 rgba(255,107,92,.45)}100%{box-shadow:0 0 0 18px rgba(255,107,92,0)}}
-  .sa-bars{position:absolute;right:22px;top:92px;height:34px;display:flex;gap:4px;align-items:center}
-  .sa-bars i{display:block;width:5px;height:10px;border-radius:3px;background:var(--green);animation:saBar 1s ease-in-out infinite}
-  .sa-bars i:nth-child(2){animation-delay:.15s}.sa-bars i:nth-child(3){animation-delay:.3s}.sa-bars i:nth-child(4){animation-delay:.45s}
-  .sa-bars i:nth-child(5){animation-delay:.3s}.sa-bars i:nth-child(6){animation-delay:.15s}.sa-bars i:nth-child(7){animation-delay:.05s}
-  @keyframes saBar{0%,100%{height:8px}50%{height:30px}}
-  /* 2 · O sistema organiza: compromissos entrando na agenda */
-  .so-row{position:relative;margin:12px 14px 0;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border-radius:9px;padding:7px 10px;font-size:12.5px;font-weight:700;color:var(--ink);box-shadow:0 3px 10px rgba(19,48,45,.08);white-space:nowrap;opacity:0;animation:soIn 6s ease-out infinite both}
-  .so-row span{overflow:hidden;text-overflow:ellipsis}
-  .so-row b{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--green);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;transform:scale(0);animation:soCk 6s ease-out infinite both}
-  .so-row:nth-child(2),.so-row:nth-child(2) b{animation-delay:.6s}
-  .so-row:nth-child(3),.so-row:nth-child(3) b{animation-delay:1.2s}
-  @keyframes soIn{0%{opacity:0;transform:translateX(-28px)}10%,82%{opacity:1;transform:none}92%,100%{opacity:0;transform:none}}
-  @keyframes soCk{0%,14%{transform:scale(0)}20%{transform:scale(1.25)}25%,82%{transform:scale(1)}92%,100%{transform:scale(0)}}
-  /* 3 · Você é avisada: resumo chegando no WhatsApp */
-  .sv-app{position:absolute;left:16px;top:14px;font-size:11px;font-weight:800;letter-spacing:.04em;color:#7FE3D6}
-  .sv-n{position:absolute;right:14px;top:10px;width:24px;height:24px;border-radius:50%;background:var(--coral);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;transform:scale(0);animation:svPing 6s ease-out infinite both}
-  .sv-b{position:absolute;left:16px;right:16px;top:44px;background:#fff;border-radius:12px;border-top-left-radius:3px;padding:10px 12px;font-size:12.5px;line-height:1.5;color:var(--ink);box-shadow:0 6px 18px rgba(0,0,0,.25);opacity:0;animation:svIn 6s ease-out infinite both}
-  .sv-b b{color:var(--green)}
-  @keyframes svIn{0%,8%{opacity:0;transform:translateY(16px) scale(.96)}16%,86%{opacity:1;transform:none}95%,100%{opacity:0;transform:none}}
-  @keyframes svPing{0%,12%{transform:scale(0)}18%{transform:scale(1.25)}24%,86%{transform:scale(1)}95%,100%{transform:scale(0)}}
-  @media (prefers-reduced-motion:reduce){
-    .st-anim *{animation:none !important}
-    .so-row,.sv-b{opacity:1}.so-row b,.sv-n{transform:none}.sa-beam{display:none}
-  }
-
-
   /* Celulares animados (captura, WhatsApp, logística): maiores, mesma proporção 268x520 */
   #gif1-frame,#gif2-frame,#gif3-frame{width:360px;height:auto;aspect-ratio:268/520;max-width:100%}
 
@@ -615,6 +578,43 @@
     .vt-selo{font-size:13.5px;padding:10px 16px}
   }
   @media (prefers-reduced-motion:reduce){#vitrine *{animation:none !important;transition:none !important}}
+
+
+  /* ============ RESUMO NO WHATSAPP (cartão no formato da vitrine) ============ */
+  #produto{--ink-bg:#08221F;--teal:#2DC7B5}
+  .vt-inv{grid-template-columns:minmax(0,430px) 1fr;margin-top:8px}
+  .vtw-logo{position:absolute;z-index:3;right:-18px;top:-18px;width:64px;height:64px;border-radius:50%;background:#fff;box-shadow:0 12px 28px rgba(37,211,102,.35);display:flex;align-items:center;justify-content:center;animation:vtwPulsa 2.4s ease-in-out infinite}
+  .vtw-logo svg{width:40px;height:40px}
+  @keyframes vtwPulsa{0%,100%{box-shadow:0 12px 28px rgba(37,211,102,.35),0 0 0 0 rgba(37,211,102,.35)}50%{box-shadow:0 12px 28px rgba(37,211,102,.35),0 0 0 14px rgba(37,211,102,0)}}
+  .vtw-pill{display:inline-flex;align-items:center;gap:12px;background:#E9FBEF;border:1px solid #BFEFCF;color:var(--ink);border-radius:16px;padding:12px 16px;font-size:16.5px;line-height:1.4;margin-bottom:16px}
+  .vtw-pill .ico svg{width:30px;height:30px;display:block}
+  .vtw-pill b{color:#128C3E}
+  .vtw{position:absolute;inset:0;display:flex;flex-direction:column;font-family:Inter,sans-serif}
+  .vtw-head{display:flex;align-items:center;gap:12px;padding:16px 16px 14px;background:#075E54;color:#fff}
+  .vtw-head img{width:40px;height:40px;border-radius:50%;background:#fff}
+  .vtw-head b{display:flex;align-items:center;gap:6px;font-size:16.5px}
+  .vtw-head b i{font-style:normal;width:17px;height:17px;border-radius:50%;background:#25D366;color:#fff;font-size:10px;display:inline-flex;align-items:center;justify-content:center}
+  .vtw-head small{display:block;font-size:12.5px;opacity:.8}
+  .vtw-body{flex:1;background:#EFE7DC;background-image:radial-gradient(rgba(0,0,0,.035) 1px,transparent 1px);background-size:18px 18px;padding:16px 14px;display:flex;flex-direction:column;gap:10px}
+  .vtw-dia{align-self:center;background:rgba(255,255,255,.75);color:#667;font-size:12.5px;border-radius:8px;padding:4px 12px}
+  .vtw-dots{align-self:flex-start;background:#fff;border-radius:14px;padding:12px 16px;display:none;gap:5px}
+  .vtw-dots.on{display:flex}.vtw-dots i{width:8px;height:8px;border-radius:50%;background:#9AA5A8;animation:vtwPisca 1s infinite}
+  .vtw-dots i:nth-child(2){animation-delay:.15s}.vtw-dots i:nth-child(3){animation-delay:.3s}
+  @keyframes vtwPisca{0%,100%{opacity:.3}50%{opacity:1}}
+  .vtw-msg{align-self:flex-start;max-width:92%;background:#fff;border-radius:14px;border-top-left-radius:4px;padding:12px 14px;font-size:14.5px;line-height:1.5;color:#1A2B1C;box-shadow:0 1px 2px rgba(0,0,0,.08);display:none}
+  .vtw-msg.on{display:block}
+  .vtw-msg .ln{opacity:0;transform:translateY(5px);transition:all .35s}.vtw-msg .ln.on{opacity:1;transform:none}
+  .vtw-msg .h{font-weight:800;color:#0F766E}.vtw-msg .s{font-weight:800;margin-top:7px}
+  .vtw-msg .hr{text-align:right;font-size:11.5px;color:#8A9599;margin-top:4px}
+  .vtw-eu{align-self:flex-end;background:#D9FDD3;border-radius:14px;border-top-right-radius:4px;padding:10px 14px;font-size:14.5px;opacity:0;transform:translateY(8px);transition:all .4s}
+  .vtw-eu.on{opacity:1;transform:none}
+  .vtw-not{position:absolute;z-index:5;left:12px;right:12px;top:12px;display:flex;gap:12px;align-items:center;background:rgba(255,255,255,.97);border-radius:18px;padding:12px 14px;box-shadow:0 16px 40px rgba(0,0,0,.25);transform:translateY(-140%);transition:transform .5s cubic-bezier(.2,1.1,.4,1)}
+  .vtw-not.on{transform:none}
+  .vtw-not .ic svg{width:34px;height:34px;display:block}
+  .vtw-not b{display:block;font-size:13px;color:#5E726F;font-weight:700}
+  .vtw-not span{font-size:14px;color:#1A2B1C}
+  @media (max-width:900px){.vt-inv{grid-template-columns:1fr}.vtw-logo{right:-6px;top:-14px;width:54px;height:54px}.vtw-logo svg{width:34px;height:34px}}
+  @media (prefers-reduced-motion:reduce){#produto *{animation:none !important;transition:none !important}}
 
   /* RESPONSIVE — TABLET */
   @media (max-width:980px){
@@ -1163,32 +1163,6 @@
     </div>
     <div class="sec-cta"><a href="#planos" class="btn btn-primary btn-lg">Conhecer os planos →</a></div>
 
-    <!-- Como funciona — 3 passos (mesma seção) -->
-    <div style="margin-top:60px">
-      <div class="sec-head center" style="margin-bottom:32px">
-        <span class="eyebrow" style="justify-content:center"><span class="dot"></span>Como funciona</span>
-        <h2>Do caos à clareza em 3 passos.</h2>
-        <p class="lead">Você dá a informação. A tecnologia faz o trabalho e te avisa na hora certa.</p>
-      </div>
-      <div class="steps">
-        <div class="step"><div class="st-anim" aria-hidden="true">
-            <div class="sa-note"><i></i><i class="hl"></i><i></i><i class="s"></i></div>
-            <div class="sa-beam"></div>
-            <div class="sa-mic"><span>🎙️</span></div>
-            <div class="sa-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          </div><div class="n">1</div><h3>Capture</h3><p>Fotografe a agenda, mande um áudio, cole um print ou digite. Como for mais rápido pra você.</p></div>
-        <div class="step"><div class="st-anim" aria-hidden="true">
-            <div class="so-row"><span>📐 Prova de Matemática · Qui 10h</span><b>✓</b></div>
-            <div class="so-row"><span>🩺 Consulta do Pedro · Sex 14h</span><b>✓</b></div>
-            <div class="so-row"><span>🎒 Levar jaleco · Ter</span><b>✓</b></div>
-          </div><div class="n">2</div><h3>O sistema organiza</h3><p>Tudo vira compromisso com data, hora e responsável — no calendário e no mural de pendências.</p></div>
-        <div class="step dark"><div class="st-anim" aria-hidden="true">
-            <div class="sv-app">WhatsApp · 07:00</div>
-            <div class="sv-n">1</div>
-            <div class="sv-b"><b>☀️ Bom dia!</b> Hoje: 📐 Prova da Helena às 10h · 🚗 Você busca o futebol às 18h30</div>
-          </div><div class="n">3</div><h3>Você é avisada</h3><p>Resumo no WhatsApp toda manhã, com alertas de prova e lembretes de vacina. Sem abrir mais um app.</p></div>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -1215,57 +1189,22 @@
   <div class="container">
     <div class="sec-head center">
       <span class="eyebrow" style="justify-content:center"><span class="dot"></span>Seu assistente pessoal</span>
-      <h2>Seu dia organizado.<br>Sua família sincronizada.</h2>
+      <h2>Seu dia organizado.</h2>
       <p class="lead">O app trabalha enquanto você cuida do que importa — avisa na hora certa e garante que todo mundo está na mesma página.</p>
     </div>
 
-    <!-- ── BLOCO 1: WHATSAPP ── -->
-    <div class="split" style="gap:64px">
-      <div id="whatsapp-wrap" class="visual-wrap" style="flex-direction:row;align-items:center;gap:16px;flex-wrap:nowrap;justify-content:center">
-
-        <!-- WhatsApp -->
-        <iframe id="gif2-frame" width="268" height="520" frameborder="0" scrolling="no" allowtransparency="true" style="border:none;overflow:hidden;flex-shrink:0"></iframe>
-        <div class="phone" style="display:none;width:210px;height:420px">
-          <div class="scr" style="background:#ECE5DD"><div class="notch"></div>
-            <!-- Header WhatsApp -->
-            <div style="background:#075E54;color:#fff;padding:30px 15px 12px;display:flex;align-items:center;gap:10px">
-              <div style="width:36px;height:36px;border-radius:50%;background:#0F766E;display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto">👨‍👩‍👧</div>
-              <div style="flex:1"><b style="font-size:13.5px;display:block">Família em Dia</b><small style="font-size:10px;opacity:.8">mensagem automática · 07:00</small></div>
-              <div style="font-size:10px;opacity:.6">⋮</div>
-            </div>
-            <!-- Mensagem -->
-            <div style="padding:14px 13px;display:flex;flex-direction:column;gap:8px">
-              <div style="font-size:9px;color:#aaa;text-align:center;background:rgba(0,0,0,.05);border-radius:10px;padding:3px 10px;align-self:center">Hoje · 07:00</div>
-              <div style="background:#fff;border-radius:12px;border-top-left-radius:3px;padding:13px 14px;font-size:11.5px;line-height:1.7;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-                <b style="color:#0F766E;font-size:12px">☀️ Bom dia, Marina!</b><br>
-                <span style="color:#555">Resumo de <b>hoje, qui 12/06</b>:</span><br><br>
-                📐 <b>Prova de Mat.</b> — Helena, 10h<br>
-                🎒 Material de artes — Pedro<br>
-                🚗 Você busca <b>futebol</b> às 18h30<br>
-                💉 <span style="color:#E2533F;font-weight:700">Falta a 2ª dose da vacina do Pedro</span>
-                <div style="font-size:8.5px;color:#aaa;text-align:right;margin-top:8px;display:flex;align-items:center;justify-content:flex-end;gap:4px">07:00 <span style="color:#4FC3F7">✓✓</span></div>
-              </div>
-              <!-- Alerta de prova amanhã -->
-              <div style="background:#fff;border-radius:12px;border-top-left-radius:3px;padding:10px 13px;font-size:11px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:3px solid #F4A93C">
-                🔔 <b style="color:#D48A00">Alerta:</b> Prova de Ciências da Helena <b>amanhã</b> às 8h.
-                <div style="font-size:8.5px;color:#aaa;text-align:right;margin-top:5px">07:00 <span style="color:#4FC3F7">✓✓</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
+    <!-- ── RESUMO NO WHATSAPP (mesmo cartão da vitrine) ── -->
+    <div class="vt-grid vt-inv">
+      <div class="vt-palco">
+        <span class="vtw-logo" aria-hidden="true"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#25D366" d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.7 12.7-12.7S23 3 16 3z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2-.3.4-1 1.3-1.2 1.5-.2.3-.5.3-.8.1-.4-.2-1.6-.6-3-1.9-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.3-.4.4-.7.1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.3 2.7 4.2 6.6 5.8 3.3 1.3 3.9 1.1 4.6 1 .7-.1 2.3-.9 2.6-1.8.3-.9.3-1.7.2-1.8-.1-.2-.4-.3-.8-.5z"/></svg></span>
+        <div class="vt-card"><div class="vt-tela" id="vtw-tela"></div></div>
       </div>
-      <div class="txt">
-        <span class="eyebrow" style="margin-bottom:16px"><span class="dot"></span>Resumo diário automático</span>
-        <h3>O dia da família já pronto<br>antes de você sair da cama.</h3>
-        <p class="mob-hide">Todo dia no horário que você escolhe, o Família em Dia manda o que importa — prova, mochila, quem busca, doses de vacina pendentes.</p>
-        <p class="split-detail" style="color:var(--muted);font-size:16px;margin-bottom:20px">No <b style="color:var(--ink)">WhatsApp</b>, onde você já está.</p>
-        <ul class="feat-list">
-          <li><span class="ck">✓</span> Resumo no <b>horário que você configurar</b></li>
-          <li><span class="ck">✓</span> Alertas de provas e consultas, e <b>doses de vacina pendentes</b></li>
-          <li><span class="ck">✓</span> Você <b>não precisa abrir nenhum app</b></li>
-        </ul>
-        <div class="sec-cta" style="text-align:left"><a href="#planos" class="btn btn-primary btn-lg">Ver planos →</a></div>
+      <div class="vt-txt">
+        <span class="eyebrow" style="margin-bottom:14px"><span class="dot"></span>Resumo diário automático</span>
+        <h3 style="font-size:clamp(26px,3vw,36px);margin-bottom:16px">O dia pronto antes de você sair da cama.</h3>
+        <p class="vtw-pill"><span class="ico"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#25D366" d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.7 12.7-12.7S23 3 16 3z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2-.3.4-1 1.3-1.2 1.5-.2.3-.5.3-.8.1-.4-.2-1.6-.6-3-1.9-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.3-.4.4-.7.1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.3 2.7 4.2 6.6 5.8 3.3 1.3 3.9 1.1 4.6 1 .7-.1 2.3-.9 2.6-1.8.3-.9.3-1.7.2-1.8-.1-.2-.4-.3-.8-.5z"/></svg></span><span>Chega no seu <b>WhatsApp</b>, no horário que você escolher.</span></p>
+        <p style="color:var(--muted);font-size:17px;margin-bottom:26px">Provas, mensalidades, quem leva e quem busca. Sem abrir nenhum app.</p>
+        <a href="#planos" class="btn btn-primary btn-lg">Ver planos →</a>
       </div>
     </div>
 
@@ -1427,6 +1366,40 @@ var vtIniciou = false;
 if (window.IntersectionObserver) {
   new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting && !vtIniciou) { vtIniciou = true; cena(0) } }) }, { threshold: 0.3 }).observe(document.getElementById('vitrine'));
 } else { cena(0) }
+})();
+</script>
+
+<script>
+(function () {
+  var tela = document.getElementById('vtw-tela'); if (!tela) return;
+  var reduz = matchMedia('(prefers-reduced-motion: reduce)').matches, timers = [];
+  function T(f, ms) { timers.push(setTimeout(f, reduz ? 0 : ms)) }
+  var WA = '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="#25D366" d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.7 12.7-12.7S23 3 16 3z"/><path fill="#fff" d="M23.3 19.6c-.4-.2-2.3-1.1-2.6-1.3-.4-.1-.6-.2-.9.2-.3.4-1 1.3-1.2 1.5-.2.3-.5.3-.8.1-.4-.2-1.6-.6-3-1.9-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.3-.4.4-.7.1-.3 0-.5 0-.7l-1.2-2.8c-.3-.7-.6-.6-.9-.6h-.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.3 2.7 4.2 6.6 5.8 3.3 1.3 3.9 1.1 4.6 1 .7-.1 2.3-.9 2.6-1.8.3-.9.3-1.7.2-1.8-.1-.2-.4-.3-.8-.5z"/></svg>';
+  var LINHAS = ['<div class="ln h">🌿 Bom dia! Resumo da Família — 15/10</div>',
+    '<div class="ln s">📝 Provas</div>', '<div class="ln">hoje 08:20 — Prova de Ciências (Pedro)</div>',
+    '<div class="ln s">💰 Mensalidades</div>', '<div class="ln">Ballet (Lia) — R$ 220,00 · vence hoje</div>',
+    '<div class="ln s">🔥 Hoje</div>', '<div class="ln">🏊 Pedro — Natação (17:00) · 🚗 leva: Você · 🏠 busca: Rafael</div>',
+    '<div class="ln s">📅 Próximos 7 dias</div>', '<div class="ln">16/10 — Prova de Matemática (Pedro)</div>',
+    '<div class="ln hr">07:00 ✓✓</div>'];
+  function cena() {
+    timers.forEach(clearTimeout); timers = [];
+    tela.innerHTML = '<div class="vtw"><div class="vtw-head"><img src="/marketing/familia-em-dia-icone.svg" alt=""><div><b>Família em Dia <i>✓</i></b><small>conta comercial</small></div></div>' +
+      '<div class="vtw-body"><span class="vtw-dia">Hoje</span><div class="vtw-dots"><i></i><i></i><i></i></div><div class="vtw-msg">' + LINHAS.join('') + '</div><div class="vtw-eu">Obrigada! 💚</div></div></div>' +
+      '<div class="vtw-not"><span class="ic">' + WA + '</span><div><b>WhatsApp · agora</b><span>Família em Dia: ☀️ Bom dia! Resumo da Família</span></div></div>';
+    var q = function (s) { return tela.querySelector(s) };
+    T(function () { q('.vtw-not').classList.add('on') }, 600);
+    T(function () { q('.vtw-not').classList.remove('on'); q('.vtw-dots').classList.add('on') }, 2400);
+    T(function () { q('.vtw-dots').classList.remove('on'); q('.vtw-msg').classList.add('on');
+      tela.querySelectorAll('.vtw-msg .ln').forEach(function (l, k) { T(function () { l.classList.add('on') }, 150 + k * 380) }) }, 3400);
+    T(function () { q('.vtw-eu').classList.add('on') }, 8000);
+    T(function () { var s = document.createElement('div'); s.className = 'vt-selo'; s.innerHTML = '<i>✓</i><span>Pronto antes de você sair da cama</span>'; tela.appendChild(s);
+      requestAnimationFrame(function () { requestAnimationFrame(function () { s.classList.add('vt-on') }) }) }, 8600);
+    if (!reduz) T(cena, 12000);
+  }
+  var foi = false;
+  if (window.IntersectionObserver) {
+    new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting && !foi) { foi = true; cena() } }) }, { threshold: 0.3 }).observe(tela);
+  } else { cena() }
 })();
 </script>
 
@@ -1641,7 +1614,7 @@ if (window.IntersectionObserver) {
         <p>Mande um áudio ou a foto do bilhete: o Família em Dia monta a agenda dos seus filhos e avisa você no WhatsApp.</p>
       </div>
       <div><h4>Produto</h4><ul><li><a href="#recursos">O app</a></li><li><a href="#produto">Diferenciais</a></li><li><a href="#planos">Planos</a></li><li><a href="#faq">Dúvidas</a></li></ul></div>
-      <div><h4>Fale com a gente</h4><ul><li><a href="mailto:suporte@familiaemdia.com.br" style="display:inline-flex;align-items:center;gap:8px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>suporte@familiaemdia.com.br</a></li><li><a href="https://www.instagram.com/familia_em_dia/" target="_blank" rel="noopener" aria-label="Instagram @familia_em_dia" style="display:inline-flex;align-items:center;gap:8px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>@familia_em_dia</a></li></ul></div>
+      <div><h4>Fale com a gente</h4><ul><li><a href="mailto:suporte@familiaemdia.com.br" style="display:inline-flex;align-items:center;gap:8px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>suporte@familiaemdia.com.br</a></li><li><a href="https://www.instagram.com/familia_em_dia/" target="_blank" rel="noopener" aria-label="Instagram @familia_em_dia" style="display:inline-flex;align-items:center;gap:8px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></svg>@familia_em_dia</a></li><li><a href="https://www.facebook.com/share/1ETBaL3btm/" target="_blank" rel="noopener" aria-label="Família em Dia no Facebook" style="display:inline-flex;align-items:center;gap:8px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>Família em Dia</a></li></ul></div>
       <div><h4>Legal</h4><ul><li><a href="/privacidade">Privacidade</a></li><li><a href="/termos">Termos</a></li><li><a href="/privacidade#seguranca">Segurança</a></li></ul></div>
     </div>
     <div class="foot-bot">
