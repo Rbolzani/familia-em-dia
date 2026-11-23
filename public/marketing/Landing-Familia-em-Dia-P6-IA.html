@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Família em Dia — Tire a rotina dos seus filhos da sua cabeça</title>
-<meta name="description" content="Existe um trabalho que ninguém vê: lembrar de prova, vacina, uniforme, quem leva e quem busca. O Família em Dia organiza tudo com IA e te avisa no WhatsApp. 14 dias grátis; cancele quando quiser.">
+<meta name="description" content="Existe um trabalho que ninguém vê: lembrar de prova, vacina, uniforme, quem leva e quem busca. O Família em Dia organiza tudo e te avisa no WhatsApp. 14 dias grátis; cancele quando quiser.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gilda+Display&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -411,6 +411,48 @@
     .ia-arrow{padding-top:0;transform:rotate(90deg);font-size:20px}
   }
 
+
+  /* Chamada para os planos ao fim das seções */
+  .sec-cta{text-align:center;margin-top:44px}
+  .txt .sec-cta{margin-top:28px}
+  @media (max-width:760px){.sec-cta,.txt .sec-cta{text-align:center !important}}
+
+  /* Como funciona — animação de cada passo (CSS puro, em loop) */
+  .st-anim{position:relative;height:150px;border-radius:14px;margin-bottom:18px;overflow:hidden;background:var(--cream-2);border:1px solid var(--line)}
+  .step.dark .st-anim{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12)}
+  /* 1 · Capture: bilhete escaneado + áudio */
+  .sa-note{position:absolute;left:24px;top:22px;width:104px;height:106px;background:#fff;border-radius:8px;padding:14px 12px;box-shadow:0 6px 16px rgba(19,48,45,.12);transform:rotate(-4deg);display:flex;flex-direction:column;gap:9px}
+  .sa-note i{display:block;height:6px;border-radius:3px;background:#E7D9C8}
+  .sa-note i.hl{background:var(--coral);opacity:.75}.sa-note i.s{width:60%}
+  .sa-beam{position:absolute;left:18px;width:118px;height:3px;border-radius:2px;background:linear-gradient(90deg,transparent,#2DC7B5,transparent);box-shadow:0 0 12px #2DC7B5;animation:saBeam 2.6s ease-in-out infinite}
+  @keyframes saBeam{0%,100%{top:22px;opacity:0}10%{opacity:1}50%{top:126px;opacity:1}60%{opacity:0}}
+  .sa-mic{position:absolute;right:34px;top:26px;width:46px;height:46px;border-radius:50%;background:var(--coral);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 0 0 rgba(255,107,92,.5);animation:saPulse 1.8s ease-out infinite}
+  @keyframes saPulse{0%{box-shadow:0 0 0 0 rgba(255,107,92,.45)}100%{box-shadow:0 0 0 18px rgba(255,107,92,0)}}
+  .sa-bars{position:absolute;right:22px;top:92px;height:34px;display:flex;gap:4px;align-items:center}
+  .sa-bars i{display:block;width:5px;height:10px;border-radius:3px;background:var(--green);animation:saBar 1s ease-in-out infinite}
+  .sa-bars i:nth-child(2){animation-delay:.15s}.sa-bars i:nth-child(3){animation-delay:.3s}.sa-bars i:nth-child(4){animation-delay:.45s}
+  .sa-bars i:nth-child(5){animation-delay:.3s}.sa-bars i:nth-child(6){animation-delay:.15s}.sa-bars i:nth-child(7){animation-delay:.05s}
+  @keyframes saBar{0%,100%{height:8px}50%{height:30px}}
+  /* 2 · O sistema organiza: compromissos entrando na agenda */
+  .so-row{position:relative;margin:12px 14px 0;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border-radius:9px;padding:7px 10px;font-size:12.5px;font-weight:700;color:var(--ink);box-shadow:0 3px 10px rgba(19,48,45,.08);white-space:nowrap;opacity:0;animation:soIn 6s ease-out infinite both}
+  .so-row span{overflow:hidden;text-overflow:ellipsis}
+  .so-row b{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--green);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;transform:scale(0);animation:soCk 6s ease-out infinite both}
+  .so-row:nth-child(2),.so-row:nth-child(2) b{animation-delay:.6s}
+  .so-row:nth-child(3),.so-row:nth-child(3) b{animation-delay:1.2s}
+  @keyframes soIn{0%{opacity:0;transform:translateX(-28px)}10%,82%{opacity:1;transform:none}92%,100%{opacity:0;transform:none}}
+  @keyframes soCk{0%,14%{transform:scale(0)}20%{transform:scale(1.25)}25%,82%{transform:scale(1)}92%,100%{transform:scale(0)}}
+  /* 3 · Você é avisada: resumo chegando no WhatsApp */
+  .sv-app{position:absolute;left:16px;top:14px;font-size:11px;font-weight:800;letter-spacing:.04em;color:#7FE3D6}
+  .sv-n{position:absolute;right:14px;top:10px;width:24px;height:24px;border-radius:50%;background:var(--coral);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;transform:scale(0);animation:svPing 6s ease-out infinite both}
+  .sv-b{position:absolute;left:16px;right:16px;top:44px;background:#fff;border-radius:12px;border-top-left-radius:3px;padding:10px 12px;font-size:12.5px;line-height:1.5;color:var(--ink);box-shadow:0 6px 18px rgba(0,0,0,.25);opacity:0;animation:svIn 6s ease-out infinite both}
+  .sv-b b{color:var(--green)}
+  @keyframes svIn{0%,8%{opacity:0;transform:translateY(16px) scale(.96)}16%,86%{opacity:1;transform:none}95%,100%{opacity:0;transform:none}}
+  @keyframes svPing{0%,12%{transform:scale(0)}18%{transform:scale(1.25)}24%,86%{transform:scale(1)}95%,100%{transform:scale(0)}}
+  @media (prefers-reduced-motion:reduce){
+    .st-anim *{animation:none !important}
+    .so-row,.sv-b{opacity:1}.so-row b,.sv-n{transform:none}.sa-beam{display:none}
+  }
+
   /* RESPONSIVE — TABLET */
   @media (max-width:980px){
     .hero-grid{grid-template-columns:1fr;gap:20px;padding:72px 0 80px}
@@ -809,24 +851,6 @@
   </div>
 </section>
 
-<!-- ============ A SOBRECARGA INVISÍVEL ============ -->
-<section class="sec" id="carga">
-  <div class="container">
-    <div class="sec-head center">
-      <span class="eyebrow" style="justify-content:center"><span class="dot"></span>A sobrecarga invisível</span>
-      <h2>Enquanto a casa dorme,<br>quem lembra de tudo é você.</h2>
-      <p class="lead">Ninguém vê essa lista. Mas ela nunca acaba.</p>
-    </div>
-    <div class="loadlist">
-      <div class="loaditem"><span class="bic">🧠</span> Você é a agenda viva da família — e ninguém percebe.</div>
-      <div class="loaditem"><span class="bic">🧠</span> A prova é quinta. A vacina venceu. O uniforme de Ed. Física é sexta.</div>
-      <div class="loaditem"><span class="bic">🧠</span> Você vai buscar ou vai perguntar e esperar ele responder?</div>
-      <div class="loaditem"><span class="bic">🧠</span> O remédio do Pedro é 3x ao dia. Você que lembra. Sempre você.</div>
-      <div class="loaditem"><span class="bic">🧠</span> E ainda precisa comprar o presente da festa. Sábado.</div>
-    </div>
-  </div>
-</section>
-
 <!-- ============ SEÇÃO VÍDEO — MOCKUP CELULAR ============ -->
 <section class="sec" id="video-demo" style="background:var(--green-ink);padding:96px 0">
   <div class="container">
@@ -836,7 +860,7 @@
       <div class="video-text-col">
         <span class="eyebrow" style="color:#7FE3D6;margin-bottom:16px;display:inline-flex"><span class="dot"></span>Um assistente inteligente para aliviar a sobrecarga</span>
         <h2 style="color:#FFF9F2;font-size:clamp(32px,4vw,52px);margin-bottom:20px">Muito mais que uma agenda.</h2>
-        <p style="color:#8DC4BC;font-size:19px;line-height:1.75;margin-bottom:28px">Foto da agenda, mensagem de voz no carro, print do grupo da escola — a IA captura, interpreta e organiza tudo enquanto você vive a sua rotina.</p>
+        <p style="color:#8DC4BC;font-size:19px;line-height:1.75;margin-bottom:28px">Foto da agenda, mensagem de voz no carro, print do grupo da escola — o sistema captura, interpreta e organiza tudo enquanto você vive a sua rotina.</p>
         <p style="color:#5E9E98;font-size:16px;line-height:1.7;margin-bottom:36px">Sem digitação. Sem planilha. Sem esquecer nada.</p>
         <!-- Player mobile: vídeo full-width, só visível no mobile -->
         <div class="video-mobile-player" style="display:none;margin-bottom:28px;position:relative;width:100%;background:#000;border-radius:16px;overflow:hidden">
@@ -893,7 +917,7 @@
     <div class="sec-head center">
       <span class="eyebrow" style="justify-content:center"><span class="dot"></span>Tudo em um só sistema</span>
       <h2>Toda a vida dos seus filhos, sob controle.</h2>
-      <p class="lead">Escola, saúde, documentos e logística — reunidos num só lugar, organizados pela IA e compartilhados com quem você escolher.</p>
+      <p class="lead">Escola, saúde, documentos e logística — reunidos num só lugar, organizados pelo sistema e compartilhados com quem você escolher.</p>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px" class="feat-grid">
 
@@ -954,7 +978,7 @@
             <path d="M18 4v5l3-2.5" stroke="#FF6B5C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
           </svg>
         </div>
-        <h3>Cofre de Documentos Inteligente</h3><p>RG, carteirinhas e contratos guardados com segurança. A IA organiza tudo sem você digitar e encontra qualquer documento ou imagem por palavra-chave.</p>
+        <h3>Cofre de Documentos Inteligente</h3><p>RG, carteirinhas e contratos guardados com segurança. O sistema organiza tudo sem você digitar e encontra qualquer documento ou imagem por palavra-chave.</p>
       </div>
 
       <div class="fcard c-fam">
@@ -973,6 +997,7 @@
       </div>
 
     </div>
+    <div class="sec-cta"><a href="#planos" class="btn btn-primary btn-lg">Conhecer os planos →</a></div>
 
     <!-- Como funciona — 3 passos (mesma seção) -->
     <div style="margin-top:60px">
@@ -982,9 +1007,22 @@
         <p class="lead">Você dá a informação. A tecnologia faz o trabalho e te avisa na hora certa.</p>
       </div>
       <div class="steps">
-        <div class="step"><div class="n">1</div><h3>Capture</h3><p>Fotografe a agenda, mande um áudio, cole um print ou digite. Como for mais rápido pra você.</p></div>
-        <div class="step"><div class="n">2</div><h3>A IA organiza</h3><p>Tudo vira compromisso com data, hora e responsável — no calendário e no mural de pendências.</p></div>
-        <div class="step dark"><div class="n">3</div><h3>Você é avisada</h3><p>Resumo no WhatsApp toda manhã, com alertas de prova e lembretes de vacina. Sem abrir mais um app.</p></div>
+        <div class="step"><div class="st-anim" aria-hidden="true">
+            <div class="sa-note"><i></i><i class="hl"></i><i></i><i class="s"></i></div>
+            <div class="sa-beam"></div>
+            <div class="sa-mic"><span>🎙️</span></div>
+            <div class="sa-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div><div class="n">1</div><h3>Capture</h3><p>Fotografe a agenda, mande um áudio, cole um print ou digite. Como for mais rápido pra você.</p></div>
+        <div class="step"><div class="st-anim" aria-hidden="true">
+            <div class="so-row"><span>📐 Prova de Matemática · Qui 10h</span><b>✓</b></div>
+            <div class="so-row"><span>🩺 Consulta do Pedro · Sex 14h</span><b>✓</b></div>
+            <div class="so-row"><span>🎒 Levar jaleco · Ter</span><b>✓</b></div>
+          </div><div class="n">2</div><h3>O sistema organiza</h3><p>Tudo vira compromisso com data, hora e responsável — no calendário e no mural de pendências.</p></div>
+        <div class="step dark"><div class="st-anim" aria-hidden="true">
+            <div class="sv-app">WhatsApp · 07:00</div>
+            <div class="sv-n">1</div>
+            <div class="sv-b"><b>☀️ Bom dia!</b> Hoje: 📐 Prova da Helena às 10h · 🚗 Você busca o futebol às 18h30</div>
+          </div><div class="n">3</div><h3>Você é avisada</h3><p>Resumo no WhatsApp toda manhã, com alertas de prova e lembretes de vacina. Sem abrir mais um app.</p></div>
       </div>
     </div>
   </div>
@@ -994,7 +1032,7 @@
 <section class="sec ia-sec" id="ia-captura">
   <div class="container">
     <div class="sec-head center">
-      <span class="eyebrow" style="justify-content:center;color:#2DC7B5"><span class="dot"></span>Como a IA entende você</span>
+      <span class="eyebrow" style="justify-content:center;color:#2DC7B5"><span class="dot"></span>Como o sistema entende você</span>
       <h2 style="color:#fff">Qualquer entrada.<br>Tudo organizado.</h2>
       <p class="lead" style="color:#8DC4BC">Foto, print, áudio, texto — não importa como você manda. A inteligência do Família em Dia lê, interpreta e organiza no calendário da família em segundos.</p>
     </div>
@@ -1006,13 +1044,14 @@
       <div class="txt">
         <span class="eyebrow" style="margin-bottom:16px;color:#2DC7B5"><span class="dot" style="background:#2DC7B5"></span>Captura inteligente</span>
         <h3 style="color:#fff">Foto da agenda escolar.<br>Calendário preenchido.</h3>
-        <p style="color:#8DC4BC" class="mob-hide">Fotografou a agenda da semana? Colou um print do grupo da turma? Só isso. A IA lê, interpreta e distribui cada compromisso para a criança certa, na categoria certa.</p>
+        <p style="color:#8DC4BC" class="mob-hide">Fotografou a agenda da semana? Colou um print do grupo da turma? Só isso. O sistema lê, interpreta e distribui cada compromisso para a criança certa, na categoria certa.</p>
         <ul class="feat-list" style="margin-top:20px;color:#8DC4BC">
           <li><span class="ck" style="background:rgba(45,199,181,.18);color:#2DC7B5">✓</span> Funciona com <b style="color:#E0F5F1">foto, print, texto ou áudio</b></li>
           <li><span class="ck" style="background:rgba(45,199,181,.18);color:#2DC7B5">✓</span> Reconhece <b style="color:#E0F5F1">datas, horários, locais e filhos</b> automaticamente</li>
           <li><span class="ck" style="background:rgba(45,199,181,.18);color:#2DC7B5">✓</span> Separa <b style="color:#E0F5F1">tarefas, provas e consultas</b> sem você tocar em nada</li>
           <li><span class="ck" style="background:rgba(45,199,181,.18);color:#2DC7B5">✓</span> Revise e confirme antes de salvar — <b style="color:#E0F5F1">você sempre decide</b></li>
         </ul>
+        <div class="sec-cta" style="text-align:left"><a href="#planos" class="btn btn-primary btn-lg">Quero organizar assim →</a></div>
       </div>
     </div>
     <div class="ia-flow" style="display:none">
@@ -1037,7 +1076,7 @@
           </div>
         </div>
         <div class="ia-result">
-          <div class="ia-res-label">✓ IA identificou 2 compromissos</div>
+          <div class="ia-res-label">✓ O sistema identificou 2 compromissos</div>
           <div class="ia-chips">
             <div class="ia-chip">📐 Prova de Mat. · Helena · Qui 10h</div>
             <div class="ia-chip">🎒 Levar jaleco · Helena · Ter</div>
@@ -1046,7 +1085,7 @@
         <div class="ia-body">
           <div class="ia-step-num">01</div>
           <h3>Fotografe a agenda escolar</h3>
-          <p>Aponte a câmera para o caderno, a cartilha ou o bilhete que veio na mochila. A IA lê o manuscrito, identifica as datas e cria os compromissos com filho, data e hora.</p>
+          <p>Aponte a câmera para o caderno, a cartilha ou o bilhete que veio na mochila. O sistema lê o manuscrito, identifica as datas e cria os compromissos com filho, data e hora.</p>
         </div>
       </div>
 
@@ -1069,7 +1108,7 @@
           </div>
         </div>
         <div class="ia-result">
-          <div class="ia-res-label">✓ IA transcreveu e organizou</div>
+          <div class="ia-res-label">✓ O sistema transcreveu e organizou</div>
           <div class="ia-chips">
             <div class="ia-chip">🩺 Consulta Pedro · Sex 14h</div>
             <div class="ia-chip">🎂 Festa da Lua · Sáb 16h</div>
@@ -1079,7 +1118,7 @@
         <div class="ia-body">
           <div class="ia-step-num">02</div>
           <h3>Grave um áudio na correria</h3>
-          <p>No carro, na fila da escola, no corredor da clínica — fale o que precisa lembrar, do jeito que vier na cabeça. A IA transcreve, entende o contexto e cria os eventos.</p>
+          <p>No carro, na fila da escola, no corredor da clínica — fale o que precisa lembrar, do jeito que vier na cabeça. O sistema transcreve, entende o contexto e cria os eventos.</p>
         </div>
       </div>
 
@@ -1182,6 +1221,7 @@
           <li><span class="ck">✓</span> Alertas de provas e consultas, e <b>doses de vacina pendentes</b></li>
           <li><span class="ck">✓</span> Você <b>não precisa abrir nenhum app</b></li>
         </ul>
+        <div class="sec-cta" style="text-align:left"><a href="#planos" class="btn btn-primary btn-lg">Ver planos →</a></div>
       </div>
     </div>
 
@@ -1201,6 +1241,7 @@
           <li><span class="ck">✓</span> Aviso de conflito: <b>"fulano já assumiu — deseja trocar?"</b></li>
           <li><span class="ck">✓</span> <b>Níveis de acesso</b> — você decide o que cada um pode editar</li>
         </ul>
+        <div class="sec-cta" style="text-align:left"><a href="#planos" class="btn btn-primary btn-lg">Testar 14 dias grátis →</a></div>
       </div>
       <div class="visual-wrap" style="flex-direction:column;gap:14px;align-items:center">
 
@@ -1322,90 +1363,10 @@
           </svg>
         </div>
         <h3>Cadastro e busca inteligente</h3>
-        <p>Organize sem digitar nada: a IA reconhece seus documentos e imagens — e você acha qualquer um em segundos por palavra-chave.</p>
+        <p>Organize sem digitar nada: o sistema reconhece seus documentos e imagens — e você acha qualquer um em segundos por palavra-chave.</p>
       </div>
     </div>
-  </div>
-</section>
-
-<!-- ============ (vi) A DIFERENÇA NO SEU DIA ============ -->
-<!-- ANTES / DEPOIS -->
-<section class="sec" style="background:var(--cream-2)">
-  <div class="container">
-    <div class="sec-head center">
-      <span class="eyebrow" style="justify-content:center"><span class="dot"></span>A diferença no seu dia</span>
-      <h2>Menos caos. Mais presença.</h2>
-    </div>
-    <div class="ad">
-      <div class="ad-card ad-before">
-        <h3 style="display:flex;align-items:center;gap:12px">
-          <span style="width:36px;height:36px;border-radius:10px;background:#F5C6BC;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" fill="#E2533F" opacity=".2"/><path d="M7 7l6 6M13 7l-6 6" stroke="#E2533F" stroke-width="2" stroke-linecap="round"/></svg>
-          </span>
-          Sem o Família em Dia
-        </h3>
-        <ul>
-          <li>
-            <span style="width:28px;height:28px;border-radius:8px;background:#FBEFE9;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="2" fill="#E2533F" opacity=".2"/><path d="M1 5h12" stroke="#E2533F" stroke-width="1.2"/><path d="M4 1v2M10 1v2" stroke="#E2533F" stroke-width="1.2" stroke-linecap="round"/><circle cx="4" cy="8" r="1" fill="#E2533F"/><circle cx="7" cy="8" r="1" fill="#E2533F"/><circle cx="10" cy="8" r="1" fill="#E2533F"/></svg>
-            </span>
-            Bilhetes, grupos e prints espalhados
-          </li>
-          <li>
-            <span style="width:28px;height:28px;border-radius:8px;background:#FBEFE9;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><ellipse cx="7" cy="6" rx="4" ry="4.5" fill="#E2533F" opacity=".2"/><path d="M5 6c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2" stroke="#E2533F" stroke-width="1.2" stroke-linecap="round"/><line x1="7" y1="10" x2="7" y2="12" stroke="#E2533F" stroke-width="1.2" stroke-linecap="round"/></svg>
-            </span>
-            Tudo na cabeça de uma pessoa só
-          </li>
-          <li>
-            <span style="width:28px;height:28px;border-radius:8px;background:#FBEFE9;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" fill="#E2533F" opacity=".15" stroke="#E2533F" stroke-width="1.2"/><path d="M7 4v3.5" stroke="#E2533F" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="10" r="1" fill="#E2533F"/></svg>
-            </span>
-            "Era hoje a prova? Quem busca?"
-          </li>
-          <li>
-            <span style="width:28px;height:28px;border-radius:8px;background:#FBEFE9;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" fill="none" stroke="#E2533F" stroke-width="1.2"/><path d="M7 4v4M5 10l4-6" stroke="#E2533F" stroke-width="1.2" stroke-linecap="round" opacity=".5"/><path d="M4.5 7.5l5-1" stroke="#E2533F" stroke-width="1.2" stroke-linecap="round"/></svg>
-            </span>
-            Vacina e prazos que passam batido
-          </li>
-        </ul>
-      </div>
-      <div class="ad-card ad-after">
-        <h3 style="display:flex;align-items:center;gap:12px">
-          <span style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" fill="#fff" opacity=".15"/><path d="M6.5 10l2.5 2.5 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          Com o Família em Dia
-        </h3>
-        <ul>
-          <li>
-            <span style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="3" fill="#7FE3D6" opacity=".3"/><path d="M4 7l2.5 2.5L10 5" stroke="#7FE3D6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Tudo num app, organizado pela IA
-          </li>
-          <li>
-            <span style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="3" fill="#7FE3D6" opacity=".3"/><path d="M4 7l2.5 2.5L10 5" stroke="#7FE3D6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Resumo diário no WhatsApp
-          </li>
-          <li>
-            <span style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="3" fill="#7FE3D6" opacity=".3"/><path d="M4 7l2.5 2.5L10 5" stroke="#7FE3D6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Logística combinada e ao vivo
-          </li>
-          <li>
-            <span style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="3" fill="#7FE3D6" opacity=".3"/><path d="M4 7l2.5 2.5L10 5" stroke="#7FE3D6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Alertas antes de cada prazo
-          </li>
-        </ul>
-      </div>
-    </div>
+    <div class="sec-cta"><a href="#planos" class="btn btn-primary btn-lg">Conhecer os planos →</a></div>
   </div>
 </section>
 
@@ -1453,7 +1414,7 @@
       <div class="pcard pop">
         <span class="ribbon">Recomendado</span>
         <h3>Família</h3>
-        <div class="desc">Você + quem ajuda, com IA e WhatsApp.</div>
+        <div class="desc">Você + quem ajuda, com o sistema inteligente e WhatsApp.</div>
         <div class="price">R$24,90<small>/mês</small></div>
         <div class="price-annual">No anual: R$19,90/mês &mdash; economize 20%</div>
         <div class="div"></div>
@@ -1521,8 +1482,8 @@
       <h2>Tudo o que você precisa saber.</h2>
     </div>
     <div class="faq">
-      <details class="qa" open><summary>Preciso digitar tudo manualmente?<span class="pl">+</span></summary><div class="a">Não. Você fotografa a agenda, manda um áudio, cola um print ou digita — e a IA transforma em compromissos organizados sozinha.</div></details>
-      <details class="qa"><summary>Funciona com mais de um filho?<span class="pl">+</span></summary><div class="a">Sim. Cada filho tem sua agenda, escola, saúde e documentos, e a IA identifica de qual filho é cada compromisso. O Básico tem até 2 filhos, o Família até 3 e o Plus, ilimitados.</div></details>
+      <details class="qa" open><summary>Preciso digitar tudo manualmente?<span class="pl">+</span></summary><div class="a">Não. Você fotografa a agenda, manda um áudio, cola um print ou digita — e o sistema transforma em compromissos organizados sozinha.</div></details>
+      <details class="qa"><summary>Funciona com mais de um filho?<span class="pl">+</span></summary><div class="a">Sim. Cada filho tem sua agenda, escola, saúde e documentos, e o sistema identifica de qual filho é cada compromisso. O Básico tem até 2 filhos, o Família até 3 e o Plus, ilimitados.</div></details>
       <details class="qa"><summary>E o outro pai/mãe ou a família?<span class="pl">+</span></summary><div class="a">Você compartilha o ambiente definindo o nível de acesso: só visualizar, editar apenas a logística (leva/busca) ou completo. Tudo atualiza em tempo real.</div></details>
       <details class="qa"><summary>Meus documentos ficam seguros?<span class="pl">+</span></summary><div class="a">Sim. Cada arquivo é isolado por família e baixado por links assinados e temporários. Ninguém de fora da sua família acessa.</div></details>
       <details class="qa"><summary>Preciso cadastrar o cartão?<span class="pl">+</span></summary><div class="a">Sim. O cartão é pedido no cadastro, mas nada é cobrado nos 14 dias de teste. Você recebe avisos 7 dias, 3 dias e 1 dia antes da primeira cobrança.</div></details>
