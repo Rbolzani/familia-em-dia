@@ -340,6 +340,7 @@
   .final{background:radial-gradient(120% 120% at 80% 0%,#16908A,#0F766E 45%,#0B4F4A);color:#fff;text-align:center}
   .final h2{font-size:clamp(32px,4.6vw,56px);color:#fff;margin-bottom:16px}.final h2 span{color:var(--peach)}
   .final .lead{color:#D7EEEA;max-width:560px;margin:0 auto 30px;font-size:19px}
+  .faixa-planos{padding-block:72px}
 
   /* footer */
   footer{background:var(--green-ink);color:#9FB8B3;padding:56px 0 30px}
@@ -1049,9 +1050,10 @@
         <p style="color:#5E9E98;font-size:16px;line-height:1.7;margin-bottom:36px">Sem digitação. Sem planilha. Sem esquecer nada.</p>
         <!-- Player mobile: vídeo full-width, só visível no mobile -->
         <div class="video-mobile-player" style="display:none;margin-bottom:28px;position:relative;width:100%;background:#000;border-radius:16px;overflow:hidden">
-          <video id="demo-video-mobile" playsinline controls style="width:100%;display:block;max-height:80vh;object-fit:contain">
+          <video id="demo-video-mobile" muted loop playsinline preload="metadata" style="width:100%;display:block;max-height:80vh;object-fit:contain">
             <source src="/marketing/assets/demo-familia-em-dia.mp4" type="video/mp4">
           </video>
+          <button type="button" id="demo-som-mobile" class="demo-som" aria-pressed="false"></button>
         </div>
 
         <a href="#planos" class="btn btn-primary btn-lg">Quero experimentar →</a>
@@ -1093,35 +1095,33 @@
       v.addEventListener('canplay', function(){ if(p) p.style.display='none'; });
       v.addEventListener('error', function(){ if(p) p.style.display='flex'; });
       if(v.readyState >= 3 && p) p.style.display='none';
-      // O vídeo começa sempre MUDO (decisão de 23/11/2026): som só quando a
-      // pessoa escolhe, pelo botão "Ativar som". A escolha dela (ligar ou
-      // tirar o som) é respeitada daí em diante.
-      var b = document.getElementById('demo-som'), escolheu = false, comecou = false;
-      var SOM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
-      var MUDO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6M16 9l6 6"/></svg>';
+    }
+    // Os dois vídeos (computador e celular) começam sempre MUDOS (decisão de
+    // 23/11/2026), quando aparecem na tela: som só quando a pessoa escolhe,
+    // pelo botão "Ativar som". A escolha dela (ligar ou tirar o som) é
+    // respeitada daí em diante. O vídeo pausa ao sair da tela.
+    var SOM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
+    var MUDO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6M16 9l6 6"/></svg>';
+    function video(vid, btn){
+      var v = document.getElementById(vid), b = document.getElementById(btn), comecou = false;
+      if(!v) return;
       function rotulo(){ if(!b) return; b.innerHTML = v.muted ? MUDO + 'Ativar som' : SOM + 'Tirar som'; b.classList.toggle('mudo', v.muted); b.setAttribute('aria-pressed', String(!v.muted)); }
-      function tocar(){
-        if(!escolheu) v.muted = true;
-        var pr = v.play();
-        if(pr && pr.catch) pr.catch(function(){ v.muted = true; v.play().catch(function(){}); rotulo(); });
+      function tocar(){ v.play().catch(function(){}); }
+      v.muted = true; rotulo();
+      if(b) b.addEventListener('click', function(){
+        v.muted = !v.muted;
+        if(!v.muted && v.paused) tocar();
         rotulo();
-      }
-      if(b){
-        rotulo();
-        b.addEventListener('click', function(){
-          escolheu = true;
-          if(v.muted){ v.muted = false; if(!comecou || v.paused) v.play().catch(function(){}); }
-          else { v.muted = true; }
-          rotulo();
-        });
-      }
+      });
       if(window.IntersectionObserver){
         new IntersectionObserver(function(es){ es.forEach(function(e){
-          if(e.isIntersecting){ if(!comecou){ comecou = true; tocar(); } else if(v.paused){ v.play().catch(function(){}); } }
-          else if(!v.paused){ v.pause(); }
+          if(e.isIntersecting){ comecou = true; if(v.paused) tocar(); }
+          else if(comecou && !v.paused){ v.pause(); }
         }); }, { threshold: 0.4 }).observe(v);
-      } else { v.muted = true; v.play().catch(function(){}); rotulo(); }
+      } else { tocar(); }
     }
+    video('demo-video', 'demo-som');
+    video('demo-video-mobile', 'demo-som-mobile');
   })();
 </script>
 
@@ -1144,7 +1144,7 @@
             <path d="M18.5 9l1 1 2-2" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h3>Captura por IA</h3><p>Foto, print, texto ou voz viram compromissos prontos, sem digitação manual.</p>
+        <h3>Captura por IA</h3><p>Foto, print, texto ou voz viram compromissos, sem digitar.</p>
       </div>
 
       <div class="fcard c-wa">
@@ -1156,7 +1156,7 @@
             <circle cx="14" cy="13" r="5.5" fill="none" stroke="#25D366" stroke-width="1.5" opacity=".5"/>
           </svg>
         </div>
-        <h3>Resumo no WhatsApp</h3><p>O que importa do dia chega todo dia às 7h, onde você já está.</p>
+        <h3>Resumo no WhatsApp</h3><p>O dia da família no seu WhatsApp, toda manhã.</p>
       </div>
 
       <div class="fcard c-rt">
@@ -1167,7 +1167,7 @@
             <circle cx="20" cy="8" r="3" fill="#6366F1" opacity=".8"/>
           </svg>
         </div>
-        <h3>Logística em tempo real</h3><p>Quem leva e quem busca, combinado entre os pais e a família, ao vivo.</p>
+        <h3>Logística em tempo real</h3><p>Quem leva e quem busca, combinado ao vivo.</p>
       </div>
 
       <div class="fcard c-cal">
@@ -1180,7 +1180,7 @@
             <rect x="16" y="18" width="4" height="4" rx="1.5" fill="#FF6B5C" opacity=".9"/>
           </svg>
         </div>
-        <h3>Escola, Médicos e Atividades</h3><p>Provas, consultas, vacinas e extracurriculares no mesmo calendário.</p>
+        <h3>Escola, Médicos e Atividades</h3><p>Provas, consultas, vacinas e atividades num só calendário.</p>
       </div>
 
       <div class="fcard c-doc">
@@ -1192,7 +1192,7 @@
             <path d="M18 4v5l3-2.5" stroke="#FF6B5C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
           </svg>
         </div>
-        <h3>Cofre de Documentos Inteligente</h3><p>RG, carteirinhas e contratos guardados com segurança. O sistema organiza tudo sem você digitar e encontra qualquer documento ou imagem por palavra-chave.</p>
+        <h3>Cofre de Documentos Inteligente</h3><p>Guardados com segurança, organizados sozinhos e achados em segundos.</p>
       </div>
 
       <div class="fcard c-fam">
@@ -1207,7 +1207,7 @@
             <path d="M13 17l2-1.5 2 1.5" stroke="#9333EA" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".5"/>
           </svg>
         </div>
-        <h3>Vários filhos e responsáveis</h3><p>Cada filho, cada responsável — com níveis de acesso que você controla.</p>
+        <h3>Vários filhos e responsáveis</h3><p>Cada um com o acesso que você definir.</p>
       </div>
 
     </div>
@@ -1534,6 +1534,14 @@ if (window.IntersectionObserver) {
 </section>
 
 <!-- PLANOS -->
+<!-- FAIXA DE ABERTURA DOS PLANOS -->
+<section class="sec final faixa-planos" id="cadastro">
+  <div class="container">
+    <h2 class="display">Tire a rotina da sua cabeça.<br><span>Fique com seus filhos.</span></h2>
+    <p class="lead" style="margin-bottom:0">Em 2 minutos você sente o peso saindo das suas costas.</p>
+  </div>
+</section>
+
 <section class="sec" id="planos" style="background:var(--cream-2)">
   <div class="container">
     <div class="sec-head center">
@@ -1642,16 +1650,6 @@ if (window.IntersectionObserver) {
       <details class="qa"><summary>O que acontece se eu cancelar?<span class="pl">+</span></summary><div class="a">Você usa até o fim do período (ou do teste). Depois, a conta fica pausada: dá para ver tudo por 90 dias e reativar quando quiser.</div></details>
       <details class="qa"><summary>Funciona no celular e no computador?<span class="pl">+</span></summary><div class="a">Sim, sempre sincronizado. Celular para a correria do dia, desktop para planejar a semana.</div></details>
     </div>
-  </div>
-</section>
-
-<!-- FINAL CTA -->
-<section class="sec final" id="cadastro">
-  <div class="container">
-    <h2 class="display">Tire a rotina da sua cabeça.<br><span>Fique com seus filhos.</span></h2>
-    <p class="lead">Em 2 minutos você sente o peso saindo das suas costas.</p>
-    <a href="#planos" class="btn btn-white btn-lg">Escolher meu plano →</a>
-    <p style="color:#CFEAE6;margin-top:16px;font-size:13.5px">14 dias grátis · Cancele quando quiser</p>
   </div>
 </section>
 
