@@ -1093,16 +1093,15 @@
       v.addEventListener('canplay', function(){ if(p) p.style.display='none'; });
       v.addEventListener('error', function(){ if(p) p.style.display='flex'; });
       if(v.readyState >= 3 && p) p.style.display='none';
-      // Navegadores só deixam um vídeo começar COM som se a pessoa já interagiu
-      // com a página (clique, tecla). Por isso: tenta com som; se for bloqueado,
-      // toca mudo e o botão "Ativar som" fica em destaque. A escolha da pessoa
-      // (ligar ou tirar o som) é respeitada daí em diante.
+      // O vídeo começa sempre MUDO (decisão de 23/11/2026): som só quando a
+      // pessoa escolhe, pelo botão "Ativar som". A escolha dela (ligar ou
+      // tirar o som) é respeitada daí em diante.
       var b = document.getElementById('demo-som'), escolheu = false, comecou = false;
       var SOM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
       var MUDO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6M16 9l6 6"/></svg>';
       function rotulo(){ if(!b) return; b.innerHTML = v.muted ? MUDO + 'Ativar som' : SOM + 'Tirar som'; b.classList.toggle('mudo', v.muted); b.setAttribute('aria-pressed', String(!v.muted)); }
       function tocar(){
-        if(!escolheu) v.muted = false;
+        if(!escolheu) v.muted = true;
         var pr = v.play();
         if(pr && pr.catch) pr.catch(function(){ v.muted = true; v.play().catch(function(){}); rotulo(); });
         rotulo();
