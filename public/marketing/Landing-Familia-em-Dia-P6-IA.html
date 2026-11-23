@@ -351,9 +351,9 @@
   footer ul{list-style:none;display:flex;flex-direction:column;gap:9px}
   footer ul a{font-size:14px;color:#9FB8B3}footer ul a:hover{color:#fff}
   /* Botão de som do vídeo (computador) */
-  .demo-som{position:absolute;z-index:3;right:16px;bottom:16px;display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:10px 16px;background:rgba(8,34,31,.78);color:#fff;font:700 14px var(--sans,Inter),sans-serif;cursor:pointer;backdrop-filter:blur(6px);box-shadow:0 8px 20px rgba(0,0,0,.35);transition:background .2s}
+  .demo-som{position:absolute;z-index:3;right:16px;bottom:16px;display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border:0;border-radius:50%;padding:0;background:rgba(8,34,31,.78);color:#fff;font:700 14px var(--sans,Inter),sans-serif;cursor:pointer;backdrop-filter:blur(6px);box-shadow:0 8px 20px rgba(0,0,0,.35);transition:background .2s}
   .demo-som:hover{background:rgba(8,34,31,.92)}
-  .demo-som svg{width:18px;height:18px}
+  .demo-som svg{width:22px;height:22px}
   .demo-som.mudo{background:var(--coral);animation:somPulsa 2s ease-in-out infinite}
   @keyframes somPulsa{0%,100%{box-shadow:0 8px 20px rgba(0,0,0,.35),0 0 0 0 rgba(255,107,92,.45)}50%{box-shadow:0 8px 20px rgba(0,0,0,.35),0 0 0 10px rgba(255,107,92,0)}}
   /* Redes sociais no rodapé: só o ícone, em quadrado de cantos arredondados */
@@ -1105,7 +1105,7 @@
     function video(vid, btn){
       var v = document.getElementById(vid), b = document.getElementById(btn), comecou = false;
       if(!v) return;
-      function rotulo(){ if(!b) return; b.innerHTML = v.muted ? MUDO + 'Ativar som' : SOM + 'Tirar som'; b.classList.toggle('mudo', v.muted); b.setAttribute('aria-pressed', String(!v.muted)); }
+      function rotulo(){ if(!b) return; b.innerHTML = v.muted ? MUDO : SOM; b.setAttribute('aria-label', v.muted ? 'Ativar som' : 'Tirar som'); b.title = v.muted ? 'Ativar som' : 'Tirar som'; b.classList.toggle('mudo', v.muted); b.setAttribute('aria-pressed', String(!v.muted)); }
       function tocar(){ v.play().catch(function(){}); }
       v.muted = true; rotulo();
       if(b) b.addEventListener('click', function(){
@@ -1538,7 +1538,8 @@ if (window.IntersectionObserver) {
 <section class="sec final faixa-planos" id="cadastro">
   <div class="container">
     <h2 class="display">Tire a rotina da sua cabeça.<br><span>Fique com seus filhos.</span></h2>
-    <p class="lead" style="margin-bottom:0">Em 2 minutos você sente o peso saindo das suas costas.</p>
+    <p class="lead">Por menos de R$ 1 por dia você tira o peso das suas costas. Contrate em menos de 2 minutos!</p>
+    <a href="#planos" class="btn btn-white btn-lg">Contratar →</a>
   </div>
 </section>
 
