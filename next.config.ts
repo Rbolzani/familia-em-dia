@@ -103,6 +103,21 @@ const nextConfig: NextConfig = {
   // Libera acesso ao dev server pela rede local (celular no mesmo Wi-Fi).
   // Afeta apenas o ambiente de desenvolvimento.
   allowedDevOrigins: ["192.168.0.20"],
+  // O endereço antigo da Vercel (familia-em-foco.vercel.app) servia o site e o
+  // app inteiros, em paralelo ao domínio. Visitas a ele leva ao www, que é onde
+  // a Vercel Analytics, o Google e a Meta devem enxergar o tráfego. /api fica
+  // de fora: um webhook ou cron apontado para o endereço antigo não segue
+  // redirecionamento e passaria a falhar em silêncio.
+  async redirects() {
+    return [
+      {
+        source: "/:caminho((?!api/|_vercel/).*)",
+        has: [{ type: "host", value: "familia-em-foco.vercel.app" }],
+        destination: "https://www.familiaemdia.com.br/:caminho",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
