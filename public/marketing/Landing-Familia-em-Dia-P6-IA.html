@@ -655,6 +655,17 @@
   @media (max-width:900px){.vt-inv{grid-template-columns:1fr}.vtw-logo{right:-6px;top:-14px;width:54px;height:54px}.vtw-logo svg{width:34px;height:34px}}
   @media (prefers-reduced-motion:reduce){#produto *{animation:none !important;transition:none !important}}
 
+  /* Só no celular (23/11/2026): texto do vídeo mais curto e as situações da vitrine em 2 por linha,
+     para a pessoa ver a animação enquanto as situações mudam. O computador não muda. */
+  @media (max-width:760px){
+    .so-desk{display:none !important}
+    .vt-grid{gap:22px !important}
+    .vt-chips{display:grid !important;grid-template-columns:1fr 1fr;gap:8px !important;margin-bottom:16px !important}
+    .vt-chip{justify-content:center;text-align:center;white-space:normal;line-height:1.25;padding:8px 6px !important;font-size:12px !important;gap:4px !important;border-radius:14px !important;letter-spacing:-.1px}
+    .vt-chip:last-child:nth-child(odd){grid-column:1 / -1;justify-self:center;min-width:50%}
+    .vt-frase{font-size:18px !important;min-height:0 !important;margin-bottom:6px !important}
+  }
+
   /* RESPONSIVE — TABLET */
   @media (max-width:980px){
     .hero-grid{grid-template-columns:1fr;gap:20px;padding:72px 0 80px}
@@ -1063,8 +1074,8 @@
       <div class="video-text-col">
         <span class="eyebrow" style="color:#7FE3D6;margin-bottom:16px;display:inline-flex"><span class="dot"></span>Um assistente inteligente para aliviar a sobrecarga</span>
         <h2 style="color:#FFF9F2;font-size:clamp(32px,4vw,52px);margin-bottom:20px">Muito mais que uma agenda.</h2>
-        <p style="color:#8DC4BC;font-size:19px;line-height:1.75;margin-bottom:28px">Foto da agenda, mensagem de voz no carro, print do grupo da escola — o sistema captura, interpreta e organiza tudo enquanto você vive a sua rotina.</p>
-        <p style="color:#5E9E98;font-size:16px;line-height:1.7;margin-bottom:36px">Sem digitação. Sem planilha. Sem esquecer nada.</p>
+        <p style="color:#8DC4BC;font-size:19px;line-height:1.75;margin-bottom:28px">Foto da agenda, mensagem de voz no carro, print do grupo da escola — o sistema captura, interpreta e organiza tudo<span class="so-desk"> enquanto você vive a sua rotina</span>.</p>
+        <p class="so-desk" style="color:#5E9E98;font-size:16px;line-height:1.7;margin-bottom:36px">Sem digitação. Sem planilha. Sem esquecer nada.</p>
         <!-- Player mobile: vídeo full-width, só visível no mobile -->
         <div class="video-mobile-player" style="display:none;margin-bottom:28px;position:relative;width:100%;background:#000;border-radius:16px;overflow:hidden">
           <video id="demo-video-mobile" muted loop playsinline preload="metadata" style="width:100%;display:block;max-height:80vh;object-fit:contain">
